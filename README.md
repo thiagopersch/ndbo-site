@@ -18,8 +18,7 @@ Esse comando faz, em sequência:
 2. Sincroniza o schema do Prisma com o banco (`prisma db push`).
 3. Popula o banco com dados iniciais (`prisma/seed.ts`): conta `1`/`1` (Account Manager,
    compatível com o cliente de jogo) e conta admin do portal (grupo 6 — administrador
-   master). Defina `SEED_ADMIN_NAME` e `SEED_ADMIN_PASSWORD` no `.env` para trocar nome e
-   senha (padrão: `tiagopersch` / `AylaAyuni0717@`).
+   master). Defina `SEED_ADMIN_NAME` e `SEED_ADMIN_PASSWORD` no `.env` para o administrador.
 4. Inicia a aplicação em `npm run dev` (http://localhost:3000).
 
 Pressione `Ctrl+C` para encerrar a aplicação (o container do banco continua rodando; use
