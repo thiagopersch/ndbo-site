@@ -1,0 +1,40 @@
+services:
+  ndbo-db:
+    image: mysql:8.4
+    container_name: ndbo-db
+    restart: unless-stopped
+    # mysql_native_password vem desligado por padrão no MySQL 8.4 — precisa disso
+    # porque o cliente MySQL antigo do TFS 0.4 não suporta caching_sha2_password.
+    command: --mysql-native-password=ON
+    environment:
+      MYSQL_DATABASE: ndbo
+      MYSQL_ROOT_PASSWORD: ndbo
+    ports:
+      - "3307:3306"
+    volumes:
+      - ndbo-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ndbo-web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ndbo-web
+    restart: unless-stopped
+    depends_on:
+      ndbo-db:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: mysql://root:root@ndbo-db:3306/ndbo
+      NEXTAUTH_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+
+volumes:
+  ndbo-db-data:

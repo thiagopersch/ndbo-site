@@ -1,0 +1,29 @@
+import { NextResponse } from "next/server";
+
+import { requireAdminSession } from "@/lib/api-guard";
+import { prisma } from "@/lib/prisma";
+import { monsterRowToFormInput } from "@/lib/monster-mapper";
+import { monsterFileName, monsterToXml } from "@/lib/monster-xml";
+
+type Params = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, { params }: Params) {
+  const { response } = await requireAdminSession();
+  if (response) return response;
+
+  const { id } = await params;
+  const monster = await prisma.monster.findUnique({ where: { id: Number(id) } });
+
+  if (!monster) {
+    return NextResponse.json({ error: "Monstro não encontrado." }, { status: 404 });
+  }
+
+  const xml = monsterToXml(monsterRowToFormInput(monster));
+
+  return new Response(xml + "\n", {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${monsterFileName(monster.name)}"`,
+    },
+  });
+}

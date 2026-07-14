@@ -1,0 +1,1107 @@
+// Schema do banco de dados do OTServer (accounts/players/guilds/houses/...)
+// adaptado do schema legado (SQLite/MySQL) descrito em AGENTS.md.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model ServerConfig {
+  config String @id @db.VarChar(35)
+  value  String @db.VarChar(255)
+
+  @@map("server_config")
+}
+
+model ServerMotd {
+  id      Int
+  worldId Int    @default(0) @map("world_id")
+  text    String @db.Text
+
+  @@id([id, worldId])
+  @@map("server_motd")
+}
+
+model ServerRecord {
+  record    Int
+  worldId   Int @default(0) @map("world_id")
+  timestamp Int
+
+  @@id([record, worldId, timestamp])
+  @@map("server_record")
+}
+
+model ServerReport {
+  id        Int    @id @default(autoincrement())
+  worldId   Int    @default(0) @map("world_id")
+  playerId  Int    @default(0) @map("player_id")
+  posx      Int    @default(0)
+  posy      Int    @default(0)
+  posz      Int    @default(0)
+  timestamp Int    @default(0)
+  report    String @db.Text
+  reads     Int    @default(0)
+
+  @@map("server_reports")
+}
+
+/// Conta do jogador. Login web e do cliente de jogo usam `name` + `password` (SHA-1).
+model Account {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique @db.VarChar(255)
+  password String  @db.VarChar(255)
+  premdays Int     @default(0)
+  lastday  Int     @default(0)
+  email    String  @default("") @db.VarChar(255)
+  key      String  @default("0") @db.VarChar(32)
+  blocked  Boolean @default(false)
+  warnings Int     @default(0)
+  groupId  Int     @default(1) @map("group_id")
+  salt     String  @default("") @db.VarChar(255)
+
+  /// Só usado pelo portal (analytics do dashboard) — o engine do OTServer não escreve nela.
+  createdAt DateTime @default(now()) @map("created_at")
+
+  players        Player[]
+  accountViplist AccountVipList[]
+
+  @@map("accounts")
+}
+
+model Player {
+  id                Int     @id @default(autoincrement())
+  name              String  @unique @db.VarChar(255)
+  worldId           Int     @default(0) @map("world_id")
+  groupId           Int     @map("group_id")
+  accountId         Int     @map("account_id")
+  rankId            Int     @map("rank_id")
+  level             Int     @default(1)
+  vocation          Int     @default(0)
+  health            Int     @default(250)
+  healthmax         Int     @default(250)
+  experience        BigInt  @default(0)
+  lookbody          Int     @default(10)
+  lookfeet          Int     @default(10)
+  lookhead          Int     @default(10)
+  looklegs          Int     @default(10)
+  looktype          Int     @default(136)
+  lookaddons        Int     @default(0)
+  maglevel          Int     @default(0)
+  mana              Int     @default(250)
+  manamax           Int     @default(250)
+  manaspent         BigInt  @default(0)
+  soul              Int     @default(100)
+  townId            Int     @map("town_id")
+  posx              Int     @default(0)
+  posy              Int     @default(0)
+  posz              Int     @default(0)
+  conditions        Bytes
+  cap               Int     @default(500)
+  sex               Int     @default(0)
+  lastlogin         Int     @default(0)
+  lastip            Int     @default(0)
+  save              Boolean @default(true)
+  skull             Int     @default(0)
+  skulltime         Int     @default(0)
+  guildnick         String  @default("") @db.VarChar(255)
+  lastlogout        Int     @default(0)
+  blessings         Int     @default(0)
+  balance           Int     @default(0)
+  stamina           BigInt  @default(151200000)
+  direction         Int     @default(2)
+  lossExperience    Int     @default(100) @map("loss_experience")
+  lossMana          Int     @default(100) @map("loss_mana")
+  lossSkills        Int     @default(100) @map("loss_skills")
+  lossContainers    Int     @default(100) @map("loss_containers")
+  lossItems         Int     @default(100) @map("loss_items")
+  premend           Int     @default(0)
+  online            Int     @default(0) @db.TinyInt
+  marriage          Int     @default(0)
+  promotion         Int     @default(0)
+  deleted           Int     @default(0)
+  description       String  @default("") @db.VarChar(255)
+  cast              Int     @default(0) @db.TinyInt
+  castViewers       Int     @default(0)
+  castDescription   String  @default("") @db.VarChar(255)
+  healthSkill       Int     @default(0) @map("health_skill")
+  manaSkill         Int     @default(0) @map("mana_skill")
+  bendSkill         Int     @default(0) @map("bend_skill")
+  dodgeSkill        Int     @default(0) @map("dodge_skill")
+  resets            Int     @default(0)
+  skillPoints       Int     @default(0) @map("skill_points")
+  onlineTime        Int     @default(0) @map("online_time")
+  age               Int     @default(0)
+  ageMinutes        Int     @default(0) @map("age_minutes")
+  unlockedVocations String  @default("") @map("unlocked_vocations") @db.VarChar(255)
+  dodge             Int     @default(0)
+  critical          Int     @default(0)
+  lookmount         Int     @default(0)
+  lookwings         Int     @default(0)
+  lookaura          Int     @default(0)
+  lookshader        Int     @default(0)
+  lookhealthbar     Int     @default(0)
+  lookmanabar       Int     @default(0)
+
+  /// Só usado pelo portal (analytics do dashboard) — o engine do OTServer não escreve nela.
+  createdAt DateTime @default(now()) @map("created_at")
+
+  account          Account                  @relation(fields: [accountId], references: [id])
+  accountViplist   AccountVipList[]
+  guildsOwned      Guild[]
+  guildInvites     GuildInvite[]
+  playerDeaths     PlayerDeath[]
+  playerKillers    PlayerKiller[]
+  playerDepotitems PlayerDepotItem[]
+  playerNamelocks  PlayerNamelock[]
+  playerSkills     PlayerSkill[]
+  playerStorage    PlayerStorage[]
+  playerViplist    PlayerVipList[]          @relation("PlayerVipListPlayer")
+  playerViplistVip PlayerVipList[]          @relation("PlayerVipListVip")
+  playerItems      PlayerItem[]
+  playerSpells     PlayerSpell[]
+  vocationStats    PlayerVocationStats[]
+  vocationSkills   PlayerVocationSkills[]
+  vocationRanks    PlayerVocationRank[]
+  dailyRewards     PlayerDailyReward[]
+  dailyRewardBonus PlayerDailyRewardBonus[]
+  skillPointsVoc   PlayerSkillPoints[]
+  skillUpgrades    PlayerSkillUpgrades[]
+  extoutfitUnlocks PlayerExtOutfitUnlock[]
+  houseAuctions    HouseAuctions[]
+  tasks            PlayerTask[]
+  taskPoints       PlayerTaskPoints?
+
+  @@unique([name, deleted])
+  @@map("players")
+}
+
+model AccountVipList {
+  accountId Int @map("account_id")
+  worldId   Int @default(0) @map("world_id")
+  playerId  Int @map("player_id")
+
+  account Account @relation(fields: [accountId], references: [id])
+  player  Player  @relation(fields: [playerId], references: [id])
+
+  @@id([accountId, playerId])
+  @@map("account_viplist")
+}
+
+model GlobalStorage {
+  key     Int
+  worldId Int    @default(0) @map("world_id")
+  value   String @default("0") @db.VarChar(255)
+
+  @@id([key, worldId])
+  @@map("global_storage")
+}
+
+model Guild {
+  id           Int    @id @default(autoincrement())
+  worldId      Int    @default(0) @map("world_id")
+  name         String @db.VarChar(255)
+  ownerId      Int    @map("ownerid")
+  creationdata Int
+  checkdata    Int
+  motd         String @default("") @db.VarChar(255)
+
+  owner      Player        @relation(fields: [ownerId], references: [id])
+  invites    GuildInvite[]
+  ranks      GuildRank[]
+  wars       GuildWar[]    @relation("GuildWars")
+  enemyWars  GuildWar[]    @relation("EnemyWars")
+  guildKills GuildKill[]
+
+  @@unique([name, worldId])
+  @@map("guilds")
+}
+
+model GuildWar {
+  id         Int @id @default(autoincrement())
+  guildId    Int @map("guild_id")
+  enemyId    Int @map("enemy_id")
+  begin      Int @default(0)
+  end        Int @default(0)
+  frags      Int @default(0)
+  payment    Int @default(0)
+  guildKills Int @default(0) @map("guild_kills")
+  enemyKills Int @default(0) @map("enemy_kills")
+  status     Int @default(0) @db.TinyInt
+
+  guild Guild       @relation("GuildWars", fields: [guildId], references: [id], onDelete: Cascade)
+  enemy Guild       @relation("EnemyWars", fields: [enemyId], references: [id], onDelete: Cascade)
+  kills GuildKill[]
+
+  @@map("guild_wars")
+}
+
+model GuildKill {
+  id      Int @id @default(autoincrement())
+  guildId Int @map("guild_id")
+  warId   Int @map("war_id")
+  deathId Int @map("death_id")
+
+  guild Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  war   GuildWar    @relation(fields: [warId], references: [id], onDelete: Cascade)
+  death PlayerDeath @relation(fields: [deathId], references: [id], onDelete: Cascade)
+
+  @@map("guild_kills")
+}
+
+model GuildInvite {
+  playerId Int @map("player_id")
+  guildId  Int @map("guild_id")
+
+  player Player @relation(fields: [playerId], references: [id])
+  guild  Guild  @relation(fields: [guildId], references: [id])
+
+  @@id([playerId, guildId])
+  @@map("guild_invites")
+}
+
+model GuildRank {
+  id      Int    @id @default(autoincrement())
+  guildId Int    @map("guild_id")
+  name    String @db.VarChar(255)
+  level   Int
+
+  guild Guild @relation(fields: [guildId], references: [id])
+
+  @@map("guild_ranks")
+}
+
+model House {
+  id          Int
+  worldId     Int     @default(0) @map("world_id")
+  owner       Int
+  paid        Int     @default(0)
+  warnings    Int     @default(0)
+  lastwarning Int     @default(0)
+  name        String  @db.VarChar(255)
+  town        Int     @default(0)
+  size        Int     @default(0)
+  price       Int     @default(0)
+  rent        Int     @default(0)
+  doors       Int     @default(0)
+  beds        Int     @default(0)
+  tiles       Int     @default(0)
+  guild       Boolean @default(false)
+  clear       Boolean @default(false)
+
+  lists        HouseList[]
+  houseData    HouseData?
+  houseAuction HouseAuctions?
+
+  @@id([id, worldId])
+  @@map("houses")
+}
+
+model HouseList {
+  houseId Int    @map("house_id")
+  worldId Int    @default(0) @map("world_id")
+  listid  Int
+  list    String @db.Text
+
+  house House @relation(fields: [houseId, worldId], references: [id, worldId])
+
+  @@id([houseId, worldId, listid])
+  @@map("house_lists")
+}
+
+model HouseData {
+  houseId Int   @map("house_id")
+  worldId Int   @default(0) @map("world_id")
+  data    Bytes
+
+  house House @relation(fields: [houseId, worldId], references: [id, worldId])
+
+  @@id([houseId, worldId])
+  @@map("house_data")
+}
+
+model HouseAuctions {
+  houseId  Int @map("house_id")
+  worldId  Int @default(0) @map("world_id")
+  playerId Int @map("player_id")
+  bid      Int @default(0)
+  limit    Int @default(0)
+  endtime  Int @default(0)
+
+  house  House  @relation(fields: [houseId, worldId], references: [id, worldId])
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([houseId, worldId])
+  @@map("house_auctions")
+}
+
+model PlayerDeath {
+  id       Int @id @default(autoincrement())
+  playerId Int @map("player_id")
+  date     Int
+  level    Int
+
+  player     Player      @relation(fields: [playerId], references: [id])
+  killers    Killer[]
+  guildKills GuildKill[]
+
+  @@map("player_deaths")
+}
+
+model Killer {
+  id          Int     @id @default(autoincrement())
+  deathId     Int     @map("death_id")
+  finalHit    Boolean @default(false) @map("final_hit")
+  unjustified Boolean @default(false)
+  war         Int     @default(0)
+
+  death              PlayerDeath         @relation(fields: [deathId], references: [id])
+  playerKillers      PlayerKiller[]
+  environmentKillers EnvironmentKiller[]
+
+  @@map("killers")
+}
+
+model PlayerKiller {
+  killId   Int @map("kill_id")
+  playerId Int @map("player_id")
+
+  killer Killer @relation(fields: [killId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([killId, playerId])
+  @@map("player_killers")
+}
+
+model EnvironmentKiller {
+  killId Int    @map("kill_id")
+  name   String @db.VarChar(255)
+
+  killer Killer @relation(fields: [killId], references: [id])
+
+  @@id([killId, name])
+  @@map("environment_killers")
+}
+
+model PlayerDepotItem {
+  playerId   Int   @map("player_id")
+  sid        Int
+  pid        Int   @default(0)
+  itemtype   Int
+  count      Int   @default(0)
+  attributes Bytes
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([playerId, sid])
+  @@map("player_depotitems")
+}
+
+model PlayerNamelock {
+  playerId Int    @map("player_id")
+  name     String @db.VarChar(255)
+  newName  String @map("new_name") @db.VarChar(255)
+  date     Int    @default(0)
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([playerId, name])
+  @@map("player_namelocks")
+}
+
+model PlayerSkill {
+  playerId Int @map("player_id")
+  skillid  Int
+  value    Int @default(0)
+  count    Int @default(0)
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([playerId, skillid])
+  @@map("player_skills")
+}
+
+model PlayerStorage {
+  playerId Int    @map("player_id")
+  key      Int
+  value    String @default("0") @db.VarChar(255)
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([playerId, key])
+  @@map("player_storage")
+}
+
+model PlayerVipList {
+  playerId Int @map("player_id")
+  vipId    Int @map("vip_id")
+
+  player Player @relation("PlayerVipListPlayer", fields: [playerId], references: [id])
+  vip    Player @relation("PlayerVipListVip", fields: [vipId], references: [id])
+
+  @@id([playerId, vipId])
+  @@map("player_viplist")
+}
+
+model Tile {
+  id      Int
+  worldId Int @default(0) @map("world_id")
+  houseId Int @map("house_id")
+  x       Int
+  y       Int
+  z       Int
+
+  @@id([id, worldId])
+  @@map("tiles")
+}
+
+model TileItem {
+  tileId     Int   @map("tile_id")
+  worldId    Int   @default(0) @map("world_id")
+  sid        Int
+  pid        Int   @default(0)
+  itemtype   Int
+  count      Int   @default(0)
+  attributes Bytes
+
+  @@id([tileId, worldId, sid])
+  @@map("tile_items")
+}
+
+model PlayerItem {
+  playerId   Int   @map("player_id")
+  sid        Int
+  pid        Int   @default(0)
+  itemtype   Int
+  count      Int   @default(0)
+  attributes Bytes
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([playerId, sid])
+  @@map("player_items")
+}
+
+model PlayerSpell {
+  playerId Int    @map("player_id")
+  name     String @db.VarChar(255)
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([playerId, name])
+  @@map("player_spells")
+}
+
+/// Banimentos de contas/personagens/IPs (`type`: 1=IP, 2=player, 3=account, 4=notation, 5=namelock).
+model Ban {
+  id        Int     @id @default(autoincrement())
+  type      Int
+  value     Int
+  param     Int     @default(-1)
+  active    Boolean @default(true)
+  expires   Int
+  added     Int
+  adminId   Int     @default(0) @map("admin_id")
+  comment   String  @db.Text
+  reason    Int     @default(0)
+  action    Int     @default(0)
+  statement String  @default("") @db.VarChar(255)
+
+  @@map("bans")
+}
+
+model Lottery {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.Text
+  item      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([name(length: 191)])
+  @@map("lottery")
+}
+
+model PlayerVocationStats {
+  playerId   Int    @map("player_id")
+  vocationId Int    @map("vocation_id")
+  level      Int    @default(1)
+  experience BigInt @default(0)
+  healthmax  Int    @default(150)
+  manamax    Int    @default(150)
+  maglevel   Int    @default(0)
+  manaspent  BigInt @default(0)
+  dodge      Int    @default(0)
+  critical   Int    @default(0)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, vocationId])
+  @@map("player_vocation_stats")
+}
+
+model PlayerVocationSkills {
+  playerId   Int    @map("player_id")
+  vocationId Int    @map("vocation_id")
+  skillid    Int
+  value      Int    @default(10)
+  count      BigInt @default(0)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, vocationId, skillid])
+  @@map("player_vocation_skills")
+}
+
+model PlayerVocationRank {
+  id         Int @id @default(autoincrement())
+  playerId   Int @map("player_id")
+  vocationId Int @map("vocation_id")
+  rank       Int @default(1) @db.TinyInt
+  stars      Int @default(0) @db.TinyInt
+  totalStars Int @default(0) @map("total_stars") @db.SmallInt
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, vocationId], name: "idx_player_vocation_ranks")
+  @@map("player_vocation_ranks")
+}
+
+model PlayerDailyReward {
+  playerId  Int @map("player_id")
+  day       Int @db.TinyInt
+  month     Int @db.TinyInt
+  year      Int
+  itemId    Int @map("item_id")
+  count     Int
+  timestamp Int
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, day, month, year])
+  @@map("player_daily_rewards")
+}
+
+model DailyRewardsMonthly {
+  month    Int @db.TinyInt
+  year     Int @db.SmallInt
+  day      Int @db.TinyInt
+  itemId   Int @map("item_id")
+  count    Int
+  clientId Int @default(0) @map("client_id")
+
+  @@id([month, year, day])
+  @@map("daily_rewards_monthly")
+}
+
+model DailyRewardsBonusMonthly {
+  month     Int @db.TinyInt
+  year      Int @db.SmallInt
+  streakDay Int @map("streak_day") @db.TinyInt
+  itemId    Int @map("item_id")
+  count     Int
+  clientId  Int @default(0) @map("client_id")
+
+  @@id([month, year, streakDay])
+  @@map("daily_rewards_bonus_monthly")
+}
+
+model PlayerDailyRewardBonus {
+  playerId  Int @map("player_id")
+  month     Int @db.TinyInt
+  year      Int @db.SmallInt
+  streakDay Int @map("streak_day") @db.TinyInt
+  claimedAt Int @default(0) @map("claimed_at")
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, month, year, streakDay])
+  @@map("player_daily_reward_bonus")
+}
+
+model PlayerSkillPoints {
+  playerId        Int @map("player_id")
+  vocationId      Int @map("vocation_id")
+  availablePoints Int @default(0) @map("available_points")
+  spentPoints     Int @default(0) @map("spent_points")
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, vocationId])
+  @@map("player_skill_points")
+}
+
+model PlayerSkillUpgrades {
+  playerId     Int    @map("player_id")
+  vocationId   Int    @map("vocation_id")
+  skillName    String @map("skill_name") @db.VarChar(50)
+  currentLevel Int    @default(0) @map("current_level")
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, vocationId, skillName])
+  @@map("player_skill_upgrades")
+}
+
+model PlayerExtOutfitUnlock {
+  playerId Int    @map("player_id")
+  type     String @db.VarChar(20)
+  id       Int
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, type, id])
+  @@map("player_extoutfit_unlocks")
+}
+
+model MonsterBoost {
+  id      Int      @id @default(autoincrement())
+  monster String   @default("0") @db.VarChar(255)
+  loot    Int      @default(0)
+  exp     Int      @default(0)
+  date    DateTime @default(now())
+
+  @@map("monster_boost")
+}
+
+// ---------------------------------------------------------------------------
+// Modelos específicos do portal web (não fazem parte do schema legado do
+// OTServer). Suportam recuperação de conta, auditoria, logs e posts do site.
+// ---------------------------------------------------------------------------
+
+/// Token de recuperação de senha por e-mail, vinculado a uma `Account`.
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  accountId Int       @map("account_id")
+  token     String    @unique @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([accountId])
+  @@map("password_reset_tokens")
+}
+
+/// Trilha de auditoria das ações administrativas (quem fez o quê e quando).
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  accountId Int?     @map("account_id")
+  action    String   @db.VarChar(100)
+  entity    String   @db.VarChar(100)
+  entityId  String?  @map("entity_id") @db.VarChar(100)
+  metadata  Json?
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([accountId])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+/// Log estruturado de eventos da aplicação (erros, autenticação, jobs, etc).
+model AppLog {
+  id        Int      @id @default(autoincrement())
+  level     String   @db.VarChar(20)
+  message   String   @db.Text
+  context   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([level, createdAt])
+  @@map("app_logs")
+}
+
+/// Posts/notícias do site, gerenciados por administradores (`group_id = 6`).
+model Post {
+  id          Int       @id @default(autoincrement())
+  authorId    Int       @map("author_id")
+  title       String    @db.VarChar(255)
+  slug        String    @unique @db.VarChar(255)
+  excerpt     String?   @db.VarChar(500)
+  content     String    @db.Text
+  published   Boolean   @default(false)
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([published, publishedAt])
+  @@map("posts")
+}
+
+/// Tickets de suporte abertos pelos jogadores.
+model Ticket {
+  id        Int      @id @default(autoincrement())
+  accountId Int      @map("account_id")
+  subject   String   @db.VarChar(255)
+  category  String   @db.VarChar(50)
+  status    String   @default("open") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages TicketMessage[]
+
+  @@index([accountId])
+  @@index([status])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int      @map("ticket_id")
+  accountId Int      @map("account_id")
+  isStaff   Boolean  @default(false) @map("is_staff")
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+/// Opções de `type_class` da vocação (ex.: DPS, Tank, Healer), gerenciadas via CRUD próprio
+/// e exibidas como <select> no formulário de vocação.
+model VocationTypeClass {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(100)
+
+  vocations Vocation[]
+
+  @@map("vocation_type_classes")
+}
+
+/// Opções de `type_universe` da vocação (ex.: Dragon Ball), gerenciadas via CRUD próprio
+/// e exibidas como <select> no formulário de vocação.
+model VocationTypeUniverse {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(100)
+
+  vocations Vocation[]
+
+  @@map("vocation_type_universes")
+}
+
+/// Vocação do OTServer, exportável para o XML `vocations.xml` do servidor de jogo.
+/// `id` é definido manualmente pelo admin (mesmo id usado no XML/servidor), não autoincrement.
+model Vocation {
+  id             Int     @id
+  name           String  @db.VarChar(100)
+  description    String  @db.VarChar(100)
+  needpremium    Boolean @default(false)
+  gaincap        Int     @default(0)
+  gainhp         Int     @default(0)
+  gainmana       Int     @default(0)
+  gainhpticks    Int     @default(0)
+  gainhpamount   Int     @default(0)
+  gainmanaticks  Int     @default(0)
+  gainmanaamount Int     @default(0)
+  manamultiplier Float   @default(1)
+  attackspeed    Int     @default(0)
+  soulmax        Int     @default(0)
+  gainsoulticks  Int     @default(0)
+  fromvoc        Int     @default(0)
+
+  /// Só do portal (não existe no XML) — libera a vocação para escolha na criação de personagem no site.
+  published Boolean @default(false)
+
+  typeClassId    Int? @map("type_class_id")
+  typeUniverseId Int? @map("type_universe_id")
+
+  // <formula ... />
+  formulaMeleeDamage      Float @default(1) @map("formula_melee_damage")
+  formulaDistDamage       Float @default(1) @map("formula_dist_damage")
+  formulaWandDamage       Float @default(1) @map("formula_wand_damage")
+  formulaMagDamage        Float @default(1) @map("formula_mag_damage")
+  formulaMagHealingDamage Float @default(1) @map("formula_mag_healing_damage")
+  formulaDefense          Float @default(1) @map("formula_defense")
+  formulaMagDefense       Float @default(1) @map("formula_mag_defense")
+  formulaArmor            Float @default(1) @map("formula_armor")
+
+  // <skill ... />
+  skillFist       Float @default(1) @map("skill_fist")
+  skillClub       Float @default(1) @map("skill_club")
+  skillSword      Float @default(1) @map("skill_sword")
+  skillAxe        Float @default(1) @map("skill_axe")
+  skillDistance   Float @default(1) @map("skill_distance")
+  skillShielding  Float @default(1) @map("skill_shielding")
+  skillFishing    Float @default(1) @map("skill_fishing")
+  skillExperience Float @default(1) @map("skill_experience")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  typeClass    VocationTypeClass?    @relation(fields: [typeClassId], references: [id])
+  typeUniverse VocationTypeUniverse? @relation(fields: [typeUniverseId], references: [id])
+
+  @@map("vocations")
+}
+
+/// Brush do `doodads.xml` (RME). Os atributos comuns de `<brush>` viram colunas; o
+/// conteúdo específico de cada `type` (doodad/carpet/wall/table) — que é uma árvore
+/// recursiva (alternate > composite > tile > item) — fica em `content` (JSON),
+/// serializado para XML por `lib/doodad-xml.ts`.
+model DoodadBrush {
+  id           Int     @id @default(autoincrement())
+  name         String  @db.VarChar(255)
+  type         String  @db.VarChar(20)
+  serverLookId Int     @map("server_lookid")
+  draggable    Boolean @default(false)
+  onBlocking   Boolean @default(false) @map("on_blocking")
+  thickness    String  @default("") @db.VarChar(20)
+  onDuplicate  Boolean @default(false) @map("on_duplicate")
+  oneSize      Boolean @default(false) @map("one_size")
+  redoBorders  Boolean @default(false) @map("redo_borders")
+  reborder     Boolean @default(false)
+  content      Json
+
+  tilesetCategoryId Int?             @map("tileset_category_id")
+  tilesetOrder      Int              @default(0) @map("tileset_order")
+  tilesetCategory   TilesetCategory? @relation(fields: [tilesetCategoryId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@index([tilesetCategoryId])
+  @@map("doodad_brushes")
+}
+
+/// Brush do `walls.xml` (RME). Igual a `DoodadBrush`, mas com o vocabulário de portas
+/// mais rico do arquivo de paredes (`type` livre, `locked`, `open` opcional) e o
+/// elemento `<friend>` (redireciona/mescla borda com outro brush pelo nome).
+model WallBrush {
+  id           Int     @id @default(autoincrement())
+  name         String  @db.VarChar(255)
+  type         String  @db.VarChar(20)
+  serverLookId Int     @map("server_lookid")
+  draggable    Boolean @default(false)
+  onBlocking   Boolean @default(false) @map("on_blocking")
+  thickness    String  @default("") @db.VarChar(20)
+  onDuplicate  Boolean @default(false) @map("on_duplicate")
+  oneSize      Boolean @default(false) @map("one_size")
+  redoBorders  Boolean @default(false) @map("redo_borders")
+  reborder     Boolean @default(false)
+  content      Json
+  friends      Json
+
+  tilesetCategoryId Int?             @map("tileset_category_id")
+  tilesetOrder      Int              @default(0) @map("tileset_order")
+  tilesetCategory   TilesetCategory? @relation(fields: [tilesetCategoryId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@index([tilesetCategoryId])
+  @@map("wall_brushes")
+}
+
+/// `<border>` do `borders.xml` (RME). `id` é definido manualmente pelo admin (mesmo id
+/// usado no XML/servidor). `edges` guarda os até 12 pares `edge`/`item` (`<borderitem>`).
+model Border {
+  id       Int     @id
+  name     String  @db.VarChar(255)
+  group    Int?
+  optional Boolean @default(false)
+  edges    Json
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("borders")
+}
+
+/// `<brush type="ground">` do `grounds.xml` (RME). `borders` referencia `Border.id` por
+/// `align` (outer/inner) — exibido como combobox de autocomplete no formulário.
+model Ground {
+  id           Int     @id @default(autoincrement())
+  name         String  @db.VarChar(255)
+  serverLookId Int     @default(0) @map("server_lookid")
+  zOrder       Int     @default(0) @map("z_order")
+  soloOptional Boolean @default(false) @map("solo_optional")
+  items        Json
+  borders      Json
+  friends      Json
+
+  tilesetCategoryId Int?             @map("tileset_category_id")
+  tilesetOrder      Int              @default(0) @map("tileset_order")
+  tilesetCategory   TilesetCategory? @relation(fields: [tilesetCategoryId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tilesetCategoryId])
+  @@map("grounds")
+}
+
+/// Agrupamento de nível superior do `tilesets.xml` (RME) — `<tileset name="...">`.
+/// `order` define a posição na árvore de paleta do editor; `active=false` faz o
+/// tileset ser omitido da exportação sem perder o registro no banco. `icon` é
+/// metadado exclusivo do portal (o RME não tem esse conceito no XML).
+model Tileset {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique @db.VarChar(255)
+  description String? @db.VarChar(500)
+  order       Int     @default(0)
+  active      Boolean @default(true)
+  icon        String? @db.VarChar(255)
+
+  categories TilesetCategory[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tilesets")
+}
+
+/// Tipo de dado guardado pela categoria: BRUSH aponta para linhas de
+/// Ground/WallBrush/DoodadBrush (via `tilesetCategoryId` nessas tabelas); ITEM aponta
+/// para `TilesetItemEntry` (ids/intervalos de item soltos, sem brush).
+enum TilesetCategoryType {
+  BRUSH
+  ITEM
+}
+
+/// Nome literal da tag XML de categoria dentro de `<tileset>`. TERRAIN/DOODAD/RAW são
+/// as únicas oferecidas na criação pelo admin; as variantes `_AND_RAW`/`ITEMS`/
+/// `ITEMS_AND_RAW` só existem para preservar fidelidade de categorias importadas de um
+/// `tilesets.xml` legado que já misturava brush + item na mesma tag.
+enum TilesetCategoryKind {
+  TERRAIN
+  TERRAIN_AND_RAW
+  DOODAD
+  DOODAD_AND_RAW
+  RAW
+  ITEMS
+  ITEMS_AND_RAW
+}
+
+/// Categoria dentro de um Tileset (uma tag `<terrain>`/`<doodad>`/`<raw>`/... do RME).
+/// `name` não existe no formato do RME — é persistido como comentário XML
+/// (`<!-- name -->`) logo antes da tag de categoria ao exportar, e relido a partir
+/// desse comentário ao importar, sem afetar o parser do RME (que ignora comentários).
+/// `unresolvedBrushNames` guarda `<brush name="x">` encontrados na importação que não
+/// bateram com nenhum Ground/WallBrush/DoodadBrush cadastrado, para não perder dado.
+model TilesetCategory {
+  id                   Int                 @id @default(autoincrement())
+  tilesetId            Int                 @map("tileset_id")
+  name                 String              @db.VarChar(255)
+  kind                 TilesetCategoryKind
+  type                 TilesetCategoryType
+  order                Int                 @default(0)
+  description          String?             @db.VarChar(500)
+  unresolvedBrushNames Json                @default("[]") @map("unresolved_brush_names")
+
+  tileset Tileset @relation(fields: [tilesetId], references: [id], onDelete: Cascade)
+
+  grounds     Ground[]
+  walls       WallBrush[]
+  doodads     DoodadBrush[]
+  itemEntries TilesetItemEntry[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([tilesetId])
+  @@map("tileset_categories")
+}
+
+enum TilesetItemEntryKind {
+  ITEM_ID
+  ITEM_RANGE
+}
+
+/// Entrada de item solto (sem brush) dentro de uma categoria ITEM — `<item id="x"/>`
+/// (ITEM_ID) ou `<item fromid="x" toid="y"/>` (ITEM_RANGE) do `tilesets.xml`.
+model TilesetItemEntry {
+  id         Int                  @id @default(autoincrement())
+  categoryId Int                  @map("category_id")
+  order      Int                  @default(0)
+  kind       TilesetItemEntryKind
+  itemId     Int?                 @map("item_id")
+  fromId     Int?                 @map("from_id")
+  toId       Int?                 @map("to_id")
+
+  category TilesetCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@map("tileset_item_entries")
+}
+
+/// Monstro do OTServer (`data/monster/.../*.xml`). Os atributos simples do `<monster>`
+/// raiz e de `<health>`/`<look>`/`<targetchange>`/`<strategy>` viram colunas; as seções
+/// em árvore (`flags`, `attacks`, `defenses`, `immunities`, `elements`, `voices`, `loot`,
+/// `summons`, `script`) ficam em JSON, serializadas para XML por `lib/monster-xml.ts`.
+/// `category`/`subcategory` refletem a pasta de origem (ex.: "dragon ball/1-50") usada
+/// para reconstruir o atributo `file` do `monsters.xml` na exportação em lote.
+model Monster {
+  id              Int    @id @default(autoincrement())
+  name            String @unique @db.VarChar(255)
+  nameDescription String @default("") @map("name_description") @db.VarChar(255)
+  bestiary        String @default("monster") @db.VarChar(50)
+  category        String @default("") @db.VarChar(100)
+  subcategory     String @default("") @db.VarChar(100)
+  race            String @default("blood") @db.VarChar(20)
+  experience      Int    @default(0)
+  speed           Int    @default(200)
+  manacost        Int    @default(0)
+
+  healthNow BigInt @default(100) @map("health_now")
+  healthMax BigInt @default(100) @map("health_max")
+
+  lookType   Int? @map("look_type")
+  lookTypeEx Int? @map("look_typeex")
+  lookHead   Int  @default(0) @map("look_head")
+  lookBody   Int  @default(0) @map("look_body")
+  lookLegs   Int  @default(0) @map("look_legs")
+  lookFeet   Int  @default(0) @map("look_feet")
+  lookAddons Int  @default(0) @map("look_addons")
+  corpse     Int  @default(0)
+
+  targetChangeInterval Int @default(4000) @map("target_change_interval")
+  targetChangeChance   Int @default(10) @map("target_change_chance")
+
+  strategyAttack  Int? @map("strategy_attack")
+  strategyDefense Int? @map("strategy_defense")
+
+  flags      Json
+  attacks    Json
+  defenses   Json
+  immunities Json
+  elements   Json
+  voices     Json
+  loot       Json
+  summons    Json
+  script     Json
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([category, subcategory])
+  @@map("monsters")
+}
+
+model PlayerTask {
+  id        Int      @id @default(autoincrement())
+  playerId  Int      @map("player_id")
+  taskId    String   @map("task_id") @db.VarChar(50)
+  kills     Int      @default(0)
+  completed Boolean  @default(false)
+  rewarded  Boolean  @default(false)
+  startedAt DateTime @default(now()) @map("started_at")
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([playerId, taskId], name: "unique_player_task")
+  @@map("player_tasks")
+}
+
+model PlayerTaskPoints {
+  playerId       Int @id @map("player_id")
+  points         Int @default(0)
+  totalCompleted Int @default(0) @map("total_completed")
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@map("player_task_points")
+}
