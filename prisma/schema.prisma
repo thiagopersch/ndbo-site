@@ -833,7 +833,76 @@ model Vocation {
   typeClass    VocationTypeClass?    @relation(fields: [typeClassId], references: [id])
   typeUniverse VocationTypeUniverse? @relation(fields: [typeUniverseId], references: [id])
 
+  spellVocations SpellVocation[]
+
   @@map("vocations")
+}
+
+/// Spell (`instant`/`rune`/`conjure`) do `spells.xml`. Atributos são majoritariamente
+/// escalares comuns aos 3 tipos e viram colunas reais (diferente do doodad, cujo conteúdo
+/// variável fica em JSON); `extraAttributes` guarda atributos raros suportados pela engine
+/// mas nunca usados nos dados atuais (channel, access, filter, logged, spellid, cooldown,
+/// groupcooldown), preservando round-trip de import/export sem exigir UI para eles.
+model Spell {
+  id                      Int      @id @default(autoincrement())
+  kind                    String   @db.VarChar(10) // "instant" | "rune" | "conjure"
+  name                    String   @db.VarChar(255)
+  words                   String   @default("") @db.VarChar(255) // instant/conjure
+  runeItemId              Int?     @map("rune_item_id") // rune: atributo "id" (obrigatório p/ rune)
+  level                   Int      @default(0)
+  magicLevel              Int      @default(0) @map("magic_level")
+  mana                    Int      @default(0)
+  manaPercent             Int      @default(0) @map("mana_percent")
+  soul                    Int      @default(0)
+  exhaustion              Int      @default(0)
+  enabled                 Boolean  @default(true)
+  premium                 Boolean  @default(false)
+  needTarget              Boolean  @default(false) @map("need_target")
+  needWeapon              Boolean  @default(false) @map("need_weapon")
+  selfTarget              Boolean  @default(false) @map("self_target")
+  needLearn               Boolean  @default(false) @map("need_learn")
+  range                   Int      @default(0)
+  blockType               String   @default("") @db.VarChar(10) @map("block_type") // "", all, solid, creature
+  aggressive              Boolean  @default(false)
+  blockWalls              Boolean  @default(false) @map("block_walls")
+  allowFarUse             Boolean  @default(false) @map("allow_far_use") // rune
+  hasParam                Boolean  @default(false) @map("has_param") // instant/conjure
+  needDirection           Boolean  @default(false) @map("need_direction") // instant/conjure
+  casterTargetOrDirection Boolean  @default(false) @map("caster_target_or_direction")
+  limitRange              Int      @default(0) @map("limit_range")
+  hasCharges              Boolean  @default(false) @map("has_charges") // rune
+  conjureId               Int?     @map("conjure_id")
+  conjureCount            Int?     @map("conjure_count")
+  conjureReagentId        Int?     @map("conjure_reagent_id")
+  event                   String   @default("script") @db.VarChar(20)
+  scriptValue             String   @default("") @db.VarChar(255) @map("script_value") // atributo "value"
+  functionName            String   @default("") @db.VarChar(50) @map("function_name")
+  description             String   @default("") @db.VarChar(255)
+  group                   String   @default("") @db.VarChar(50)
+  extraAttributes         Json?    @map("extra_attributes")
+
+  vocations SpellVocation[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kind])
+  @@map("spells")
+}
+
+/// Vínculo N:N entre `Spell` e `Vocation`, espelhando `<vocation id="N" />` dentro de cada
+/// spell no XML (uma ou mais por spell). `showInDescription` espelha o atributo opcional
+/// `showInDescription` do parser da engine (default true quando ausente).
+model SpellVocation {
+  spellId           Int     @map("spell_id")
+  vocationId        Int     @map("vocation_id")
+  showInDescription Boolean @default(true) @map("show_in_description")
+
+  spell    Spell    @relation(fields: [spellId], references: [id], onDelete: Cascade)
+  vocation Vocation @relation(fields: [vocationId], references: [id], onDelete: Cascade)
+
+  @@id([spellId, vocationId])
+  @@map("spell_vocations")
 }
 
 /// Brush do `doodads.xml` (RME). Os atributos comuns de `<brush>` viram colunas; o

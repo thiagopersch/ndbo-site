@@ -16,7 +16,7 @@ type CharacterDetail = {
   id: number;
   name: string;
   level: number;
-  vocation: number;
+  vocationName: string;
   experience: string;
   sex: number;
   online: number;
@@ -81,7 +81,7 @@ export function CharacterSearch() {
             <span className="text-muted-foreground">Level</span>
             <span>{data.player.level}</span>
             <span className="text-muted-foreground">Vocação</span>
-            <span>{data.player.vocation}</span>
+            <span>{data.player.vocationName}</span>
             <span className="text-muted-foreground">Experiência</span>
             <span>{data.player.experience}</span>
             <span className="text-muted-foreground">Resets</span>

@@ -13,7 +13,7 @@ type OnlinePlayer = {
   id: number;
   name: string;
   level: number;
-  vocation: number;
+  vocationName: string;
 };
 
 const columns: ColumnDef<OnlinePlayer>[] = [
@@ -27,7 +27,7 @@ const columns: ColumnDef<OnlinePlayer>[] = [
     ),
   },
   { accessorKey: "level", header: "Level" },
-  { accessorKey: "vocation", header: "Vocação" },
+  { accessorKey: "vocationName", header: "Vocação" },
 ];
 
 export default function OnlinePlayersPage() {

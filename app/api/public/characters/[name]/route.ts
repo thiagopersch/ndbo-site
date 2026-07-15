@@ -28,16 +28,20 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Personagem não encontrado." }, { status: 404 });
   }
 
-  const rank = player.rankId
-    ? await prisma.guildRank.findUnique({
-        where: { id: player.rankId },
-        include: { guild: { select: { id: true, name: true } } },
-      })
-    : null;
+  const [rank, vocation] = await Promise.all([
+    player.rankId
+      ? prisma.guildRank.findUnique({
+          where: { id: player.rankId },
+          include: { guild: { select: { id: true, name: true } } },
+        })
+      : null,
+    prisma.vocation.findUnique({ where: { id: player.vocation }, select: { name: true } }),
+  ]);
 
   return NextResponse.json({
     player: {
       ...player,
+      vocationName: vocation?.name ?? "Desconhecida",
       experience: player.experience.toString(),
       guild: rank ? { id: rank.guild.id, name: rank.guild.name, rank: rank.name } : null,
     },

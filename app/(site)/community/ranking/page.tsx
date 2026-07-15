@@ -14,7 +14,7 @@ type RankingPlayer = {
   id: number;
   name: string;
   level: number;
-  vocation: number;
+  vocationName: string;
   experience: string;
   online: number;
 };
@@ -30,7 +30,7 @@ const columns: ColumnDef<RankingPlayer>[] = [
     ),
   },
   { accessorKey: "level", header: "Level" },
-  { accessorKey: "vocation", header: "Vocação" },
+  { accessorKey: "vocationName", header: "Vocação" },
   { accessorKey: "experience", header: "Experiência" },
   {
     accessorKey: "online",

@@ -19,6 +19,7 @@ import {
   FolderTree,
   Ticket,
   Users,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -70,6 +71,10 @@ const adminSections: AdminSection[] = [
       { label: "Monstros", href: "/admin/monsters", icon: Bug },
       { label: "Monstros impulsionados", href: "/admin/monster-boost", icon: Ghost },
     ],
+  },
+  {
+    title: "Feitiços",
+    links: [{ label: "Spells", href: "/admin/spells", icon: Wand2 }],
   },
   {
     title: "Economia",

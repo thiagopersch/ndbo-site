@@ -16,7 +16,7 @@ type PlayerRow = {
   id: number;
   name: string;
   level: number;
-  vocation: number;
+  vocationName: string;
   groupId: number;
   online: number;
   deleted: number;
@@ -35,7 +35,7 @@ export default function AdminPlayersPage() {
     { accessorKey: "id", header: "ID" },
     { accessorKey: "name", header: "Nome" },
     { accessorKey: "level", header: "Level" },
-    { accessorKey: "vocation", header: "Vocação" },
+    { accessorKey: "vocationName", header: "Vocação" },
     { accessorKey: "groupId", header: "Grupo" },
     {
       accessorKey: "online",

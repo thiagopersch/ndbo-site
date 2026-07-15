@@ -34,5 +34,16 @@ export async function GET(request: Request) {
     prisma.player.count({ where }),
   ]);
 
-  return NextResponse.json(buildPaginatedResult(players, total, page, pageSize));
+  const vocationIds = [...new Set(players.map((player) => player.vocation))];
+  const vocations = vocationIds.length
+    ? await prisma.vocation.findMany({ where: { id: { in: vocationIds } }, select: { id: true, name: true } })
+    : [];
+  const vocationNameById = new Map(vocations.map((vocation) => [vocation.id, vocation.name]));
+
+  const data = players.map((player) => ({
+    ...player,
+    vocationName: vocationNameById.get(player.vocation) ?? "Desconhecida",
+  }));
+
+  return NextResponse.json(buildPaginatedResult(data, total, page, pageSize));
 }
