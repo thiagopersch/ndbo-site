@@ -17,13 +17,23 @@ function boolAttr(value: boolean): string {
   return value ? "1" : "0";
 }
 
-function spellAttrs(spell: MonsterSpellInput): string[] {
+/** Nome efetivo do attack/defense no XML: se houver spell vinculada, usa as `words` dela
+ * (é assim que a engine casa o attack com a spell em spells.xml); sem vínculo, usa o
+ * campo `name` digitado manualmente. */
+function resolveSpellName(spell: MonsterSpellInput, wordsBySpellId: Record<number, string>): string {
+  if (spell.spellId != null) {
+    return wordsBySpellId[spell.spellId] ?? spell.name;
+  }
+  return spell.name;
+}
+
+function spellAttrs(spell: MonsterSpellInput, wordsBySpellId: Record<number, string>): string[] {
   const attrs: string[] = [];
 
   if (spell.script) {
     attrs.push(`script="${escapeXml(spell.script)}"`);
   } else {
-    attrs.push(`name="${escapeXml(spell.name)}"`);
+    attrs.push(`name="${escapeXml(resolveSpellName(spell, wordsBySpellId))}"`);
   }
 
   attrs.push(`interval="${spell.interval}"`);
@@ -41,8 +51,13 @@ function spellAttrs(spell: MonsterSpellInput): string[] {
   return attrs;
 }
 
-function spellTagXml(tag: string, spell: MonsterSpellInput, level: number): string[] {
-  const attrs = spellAttrs(spell);
+function spellTagXml(
+  tag: string,
+  spell: MonsterSpellInput,
+  level: number,
+  wordsBySpellId: Record<number, string>
+): string[] {
+  const attrs = spellAttrs(spell, wordsBySpellId);
 
   if (spell.attributes.length === 0) {
     return indent([attrsToTag(tag, attrs)], level);
@@ -86,7 +101,10 @@ function lootItemXml(item: MonsterLootItemInput, level: number): string[] {
   return lines;
 }
 
-export function monsterToXml(monster: MonsterFormInput): string {
+export function monsterToXml(
+  monster: MonsterFormInput,
+  wordsBySpellId: Record<number, string> = {}
+): string {
   const rootAttrs = [
     `name="${escapeXml(monster.name)}"`,
     `bestiary="${escapeXml(monster.bestiary)}"`,
@@ -176,7 +194,7 @@ export function monsterToXml(monster: MonsterFormInput): string {
   if (monster.attacks.length > 0) {
     lines.push(...indent(["<attacks>"], 1));
     for (const attack of monster.attacks) {
-      lines.push(...spellTagXml("attack", attack, 2));
+      lines.push(...spellTagXml("attack", attack, 2, wordsBySpellId));
     }
     lines.push(...indent(["</attacks>"], 1));
   }
@@ -189,7 +207,7 @@ export function monsterToXml(monster: MonsterFormInput): string {
   );
   if (monster.defenses.length > 0) {
     for (const defense of monster.defenses) {
-      lines.push(...spellTagXml("defense", defense, 2));
+      lines.push(...spellTagXml("defense", defense, 2, wordsBySpellId));
     }
     lines.push(...indent(["</defenses>"], 1));
   }

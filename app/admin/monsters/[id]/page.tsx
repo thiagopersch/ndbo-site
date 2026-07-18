@@ -15,7 +15,10 @@ export default async function EditMonsterPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const monster = await prisma.monster.findUnique({ where: { id: Number(id) } });
+  const monster = await prisma.monster.findUnique({
+    where: { id: Number(id) },
+    include: { spells: { select: { spellId: true } } },
+  });
 
   if (!monster) {
     notFound();

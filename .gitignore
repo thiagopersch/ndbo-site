@@ -42,3 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+
+# uploads (imagens custom de item/monstro/spell/vocação — arquivo em disco, só a referência
+# fica no banco; ver lib/entity-image.ts)
+/public/storage

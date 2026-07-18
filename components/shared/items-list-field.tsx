@@ -11,6 +11,7 @@ import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { NumberField } from "@/components/shared/number-field";
+import { ItemIdField } from "@/components/shared/item-id-field";
 
 type ItemsListFieldProps<T extends FieldValues> = {
   control: Control<T>;
@@ -34,7 +35,7 @@ export function ItemsListField<T extends FieldValues>({ control, name }: ItemsLi
       )}
       {fields.map((field, index) => (
         <div key={field.id} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
-          <NumberField control={control} name={`${name}.${index}.id` as FieldPath<T>} />
+          <ItemIdField control={control} name={`${name}.${index}.id` as FieldPath<T>} />
           <NumberField control={control} name={`${name}.${index}.chance` as FieldPath<T>} />
           <Button type="button" variant="ghost" size="icon-sm" onClick={() => remove(index)}>
             <Trash2 className="size-4" />

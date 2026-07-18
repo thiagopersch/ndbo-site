@@ -15,6 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import { useEntityImages } from "@/components/shared/use-entity-images";
+import { PublishedToggle } from "@/components/shared/published-toggle";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type VocationRow = VocationXmlData;
@@ -29,20 +32,26 @@ export default function AdminVocationsPage() {
 
   const { data: classesData } = useSWR<PaginatedResult<ClassOption>>(
     "/api/admin/vocation-classes?pageSize=100",
-    fetcher
+    fetcher,
   );
   const { data: universesData } = useSWR<PaginatedResult<UniverseOption>>(
     "/api/admin/vocation-universes?pageSize=100",
-    fetcher
+    fetcher,
   );
 
-  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<VocationRow>>(
-    `/api/admin/vocations?${table.buildQueryParams().toString()}`,
-    fetcher
+  const { data, isLoading, isValidating, mutate } = useSWR<
+    PaginatedResult<VocationRow>
+  >(`/api/admin/vocations?${table.buildQueryParams().toString()}`, fetcher);
+
+  const images = useEntityImages(
+    "vocation",
+    (data?.data ?? []).map((v) => v.id),
   );
 
   async function handleDelete(id: number) {
-    const response = await fetch(`/api/admin/vocations/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/admin/vocations/${id}`, {
+      method: "DELETE",
+    });
 
     if (!response.ok) {
       toast.error("Não foi possível remover a vocação.");
@@ -58,13 +67,19 @@ export default function AdminVocationsPage() {
       key: "typeClassId",
       label: "Classe",
       type: "select",
-      options: (classesData?.data ?? []).map((c) => ({ value: String(c.id), label: c.name })),
+      options: (classesData?.data ?? []).map((c) => ({
+        value: String(c.id),
+        label: c.name,
+      })),
     },
     {
       key: "typeUniverseId",
       label: "Universo",
       type: "select",
-      options: (universesData?.data ?? []).map((u) => ({ value: String(u.id), label: u.name })),
+      options: (universesData?.data ?? []).map((u) => ({
+        value: String(u.id),
+        label: u.name,
+      })),
     },
     {
       key: "needpremium",
@@ -88,6 +103,18 @@ export default function AdminVocationsPage() {
 
   const columns: ColumnDef<VocationRow>[] = [
     { accessorKey: "id", header: "ID" },
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) => (
+        <EntityThumb
+          entityType="vocation"
+          id={row.original.id}
+          name={row.original.name}
+          image={images.get(row.original.id) ?? null}
+        />
+      ),
+    },
     { accessorKey: "name", header: "Nome" },
     { accessorKey: "description", header: "Descrição" },
     {
@@ -113,9 +140,11 @@ export default function AdminVocationsPage() {
       accessorKey: "published",
       header: "Publicada",
       cell: ({ row }) => (
-        <Badge variant={row.original.published ? "default" : "secondary"}>
-          {row.original.published ? "Sim" : "Não"}
-        </Badge>
+        <PublishedToggle
+          endpoint={`/api/admin/vocations/${row.original.id}/publish`}
+          published={row.original.published}
+          onToggled={() => mutate()}
+        />
       ),
     },
     {
@@ -152,7 +181,8 @@ export default function AdminVocationsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Vocações</h1>
         <p className="text-muted-foreground">
-          CRUD de vocações exportável para o <code>vocations.xml</code> do servidor.
+          CRUD de vocações exportável para o <code>vocations.xml</code> do
+          servidor.
         </p>
       </div>
 
@@ -183,21 +213,29 @@ export default function AdminVocationsPage() {
               title="Importar vocations.xml"
               description={
                 <>
-                  Envie um arquivo no formato do <code>vocations.xml</code> do OTServer. As
-                  classes (<code>type_class</code>) e universos (<code>type_universe</code>)
-                  são resolvidos pelo nome, criando novos registros automaticamente quando
-                  necessário. Vocações com dados inválidos são ignoradas e reportadas ao final.
+                  Envie um arquivo no formato do <code>vocations.xml</code> do
+                  OTServer. As classes (<code>type_class</code>) e universos (
+                  <code>type_universe</code>) são resolvidos pelo nome, criando
+                  novos registros automaticamente quando necessário. Vocações
+                  com dados inválidos são ignoradas e reportadas ao final.
                 </>
               }
               replaceLabel="Substituir todas as vocações existentes antes de importar"
               itemLabel="vocação(ões)"
               onImported={() => mutate()}
             />
-            <Button variant="outline" nativeButton={false} render={exportXmlLink}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={exportXmlLink}
+            >
               <Download className="size-4" />
               Exportar XML
             </Button>
-            <Button nativeButton={false} render={<Link href="/admin/vocations/new" />}>
+            <Button
+              nativeButton={false}
+              render={<Link href="/admin/vocations/new" />}
+            >
               <Plus className="size-4" />
               Nova vocação
             </Button>

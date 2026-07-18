@@ -2,6 +2,7 @@
 
 import {
   useFieldArray,
+  useController,
   type Control,
   type FieldArrayPath,
   type FieldPath,
@@ -12,9 +13,15 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
 import { emptyMonsterSpell } from "@/lib/validations/admin/monster";
+import { MonsterSpellCombobox } from "@/components/admin/monsters/monster-spell-combobox";
 
 type MonsterSpellListFieldProps<T extends FieldValues> = {
   control: Control<T>;
@@ -27,12 +34,20 @@ export function MonsterSpellListField<T extends FieldValues>({
   name,
   addLabel,
 }: MonsterSpellListFieldProps<T>) {
-  const { fields, append, remove } = useFieldArray({ control, name: name as FieldArrayPath<T> });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: name as FieldArrayPath<T>,
+  });
 
   return (
     <div className="flex flex-col gap-3">
       {fields.map((field, index) => (
-        <SpellCard key={field.id} control={control} basePath={`${name}.${index}`} onRemove={() => remove(index)} />
+        <SpellCard
+          key={field.id}
+          control={control}
+          basePath={`${name}.${index}`}
+          onRemove={() => remove(index)}
+        />
       ))}
       <Button
         type="button"
@@ -62,18 +77,43 @@ function SpellCard<T extends FieldValues>({
     name: `${basePath}.attributes` as FieldArrayPath<T>,
   });
 
+  const spellIdField = useController({
+    control,
+    name: `${basePath}.spellId` as FieldPath<T>,
+  });
+  const nameField = useController({
+    control,
+    name: `${basePath}.name` as FieldPath<T>,
+  });
+
   return (
     <Card>
       <CardContent className="flex flex-col gap-3 pt-4">
+        <FormItem>
+          <FormLabel>Spell vinculada (opcional)</FormLabel>
+          <MonsterSpellCombobox
+            value={
+              (spellIdField.field.value as number | null | undefined) ?? null
+            }
+            onSelect={(spell) => {
+              spellIdField.field.onChange(spell?.id ?? null);
+              if (spell) nameField.field.onChange(spell.name);
+            }}
+          />
+        </FormItem>
         <div className="grid gap-3 sm:grid-cols-4">
           <FormField
             control={control}
             name={`${basePath}.name` as FieldPath<T>}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Name</FormLabel>
+                <FormLabel>Nome (Name)</FormLabel>
                 <FormControl>
-                  <Input {...field} value={String(field.value ?? "")} placeholder="melee, fire, speed..." />
+                  <Input
+                    {...field}
+                    value={String(field.value ?? "")}
+                    placeholder="melee, fire, speed..."
+                  />
                 </FormControl>
               </FormItem>
             )}
@@ -85,27 +125,71 @@ function SpellCard<T extends FieldValues>({
               <FormItem>
                 <FormLabel>Script (opcional)</FormLabel>
                 <FormControl>
-                  <Input {...field} value={String(field.value ?? "")} placeholder="custom.lua" />
+                  <Input
+                    {...field}
+                    value={String(field.value ?? "")}
+                    placeholder="custom.lua"
+                  />
                 </FormControl>
               </FormItem>
             )}
           />
-          <NumberField control={control} name={`${basePath}.interval` as FieldPath<T>} label="Interval" />
-          <NumberField control={control} name={`${basePath}.chance` as FieldPath<T>} label="Chance" />
+          <NumberField
+            control={control}
+            name={`${basePath}.interval` as FieldPath<T>}
+            label="Intervalo (Interval)"
+          />
+          <NumberField
+            control={control}
+            name={`${basePath}.chance` as FieldPath<T>}
+            label="Chance"
+          />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-4">
-          <NumberField control={control} name={`${basePath}.min` as FieldPath<T>} label="Min" />
-          <NumberField control={control} name={`${basePath}.max` as FieldPath<T>} label="Max" />
-          <NumberField control={control} name={`${basePath}.range` as FieldPath<T>} label="Range" />
-          <NumberField control={control} name={`${basePath}.radius` as FieldPath<T>} label="Radius" />
+          <NumberField
+            control={control}
+            name={`${basePath}.min` as FieldPath<T>}
+            label="Mínimo (Min)"
+          />
+          <NumberField
+            control={control}
+            name={`${basePath}.max` as FieldPath<T>}
+            label="Máximo (Max)"
+          />
+          <NumberField
+            control={control}
+            name={`${basePath}.range` as FieldPath<T>}
+            label="Alcance (Range)"
+          />
+          <NumberField
+            control={control}
+            name={`${basePath}.radius` as FieldPath<T>}
+            label="Raio (Radius)"
+          />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-4">
-          <NumberField control={control} name={`${basePath}.length` as FieldPath<T>} label="Length" />
-          <NumberField control={control} name={`${basePath}.spread` as FieldPath<T>} label="Spread" />
-          <NumberField control={control} name={`${basePath}.speedchange` as FieldPath<T>} label="Speedchange" />
-          <NumberField control={control} name={`${basePath}.duration` as FieldPath<T>} label="Duration" />
+          <NumberField
+            control={control}
+            name={`${basePath}.length` as FieldPath<T>}
+            label="Comprimento (Length)"
+          />
+          <NumberField
+            control={control}
+            name={`${basePath}.spread` as FieldPath<T>}
+            label="Espalhamento (Spread)"
+          />
+          <NumberField
+            control={control}
+            name={`${basePath}.speedchange` as FieldPath<T>}
+            label="Mudança de velocidade (Speedchange)"
+          />
+          <NumberField
+            control={control}
+            name={`${basePath}.duration` as FieldPath<T>}
+            label="Duração (Duration)"
+          />
         </div>
 
         <FormField
@@ -121,7 +205,9 @@ function SpellCard<T extends FieldValues>({
                   onChange={(event) => field.onChange(event.target.checked)}
                 />
               </FormControl>
-              <FormLabel className="!mt-0 font-normal">Target (área/campo mira alvo)</FormLabel>
+              <FormLabel className="!mt-0 font-normal">
+                Mira o alvo (Target)
+              </FormLabel>
             </FormItem>
           )}
         />
@@ -132,19 +218,34 @@ function SpellCard<T extends FieldValues>({
           </p>
           <div className="flex flex-col gap-2">
             {attributes.fields.map((attribute, attrIndex) => (
-              <div key={attribute.id} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+              <div
+                key={attribute.id}
+                className="grid grid-cols-[1fr_1fr_auto] items-center gap-2"
+              >
                 <FormField
                   control={control}
-                  name={`${basePath}.attributes.${attrIndex}.key` as FieldPath<T>}
+                  name={
+                    `${basePath}.attributes.${attrIndex}.key` as FieldPath<T>
+                  }
                   render={({ field }) => (
-                    <Input {...field} value={String(field.value ?? "")} placeholder="key" />
+                    <Input
+                      {...field}
+                      value={String(field.value ?? "")}
+                      placeholder="key"
+                    />
                   )}
                 />
                 <FormField
                   control={control}
-                  name={`${basePath}.attributes.${attrIndex}.value` as FieldPath<T>}
+                  name={
+                    `${basePath}.attributes.${attrIndex}.value` as FieldPath<T>
+                  }
                   render={({ field }) => (
-                    <Input {...field} value={String(field.value ?? "")} placeholder="value" />
+                    <Input
+                      {...field}
+                      value={String(field.value ?? "")}
+                      placeholder="value"
+                    />
                   )}
                 />
                 <Button
@@ -170,7 +271,13 @@ function SpellCard<T extends FieldValues>({
           </div>
         </div>
 
-        <Button type="button" variant="ghost" size="sm" className="self-end text-destructive" onClick={onRemove}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="self-end text-destructive"
+          onClick={onRemove}
+        >
           <Trash2 className="size-4" />
           Remover
         </Button>

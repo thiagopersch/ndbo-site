@@ -1,0 +1,46 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import { prisma } from "@/lib/prisma";
+import type { LuaScriptInput } from "@/lib/validations/admin/lua-script";
+import { LuaScriptForm } from "@/components/admin/lua-scripts/lua-script-form";
+
+export const metadata: Metadata = {
+  title: "Editar script Lua",
+};
+
+export default async function EditLuaScriptPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const luaScript = await prisma.luaScript.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!luaScript) {
+    notFound();
+  }
+
+  const initialValues: LuaScriptInput = {
+    name: luaScript.name,
+    category: luaScript.category as LuaScriptInput["category"],
+    content: luaScript.content,
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-semibold">
+          Editar script: {luaScript.name}
+        </h1>
+        <p className="text-muted-foreground">
+          Cadastre um script <code>.lua</code> real para vincular como
+          conveniência aos Movements.
+        </p>
+      </div>
+      <LuaScriptForm luaScriptId={luaScript.id} initialValues={initialValues} />
+    </div>
+  );
+}

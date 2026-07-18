@@ -95,6 +95,9 @@ export const monsterFlagsSchema = z.object({
 export type MonsterFlagsInput = z.infer<typeof monsterFlagsSchema>;
 
 export const monsterSpellSchema = z.object({
+  /** Spell vinculada do CRUD de spells (opcional) — quando definida, `name` é preenchido
+   * a partir dela; guardada só como referência de conveniência, não afeta o XML exportado. */
+  spellId: z.number().int().nullable(),
   name: z.string(),
   script: z.string(),
   interval: z.number().int(),
@@ -209,6 +212,11 @@ export const monsterFormSchema = z.object({
   maxSummons: z.number().int(),
   summons: z.array(monsterSummonSchema),
   script: z.array(z.string().min(1)),
+  /** Spells vinculadas ao monstro (`MonsterSpell`) — espelha `<monster name="X"/>` dentro
+   * de `<instant>` no spells.xml, independente das listas de attacks/defenses. */
+  linkedSpellIds: z.array(z.number().int()),
+
+  published: z.boolean(),
 });
 
 export type MonsterFormInput = z.infer<typeof monsterFormSchema>;
@@ -241,6 +249,7 @@ export const defaultMonsterFlags: MonsterFlagsInput = {
 };
 
 export const emptyMonsterSpell: MonsterSpellInput = {
+  spellId: null,
   name: "melee",
   script: "",
   interval: 2000,
@@ -323,4 +332,7 @@ export const defaultMonsterValues: MonsterFormInput = {
   maxSummons: 0,
   summons: [],
   script: [],
+  linkedSpellIds: [],
+
+  published: false,
 };

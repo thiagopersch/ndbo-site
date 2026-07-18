@@ -9,7 +9,10 @@ import useSWR from "swr";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
-import type { VocationTypeClass, VocationTypeUniverse } from "@/lib/generated/prisma/client";
+import type {
+  VocationTypeClass,
+  VocationTypeUniverse,
+} from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
 import {
   defaultVocationValues,
@@ -30,6 +33,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
+import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { VocationTypeSelect } from "@/components/admin/vocations/vocation-type-select";
 
 type VocationFormProps = {
@@ -44,11 +48,11 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
 
   const { data: classesData } = useSWR<PaginatedResult<VocationTypeClass>>(
     "/api/admin/vocation-classes?pageSize=100",
-    fetcher
+    fetcher,
   );
   const { data: universesData } = useSWR<PaginatedResult<VocationTypeUniverse>>(
     "/api/admin/vocation-universes?pageSize=100",
-    fetcher
+    fetcher,
   );
 
   const form = useForm<VocationInput, unknown, VocationInput>({
@@ -59,9 +63,11 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
   const watched = useWatch({ control: form.control });
 
   const typeClassName =
-    classesData?.data.find((item) => item.id === watched.typeClassId)?.name ?? "";
+    classesData?.data.find((item) => item.id === watched.typeClassId)?.name ??
+    "";
   const typeUniverseName =
-    universesData?.data.find((item) => item.id === watched.typeUniverseId)?.name ?? "";
+    universesData?.data.find((item) => item.id === watched.typeUniverseId)
+      ?.name ?? "";
 
   const previewXml = vocationToXml({
     ...defaultVocationValues,
@@ -75,7 +81,9 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
   async function onSubmit(values: VocationInput) {
     setIsSubmitting(true);
 
-    const url = isEditing ? `/api/admin/vocations/${vocationId}` : "/api/admin/vocations";
+    const url = isEditing
+      ? `/api/admin/vocations/${vocationId}`
+      : "/api/admin/vocations";
     const method = isEditing ? "PATCH" : "POST";
 
     const response = await fetch(url, {
@@ -100,12 +108,16 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-6"
+        >
           <Tabs defaultValue="basic">
             <TabsList>
               <TabsTrigger value="basic">Dados básicos</TabsTrigger>
               <TabsTrigger value="formula">Fórmula de habilidades</TabsTrigger>
               <TabsTrigger value="skill">Skills/Habilidades</TabsTrigger>
+              <TabsTrigger value="image">Imagem</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
@@ -114,7 +126,12 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                   <CardTitle>Dados básicos</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <NumberField control={form.control} name="id" label="ID" disabled={isEditing} />
+                  <NumberField
+                    control={form.control}
+                    name="id"
+                    label="ID"
+                    disabled={isEditing}
+                  />
 
                   <FormField
                     control={form.control}
@@ -170,10 +187,14 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                             type="checkbox"
                             className="size-4"
                             checked={field.value}
-                            onChange={(event) => field.onChange(event.target.checked)}
+                            onChange={(event) =>
+                              field.onChange(event.target.checked)
+                            }
                           />
                         </FormControl>
-                        <FormLabel className="!mt-0">Requer premium (needpremium)</FormLabel>
+                        <FormLabel className="!mt-0">
+                          Requer premium (needpremium)
+                        </FormLabel>
                       </FormItem>
                     )}
                   />
@@ -188,28 +209,80 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                             type="checkbox"
                             className="size-4"
                             checked={field.value}
-                            onChange={(event) => field.onChange(event.target.checked)}
+                            onChange={(event) =>
+                              field.onChange(event.target.checked)
+                            }
                           />
                         </FormControl>
                         <FormLabel className="!mt-0">
-                          Publicada (disponível para escolha na criação de personagem no site)
+                          Publicada (disponível para escolha na criação de
+                          personagem no site)
                         </FormLabel>
                       </FormItem>
                     )}
                   />
 
-                  <NumberField control={form.control} name="gaincap" label="Ganho de capacidade (gaincap)" />
-                  <NumberField control={form.control} name="gainhp" label="Ganho de vida (gainhp)" />
-                  <NumberField control={form.control} name="gainmana" label="Ganho de mana (gainmana)" />
-                  <NumberField control={form.control} name="gainhpticks" label="Intervalo de vida (gainhpticks)" />
-                  <NumberField control={form.control} name="gainhpamount" label="Quantidade de vida (gainhpamount)" />
-                  <NumberField control={form.control} name="gainmanaticks" label="Intervalo de mana (gainmanaticks)" />
-                  <NumberField control={form.control} name="gainmanaamount" label="Quantidade de mana (gainmanaamount)" />
-                  <NumberField control={form.control} name="manamultiplier" label="Multiplicador de mana" step="0.1" />
-                  <NumberField control={form.control} name="attackspeed" label="Velocidade de ataque (attackspeed)" />
-                  <NumberField control={form.control} name="soulmax" label="Alma máxima (soulmax)" />
-                  <NumberField control={form.control} name="gainsoulticks" label="Intervalo de alma (gainsoulticks)" />
-                  <NumberField control={form.control} name="fromvoc" label="Vocação de origem (fromvoc)" />
+                  <NumberField
+                    control={form.control}
+                    name="gaincap"
+                    label="Ganho de capacidade (gaincap)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="gainhp"
+                    label="Ganho de vida (gainhp)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="gainmana"
+                    label="Ganho de mana (gainmana)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="gainhpticks"
+                    label="Intervalo de vida (gainhpticks)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="gainhpamount"
+                    label="Quantidade de vida (gainhpamount)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="gainmanaticks"
+                    label="Intervalo de mana (gainmanaticks)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="gainmanaamount"
+                    label="Quantidade de mana (gainmanaamount)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="manamultiplier"
+                    label="Multiplicador de mana (manamultiplier)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="attackspeed"
+                    label="Velocidade de ataque (attackspeed)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="soulmax"
+                    label="Alma máxima (soulmax)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="gainsoulticks"
+                    label="Intervalo de alma (gainsoulticks)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="fromvoc"
+                    label="Vocação de origem (fromvoc)"
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -220,14 +293,54 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                   <CardTitle>Fórmula de habilidades</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <NumberField control={form.control} name="formula.meleeDamage" label="Dano corpo a corpo" step="0.1" />
-                  <NumberField control={form.control} name="formula.distDamage" label="Dano à distância" step="0.1" />
-                  <NumberField control={form.control} name="formula.wandDamage" label="Dano de varinha" step="0.1" />
-                  <NumberField control={form.control} name="formula.magDamage" label="Dano mágico" step="0.1" />
-                  <NumberField control={form.control} name="formula.magHealingDamage" label="Cura mágica" step="0.1" />
-                  <NumberField control={form.control} name="formula.defense" label="Defesa" step="0.1" />
-                  <NumberField control={form.control} name="formula.magDefense" label="Defesa mágica" step="0.1" />
-                  <NumberField control={form.control} name="formula.armor" label="Armadura" step="0.1" />
+                  <NumberField
+                    control={form.control}
+                    name="formula.meleeDamage"
+                    label="Dano corpo a corpo (formula_melee_damage)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="formula.distDamage"
+                    label="Dano à distância (formula_dist_damage)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="formula.wandDamage"
+                    label="Dano de varinha (formula_wand_damage)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="formula.magDamage"
+                    label="Dano mágico (formula_mag_damage)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="formula.magHealingDamage"
+                    label="Cura mágica (formula_mag_healing_damage)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="formula.defense"
+                    label="Defesa (formula_defense)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="formula.magDefense"
+                    label="Defesa mágica (formula_mag_defense)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="formula.armor"
+                    label="Armadura (formula_armor)"
+                    step="0.1"
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -238,14 +351,75 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                   <CardTitle>Skills/Habilidades</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <NumberField control={form.control} name="skill.fist" label="Punho (fist)" step="0.1" />
-                  <NumberField control={form.control} name="skill.club" label="Maça (club)" step="0.1" />
-                  <NumberField control={form.control} name="skill.sword" label="Espada (sword)" step="0.1" />
-                  <NumberField control={form.control} name="skill.axe" label="Machado (axe)" step="0.1" />
-                  <NumberField control={form.control} name="skill.distance" label="Distância (distance)" step="0.1" />
-                  <NumberField control={form.control} name="skill.shielding" label="Escudo (shielding)" step="0.1" />
-                  <NumberField control={form.control} name="skill.fishing" label="Pesca (fishing)" step="0.1" />
-                  <NumberField control={form.control} name="skill.experience" label="Experiência (experience)" step="0.1" />
+                  <NumberField
+                    control={form.control}
+                    name="skill.fist"
+                    label="Punho (fist)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="skill.club"
+                    label="Maça (club)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="skill.sword"
+                    label="Espada (sword)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="skill.axe"
+                    label="Machado (axe)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="skill.distance"
+                    label="Distância (distance)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="skill.shielding"
+                    label="Escudo (shielding)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="skill.fishing"
+                    label="Pesca (fishing)"
+                    step="0.1"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="skill.experience"
+                    label="Experiência (experience)"
+                    step="0.1"
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="image">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Imagem</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isEditing ? (
+                    <EntityImageUpload
+                      entityType="vocation"
+                      id={vocationId}
+                      name={watched.name}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Salve a vocação primeiro para poder enviar uma imagem.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -261,8 +435,16 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-              {isSubmitting ? "Salvando..." : isEditing ? "Salvar alterações" : "Criar vocação"}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting
+                ? "Salvando..."
+                : isEditing
+                  ? "Salvar alterações"
+                  : "Criar vocação"}
             </Button>
           </div>
         </form>

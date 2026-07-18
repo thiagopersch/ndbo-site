@@ -66,18 +66,25 @@ export async function getDashboardStats() {
   ] = await Promise.all([
     prisma.account.count(),
     prisma.account.count({ where: { createdAt: { gte: since7 } } }),
-    prisma.account.count({ where: { createdAt: { gte: since14, lt: since7 } } }),
+    prisma.account.count({
+      where: { createdAt: { gte: since14, lt: since7 } },
+    }),
     prisma.account.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, name: true, createdAt: true, groupId: true },
     }),
     prisma.account.groupBy({ by: ["groupId"], _count: { _all: true } }),
-    prisma.account.findMany({ where: { createdAt: { gte: since30 } }, select: { createdAt: true } }),
+    prisma.account.findMany({
+      where: { createdAt: { gte: since30 } },
+      select: { createdAt: true },
+    }),
 
     prisma.player.count({ where: { deleted: 0 } }),
     prisma.player.count({ where: { deleted: 0, createdAt: { gte: since7 } } }),
-    prisma.player.count({ where: { deleted: 0, createdAt: { gte: since14, lt: since7 } } }),
+    prisma.player.count({
+      where: { deleted: 0, createdAt: { gte: since14, lt: since7 } },
+    }),
     prisma.player.findMany({
       where: { deleted: 0 },
       orderBy: { createdAt: "desc" },
@@ -106,8 +113,30 @@ export async function getDashboardStats() {
     prisma.ticket.groupBy({ by: ["status"], _count: { _all: true } }),
   ]);
 
-  const accountBuckets = bucketByDay(accountsCreatedRecent.map((row) => row.createdAt));
-  const playerBuckets = bucketByDay(playersCreatedRecent.map((row) => row.createdAt));
+  const monsterBoostTodayMonster = monsterBoostToday
+    ? await prisma.monster.findUnique({
+        where: { name: monsterBoostToday.monster },
+        select: { id: true },
+      })
+    : null;
+  const monsterBoostTodayImage = monsterBoostTodayMonster
+    ? await prisma.entityImage.findUnique({
+        where: {
+          entityType_entityId: {
+            entityType: "monster",
+            entityId: monsterBoostTodayMonster.id,
+          },
+        },
+        select: { extension: true, updatedAt: true },
+      })
+    : null;
+
+  const accountBuckets = bucketByDay(
+    accountsCreatedRecent.map((row) => row.createdAt),
+  );
+  const playerBuckets = bucketByDay(
+    playersCreatedRecent.map((row) => row.createdAt),
+  );
 
   const createdTrend = Array.from({ length: TREND_DAYS }, (_, index) => {
     const day = now.subtract(TREND_DAYS - 1 - index, "day");
@@ -123,18 +152,28 @@ export async function getDashboardStats() {
   const groupLabelTotals = new Map<string, number>();
   for (const row of accountsByGroup) {
     const label = accountGroupLabel(row.groupId);
-    groupLabelTotals.set(label, (groupLabelTotals.get(label) ?? 0) + row._count._all);
+    groupLabelTotals.set(
+      label,
+      (groupLabelTotals.get(label) ?? 0) + row._count._all,
+    );
   }
-  const accountsByGroupChart = Array.from(groupLabelTotals, ([label, total]) => ({ label, total }));
+  const accountsByGroupChart = Array.from(
+    groupLabelTotals,
+    ([label, total]) => ({ label, total }),
+  );
 
-  const banTypeLabelOf = (type: number) => BAN_TYPES.find((t) => t.value === type)?.label ?? `Tipo ${type}`;
+  const banTypeLabelOf = (type: number) =>
+    BAN_TYPES.find((t) => t.value === type)?.label ?? `Tipo ${type}`;
   const bansByTypeChart = bansByType.map((row) => ({
     label: banTypeLabelOf(row.type),
     total: row._count._all,
   }));
 
   const monstersByCategoryChart = monstersByCategory
-    .map((row) => ({ label: row.category || "Sem universo", total: row._count._all }))
+    .map((row) => ({
+      label: row.category || "Sem universo",
+      total: row._count._all,
+    }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
@@ -174,7 +213,13 @@ export async function getDashboardStats() {
       latest: latestBans,
       byType: bansByTypeChart,
     },
-    monsterBoostToday,
+    monsterBoostToday: monsterBoostToday
+      ? {
+          ...monsterBoostToday,
+          monsterId: monsterBoostTodayMonster?.id ?? null,
+          image: monsterBoostTodayImage,
+        }
+      : null,
     tickets: {
       open: openTickets,
       byStatus: ticketsByStatusChart,

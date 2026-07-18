@@ -39,6 +39,7 @@ export function spellFormToScalarData(input: SpellFormInput): Prisma.SpellUnchec
     functionName: input.functionName,
     description: input.description,
     group: input.group,
+    published: input.published,
   };
 }
 
@@ -79,6 +80,7 @@ export function spellToFormInput(spell: Spell & { vocations: SpellVocation[] }):
     functionName: spell.functionName,
     description: spell.description,
     group: spell.group,
+    published: spell.published,
     vocations: spell.vocations.map((vocation) => ({
       vocationId: vocation.vocationId,
       showInDescription: vocation.showInDescription,

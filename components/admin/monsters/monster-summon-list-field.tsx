@@ -22,21 +22,27 @@ export function MonsterSummonListField<T extends FieldValues>({
   control: Control<T>;
   name: string;
 }) {
-  const { fields, append, remove } = useFieldArray({ control, name: name as FieldArrayPath<T> });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: name as FieldArrayPath<T>,
+  });
 
   return (
     <div className="flex flex-col gap-2">
       {fields.length > 0 && (
         <div className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 text-xs text-muted-foreground">
           <span>Nome do monstro</span>
-          <span>Interval</span>
+          <span>Intervalo (Interval)</span>
           <span>Chance</span>
-          <span>Amount</span>
+          <span>Quantidade (Amount)</span>
           <span />
         </div>
       )}
       {fields.map((field, index) => (
-        <div key={field.id} className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] items-center gap-2">
+        <div
+          key={field.id}
+          className="grid grid-cols-[1fr_1fr_1fr_1fr_auto] items-center gap-2"
+        >
           <FormField
             control={control}
             name={`${name}.${index}.name` as FieldPath<T>}
@@ -48,10 +54,24 @@ export function MonsterSummonListField<T extends FieldValues>({
               </FormItem>
             )}
           />
-          <NumberField control={control} name={`${name}.${index}.interval` as FieldPath<T>} />
-          <NumberField control={control} name={`${name}.${index}.chance` as FieldPath<T>} />
-          <NumberField control={control} name={`${name}.${index}.amount` as FieldPath<T>} />
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => remove(index)}>
+          <NumberField
+            control={control}
+            name={`${name}.${index}.interval` as FieldPath<T>}
+          />
+          <NumberField
+            control={control}
+            name={`${name}.${index}.chance` as FieldPath<T>}
+          />
+          <NumberField
+            control={control}
+            name={`${name}.${index}.amount` as FieldPath<T>}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => remove(index)}
+          >
             <Trash2 className="size-4" />
           </Button>
         </div>

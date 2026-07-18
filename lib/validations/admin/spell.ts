@@ -64,6 +64,7 @@ const baseSpellFormSchema = z.object({
   description: z.string().max(255),
   group: z.string().max(50),
   vocations: z.array(spellVocationSchema),
+  published: z.boolean(),
 });
 
 export type SpellFormInput = z.infer<typeof baseSpellFormSchema>;
@@ -118,6 +119,7 @@ export const defaultSpellValues: SpellFormInput = {
   description: "",
   group: "",
   vocations: [],
+  published: false,
 };
 
 export const emptySpellVocation: SpellVocationInput = { vocationId: 0, showInDescription: true };

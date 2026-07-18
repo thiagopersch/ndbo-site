@@ -4,43 +4,53 @@ import type { Control, FieldValues, Path } from "react-hook-form";
 
 import { NumberField } from "@/components/shared/number-field";
 import { Input } from "@/components/ui/input";
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import type { MonsterFormInput } from "@/lib/validations/admin/monster";
 
 const BOOL_FLAGS: [keyof MonsterFormInput["flags"], string][] = [
-  ["summonable", "Summonable"],
-  ["attackable", "Attackable"],
-  ["hostile", "Hostile"],
-  ["illusionable", "Illusionable"],
-  ["convinceable", "Convinceable"],
-  ["pushable", "Pushable"],
-  ["canpushitems", "Pode empurrar itens"],
-  ["canpushcreatures", "Pode empurrar criaturas"],
-  ["hidename", "Esconder nome"],
-  ["hidehealth", "Esconder vida"],
-  ["lureable", "Lureable"],
-  ["walkable", "Walkable"],
-  ["canwalkonenergy", "Anda sobre energia"],
-  ["canwalkonfire", "Anda sobre fogo"],
-  ["canwalkonpoison", "Anda sobre veneno"],
+  ["summonable", "Pode ser invocado (Summonable)"],
+  ["attackable", "Pode ser atacado (Attackable)"],
+  ["hostile", "Hostil (Hostile)"],
+  ["illusionable", "Pode ser ilusionado (Illusionable)"],
+  ["convinceable", "Pode ser convencido (Convinceable)"],
+  ["pushable", "Pode ser empurrado (Pushable)"],
+  ["canpushitems", "Pode empurrar itens (canpushitems)"],
+  ["canpushcreatures", "Pode empurrar criaturas (canpushcreatures)"],
+  ["hidename", "Esconder nome (hidename)"],
+  ["hidehealth", "Esconder vida (hidehealth)"],
+  ["lureable", "Pode ser atraído (Lureable)"],
+  ["walkable", "Pode ser atravessado (Walkable)"],
+  ["canwalkonenergy", "Anda sobre energia (canwalkonenergy)"],
+  ["canwalkonfire", "Anda sobre fogo (canwalkonfire)"],
+  ["canwalkonpoison", "Anda sobre veneno (canwalkonpoison)"],
 ];
 
 const INT_FLAGS: [keyof MonsterFormInput["flags"], string][] = [
-  ["lootmessage", "Loot message (0-3, -1 padrão config)"],
-  ["targetdistance", "Target distance"],
-  ["staticattack", "Static attack (0-100)"],
-  ["lightlevel", "Light level"],
-  ["lightcolor", "Light color"],
-  ["runonhealth", "Run on health (HP para fugir)"],
+  ["lootmessage", "Mensagem de loot (0-3, -1 padrão config) (Loot message)"],
+  ["targetdistance", "Distância do alvo (Target distance)"],
+  ["staticattack", "Ataque estático (0-100) (Static attack)"],
+  ["lightlevel", "Nível de luz (Light level)"],
+  ["lightcolor", "Cor da luz (Light color)"],
+  ["runonhealth", "Foge com vida abaixo de (Run on health)"],
 ];
 
 const STRING_FLAGS: [keyof MonsterFormInput["flags"], string][] = [
-  ["skull", "Skull"],
-  ["shield", "Shield"],
-  ["emblem", "Emblem"],
+  ["skull", "Caveira (Skull)"],
+  ["shield", "Escudo (Shield)"],
+  ["emblem", "Emblema (Emblem)"],
 ];
 
-export function MonsterFlagsFields<T extends FieldValues>({ control }: { control: Control<T> }) {
+export function MonsterFlagsFields<T extends FieldValues>({
+  control,
+}: {
+  control: Control<T>;
+}) {
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -73,7 +83,12 @@ export function MonsterFlagsFields<T extends FieldValues>({ control }: { control
         <p className="mb-2 text-sm font-medium">Parâmetros</p>
         <div className="grid gap-4 sm:grid-cols-3">
           {INT_FLAGS.map(([name, label]) => (
-            <NumberField key={name} control={control} name={`flags.${name}` as Path<T>} label={label} />
+            <NumberField
+              key={name}
+              control={control}
+              name={`flags.${name}` as Path<T>}
+              label={label}
+            />
           ))}
         </div>
       </div>

@@ -833,7 +833,8 @@ model Vocation {
   typeClass    VocationTypeClass?    @relation(fields: [typeClassId], references: [id])
   typeUniverse VocationTypeUniverse? @relation(fields: [typeUniverseId], references: [id])
 
-  spellVocations SpellVocation[]
+  spellVocations    SpellVocation[]
+  movementVocations MovementVocation[]
 
   @@map("vocations")
 }
@@ -844,44 +845,48 @@ model Vocation {
 /// mas nunca usados nos dados atuais (channel, access, filter, logged, spellid, cooldown,
 /// groupcooldown), preservando round-trip de import/export sem exigir UI para eles.
 model Spell {
-  id                      Int      @id @default(autoincrement())
-  kind                    String   @db.VarChar(10) // "instant" | "rune" | "conjure"
-  name                    String   @db.VarChar(255)
-  words                   String   @default("") @db.VarChar(255) // instant/conjure
-  runeItemId              Int?     @map("rune_item_id") // rune: atributo "id" (obrigatório p/ rune)
-  level                   Int      @default(0)
-  magicLevel              Int      @default(0) @map("magic_level")
-  mana                    Int      @default(0)
-  manaPercent             Int      @default(0) @map("mana_percent")
-  soul                    Int      @default(0)
-  exhaustion              Int      @default(0)
-  enabled                 Boolean  @default(true)
-  premium                 Boolean  @default(false)
-  needTarget              Boolean  @default(false) @map("need_target")
-  needWeapon              Boolean  @default(false) @map("need_weapon")
-  selfTarget              Boolean  @default(false) @map("self_target")
-  needLearn               Boolean  @default(false) @map("need_learn")
-  range                   Int      @default(0)
-  blockType               String   @default("") @db.VarChar(10) @map("block_type") // "", all, solid, creature
-  aggressive              Boolean  @default(false)
-  blockWalls              Boolean  @default(false) @map("block_walls")
-  allowFarUse             Boolean  @default(false) @map("allow_far_use") // rune
-  hasParam                Boolean  @default(false) @map("has_param") // instant/conjure
-  needDirection           Boolean  @default(false) @map("need_direction") // instant/conjure
-  casterTargetOrDirection Boolean  @default(false) @map("caster_target_or_direction")
-  limitRange              Int      @default(0) @map("limit_range")
-  hasCharges              Boolean  @default(false) @map("has_charges") // rune
-  conjureId               Int?     @map("conjure_id")
-  conjureCount            Int?     @map("conjure_count")
-  conjureReagentId        Int?     @map("conjure_reagent_id")
-  event                   String   @default("script") @db.VarChar(20)
-  scriptValue             String   @default("") @db.VarChar(255) @map("script_value") // atributo "value"
-  functionName            String   @default("") @db.VarChar(50) @map("function_name")
-  description             String   @default("") @db.VarChar(255)
-  group                   String   @default("") @db.VarChar(50)
-  extraAttributes         Json?    @map("extra_attributes")
+  id                      Int     @id @default(autoincrement())
+  kind                    String  @db.VarChar(10) // "instant" | "rune" | "conjure"
+  name                    String  @db.VarChar(255)
+  words                   String  @default("") @db.VarChar(255) // instant/conjure
+  runeItemId              Int?    @map("rune_item_id") // rune: atributo "id" (obrigatório p/ rune)
+  level                   Int     @default(0)
+  magicLevel              Int     @default(0) @map("magic_level")
+  mana                    Int     @default(0)
+  manaPercent             Int     @default(0) @map("mana_percent")
+  soul                    Int     @default(0)
+  exhaustion              Int     @default(0)
+  enabled                 Boolean @default(true)
+  premium                 Boolean @default(false)
+  needTarget              Boolean @default(false) @map("need_target")
+  needWeapon              Boolean @default(false) @map("need_weapon")
+  selfTarget              Boolean @default(false) @map("self_target")
+  needLearn               Boolean @default(false) @map("need_learn")
+  range                   Int     @default(0)
+  blockType               String  @default("") @map("block_type") @db.VarChar(10) // "", all, solid, creature
+  aggressive              Boolean @default(false)
+  blockWalls              Boolean @default(false) @map("block_walls")
+  allowFarUse             Boolean @default(false) @map("allow_far_use") // rune
+  hasParam                Boolean @default(false) @map("has_param") // instant/conjure
+  needDirection           Boolean @default(false) @map("need_direction") // instant/conjure
+  casterTargetOrDirection Boolean @default(false) @map("caster_target_or_direction")
+  limitRange              Int     @default(0) @map("limit_range")
+  hasCharges              Boolean @default(false) @map("has_charges") // rune
+  conjureId               Int?    @map("conjure_id")
+  conjureCount            Int?    @map("conjure_count")
+  conjureReagentId        Int?    @map("conjure_reagent_id")
+  event                   String  @default("script") @db.VarChar(20)
+  scriptValue             String  @default("") @map("script_value") @db.VarChar(255) // atributo "value"
+  functionName            String  @default("") @map("function_name") @db.VarChar(50)
+  description             String  @default("") @db.VarChar(255)
+  group                   String  @default("") @db.VarChar(50)
+  extraAttributes         Json?   @map("extra_attributes")
+
+  /// Só do portal (não existe no XML) — libera a spell nas páginas públicas de gameplay.
+  published Boolean @default(false)
 
   vocations SpellVocation[]
+  monsters  MonsterSpell[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1143,11 +1148,32 @@ model Monster {
   summons    Json
   script     Json
 
+  /// Só do portal (não existe no XML) — libera o monstro nas páginas públicas de gameplay.
+  published Boolean @default(false)
+
+  spells MonsterSpell[]
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([category, subcategory])
   @@map("monsters")
+}
+
+/// Vínculo N:N entre `Monster` e `Spell`, espelhando `<monster name="X"/>` dentro de
+/// `<instant>` no `spells.xml` — declara quais monstros podem conjurar aquela spell.
+/// Independente de `attacks`/`defenses` (que já guardam o `name` da spell usada em cada
+/// ataque/defesa via `spellId` no JSON); esta tabela é a lista de spells vinculadas ao
+/// monstro exibida/editada como seção própria no admin.
+model MonsterSpell {
+  monsterId Int @map("monster_id")
+  spellId   Int @map("spell_id")
+
+  monster Monster @relation(fields: [monsterId], references: [id], onDelete: Cascade)
+  spell   Spell   @relation(fields: [spellId], references: [id], onDelete: Cascade)
+
+  @@id([monsterId, spellId])
+  @@map("monster_spells")
 }
 
 model PlayerTask {
@@ -1173,4 +1199,222 @@ model PlayerTaskPoints {
   player Player @relation(fields: [playerId], references: [id])
 
   @@map("player_task_points")
+}
+
+/// Item do OTServer (`data/items/items.xml`). O `.otb` (fora de escopo do portal) é quem
+/// define `clientId`/sprite e as flags binárias básicas (blockSolid/stackable/pickupable/...);
+/// `items.xml` só adiciona/sobrescreve atributos de gameplay por cima disso — é esse universo
+/// (~150 `<attribute key>`) que este model cobre. `id` é manual (server id real, não
+/// autoincrement), igual `Vocation`/`Border`. Campos comuns/filtráveis viram coluna; famílias
+/// grandes e correlatas de atributos (elementos, absorb/reflect por elemento, suppress de
+/// condição, skills) ficam em JSON, mesmo padrão do `Monster` (`immunities`/`elements`).
+/// `extraAttributes` é o escape hatch para qualquer `<attribute key>` não modelado — garante
+/// round-trip sem perda mesmo para atributos raros/desconhecidos encontrados na importação.
+model Item {
+  id           Int    @id
+  name         String @db.VarChar(255)
+  article      String @default("") @db.VarChar(10)
+  plural       String @default("") @db.VarChar(255)
+  editorSuffix String @default("") @map("editor_suffix") @db.VarChar(100)
+  description  String @default("") @db.VarChar(500)
+
+  // classificação
+  type        String @default("") @db.VarChar(20)
+  weaponType  String @default("") @map("weapon_type") @db.VarChar(20)
+  slotType    String @default("") @map("slot_type") @db.VarChar(20)
+  ammoType    String @default("") @map("ammo_type") @db.VarChar(20)
+  ammoAction  String @default("") @map("ammo_action") @db.VarChar(20)
+  corpseType  String @default("") @map("corpse_type") @db.VarChar(20)
+  shootType   String @default("") @map("shoot_type") @db.VarChar(30)
+  effect      String @default("") @db.VarChar(30)
+  fluidSource String @default("") @map("fluid_source") @db.VarChar(20)
+  floorChange String @default("") @map("floor_change") @db.VarChar(20)
+
+  // combate
+  weight       Int  @default(0)
+  armor        Int  @default(0)
+  defense      Int  @default(0)
+  extraDefense Int  @default(0) @map("extra_defense")
+  attack       Int  @default(0)
+  extraAttack  Int  @default(0) @map("extra_attack")
+  attackSpeed  Int  @default(0) @map("attack_speed")
+  range        Int  @default(0)
+  hitChance    Int  @default(0) @map("hit_chance")
+  maxHitChance Int  @default(0) @map("max_hit_chance")
+  breakChance  Int  @default(0) @map("break_chance")
+  rotateTo     Int? @map("rotate_to")
+  worth        Int  @default(0)
+
+  // container/texto
+  containerSize   Int     @default(0) @map("container_size")
+  maxTextLen      Int     @default(0) @map("max_text_len")
+  writeOnceItemId Int?    @map("write_once_item_id")
+  readable        Boolean @default(false)
+  writeable       Boolean @default(false)
+
+  // decay/transformação
+  decayTo            Int?    @map("decay_to")
+  duration           Int     @default(0)
+  stopDuration       Boolean @default(false) @map("stop_duration")
+  showDuration       Boolean @default(false) @map("show_duration")
+  transformEquipTo   Int?    @map("transform_equip_to")
+  transformDeEquipTo Int?    @map("transform_deequip_to")
+  transformTo        Int?    @map("transform_to")
+  maleTransformTo    Int?    @map("male_transform_to")
+  femaleTransformTo  Int?    @map("female_transform_to")
+  charges            Int     @default(0)
+  showCharges        Boolean @default(false) @map("show_charges")
+  showAttributes     Boolean @default(false) @map("show_attributes")
+
+  // luz
+  lightLevel Int @default(0) @map("light_level")
+  lightColor Int @default(0) @map("light_color")
+
+  // regen / stat granting
+  speed                   Int     @default(0)
+  healthGain              Int     @default(0) @map("health_gain")
+  healthTicks             Int     @default(0) @map("health_ticks")
+  manaGain                Int     @default(0) @map("mana_gain")
+  manaTicks               Int     @default(0) @map("mana_ticks")
+  manaShield              Boolean @default(false) @map("mana_shield")
+  soulPoints              Int     @default(0) @map("soul_points")
+  soulPointsPercent       Int     @default(0) @map("soul_points_percent")
+  maxHitPoints            Int     @default(0) @map("max_hit_points")
+  maxHitPointsPercent     Int     @default(0) @map("max_hit_points_percent")
+  maxManaPoints           Int     @default(0) @map("max_mana_points")
+  maxManaPointsPercent    Int     @default(0) @map("max_mana_points_percent")
+  magicLevelPoints        Int     @default(0) @map("magic_level_points")
+  magicLevelPointsPercent Int     @default(0) @map("magic_level_points_percent")
+  increaseMagicValue      Int     @default(0) @map("increase_magic_value")
+  increaseMagicPercent    Int     @default(0) @map("increase_magic_percent")
+  increaseHealingValue    Int     @default(0) @map("increase_healing_value")
+  increaseHealingPercent  Int     @default(0) @map("increase_healing_percent")
+
+  // rune — texto livre igual ao XML, sem FK obrigatória com Spell (mesma decisão de
+  // Spell.runeItemId); o form oferece um combobox de conveniência para preencher a partir
+  // de uma Spell existente.
+  runeSpellName String @default("") @map("rune_spell_name") @db.VarChar(255)
+
+  flags              Json
+  skills             Json
+  elements           Json
+  absorbPercent      Json  @map("absorb_percent")
+  fieldAbsorbPercent Json  @map("field_absorb_percent")
+  reflectPercent     Json  @map("reflect_percent")
+  reflectChance      Json  @map("reflect_chance")
+  suppress           Json
+  field              Json?
+  extraAttributes    Json? @map("extra_attributes")
+
+  /// Só do portal (não existe no XML) — libera o item nas páginas públicas de gameplay.
+  published Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@index([weaponType])
+  @@map("items")
+}
+
+/// `<movevent>` do `movements.xml` do OTServer. Não existe "um movevent = um arquivo" no
+/// engine (diferente de Item/Monster) — só bulk export/import; `id` é autoincrement, só do
+/// portal. Seletor de item é discriminado por `selectorType`: ITEM_ID (`itemid="123"` ou
+/// range em uma string `"100-105"` via `itemIdRangeEnd`), ITEM_RANGE (`fromid`/`toid`,
+/// possivelmente listas paralelas `;`-separadas, guardadas como arrays JSON), UNIQUE_ID
+/// (`uniqueid`) ou ACTION_ID (`actionid`). `slot`/`level`/`magicLevel`/`premium` só têm
+/// sentido para Equip/DeEquip. Ação é `actionKind` SCRIPT (`event="script" value="x.lua"`)
+/// ou FUNCTION (`event="function" value="onEquipItem|onDeEquipItem|onStepInField|onAddField"`
+/// — os únicos 4 nomes que `MoveEvent::loadFunction` reconhece).
+model Movement {
+  id        Int     @id @default(autoincrement())
+  eventType String  @map("event_type") @db.VarChar(20)
+  tileItem  Boolean @default(false) @map("tile_item")
+
+  selectorType   String @map("selector_type") @db.VarChar(20)
+  itemId         Int?   @map("item_id")
+  itemIdRangeEnd Int?   @map("item_id_range_end")
+  fromIds        Json?  @map("from_ids")
+  toIds          Json?  @map("to_ids")
+  uniqueId       Int?   @map("unique_id")
+  actionId       Int?   @map("action_id")
+
+  slot       String  @default("") @db.VarChar(20)
+  level      Int     @default(0)
+  magicLevel Int     @default(0) @map("magic_level")
+  premium    Boolean @default(false)
+
+  actionKind  String @map("action_kind") @db.VarChar(20)
+  actionValue String @default("") @map("action_value") @db.VarChar(255)
+
+  /// Só do portal — script Lua cadastrado (LuaScript) usado como conveniência para
+  /// preencher `actionValue`. Opcional: nem todo movement do tipo SCRIPT precisa estar
+  /// vinculado a um LuaScript cadastrado no banco.
+  luaScriptId Int?       @map("lua_script_id")
+  luaScript   LuaScript? @relation(fields: [luaScriptId], references: [id], onDelete: SetNull)
+
+  /// Só do portal — marca movements Equip/DeEquip criados automaticamente a partir do
+  /// `Item.slotType` (ver item 4 do AGENTS.md), para não conflitar com movements que o
+  /// admin tenha criado manualmente para o mesmo item/evento.
+  autoGenerated Boolean @default(false) @map("auto_generated")
+
+  vocations MovementVocation[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([itemId])
+  @@index([eventType])
+  @@index([luaScriptId])
+  @@map("movements")
+}
+
+/// Cadastro de scripts Lua reais (conteúdo do arquivo `.lua`) para vínculo de
+/// conveniência com Movements do tipo SCRIPT. `name` é o nome do arquivo (ex.:
+/// `vocation_change_tile.lua`), usado como `actionValue` no XML exportado — o export em
+/// si nunca lê `content`, é só armazenamento/organização dentro do portal.
+model LuaScript {
+  id       Int    @id @default(autoincrement())
+  name     String @unique @db.VarChar(255)
+  content  String @db.Text
+  /// Pasta de scripts do OTServer a que pertence (actions, creaturescripts, globalevents,
+  /// lib, movements, npc, raids, spells, talkactions, weapons, mods) — obrigatório,
+  /// principalmente exigido no import de arquivo `.lua`.
+  category String @default("actions") @db.VarChar(20)
+
+  movements Movement[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("lua_scripts")
+}
+
+/// Vínculo N:N entre `Movement` e `Vocation`, espelhando `<vocation id="N" />` dentro de um
+/// `<movevent type="Equip|DeEquip">` (restringe quem pode equipar o item). Mesmo padrão de
+/// `SpellVocation`.
+model MovementVocation {
+  movementId Int @map("movement_id")
+  vocationId Int @map("vocation_id")
+
+  movement Movement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  vocation Vocation @relation(fields: [vocationId], references: [id], onDelete: Cascade)
+
+  @@id([movementId, vocationId])
+  @@map("movement_vocations")
+}
+
+/// Imagem custom (PNG/GIF) associada a um item/monstro/spell/vocação do portal — independente
+/// do sprite do cliente OTServer (que não existe em items.xml, só no .otb, fora de escopo).
+/// Guarda só a referência (tipo+id+extensão); o binário fica em disco sob
+/// `public/storage/{entityType}/{entityId}.{extensão}`, nunca em base64 no banco.
+model EntityImage {
+  entityType String   @map("entity_type") @db.VarChar(20)
+  entityId   Int      @map("entity_id")
+  extension  String   @db.VarChar(10)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@id([entityType, entityId])
+  @@map("entity_images")
 }

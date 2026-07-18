@@ -13,7 +13,10 @@ export async function GET(_request: Request, { params }: Params) {
   if (response) return response;
 
   const { id } = await params;
-  const monster = await prisma.monster.findUnique({ where: { id: Number(id) } });
+  const monster = await prisma.monster.findUnique({
+    where: { id: Number(id) },
+    include: { spells: { select: { spellId: true } } },
+  });
 
   if (!monster) {
     return NextResponse.json({ error: "Monstro não encontrado." }, { status: 404 });
@@ -46,7 +49,14 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const monster = await prisma.monster.update({
     where: { id: Number(id) },
-    data: monsterFormToRow(parsed.data),
+    data: {
+      ...monsterFormToRow(parsed.data),
+      spells: {
+        deleteMany: {},
+        create: parsed.data.linkedSpellIds.map((spellId) => ({ spellId })),
+      },
+    },
+    include: { spells: { select: { spellId: true } } },
   });
 
   await logAudit({

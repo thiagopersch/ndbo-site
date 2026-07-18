@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
-import { monsterRowToFormInput } from "@/lib/monster-mapper";
+import { fetchWordsBySpellId, monsterRowToFormInput } from "@/lib/monster-mapper";
 import { monsterFileName, monsterToXml } from "@/lib/monster-xml";
 
 type Params = { params: Promise<{ id: string }> };
@@ -18,7 +18,10 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Monstro não encontrado." }, { status: 404 });
   }
 
-  const xml = monsterToXml(monsterRowToFormInput(monster));
+  const formInput = monsterRowToFormInput(monster);
+  const wordsBySpellId = await fetchWordsBySpellId(prisma, formInput);
+
+  const xml = monsterToXml(formInput, wordsBySpellId);
 
   return new Response(xml + "\n", {
     headers: {

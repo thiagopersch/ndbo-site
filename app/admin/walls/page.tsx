@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import { useEntityImages } from "@/components/shared/use-entity-images";
 
 type WallRow = {
   id: number;
@@ -31,13 +33,19 @@ const exportXmlLink = <a href="/api/admin/walls/export" />;
 export default function AdminWallsPage() {
   const table = useServerTable();
 
-  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<WallRow>>(
-    `/api/admin/walls?${table.buildQueryParams().toString()}`,
-    fetcher
+  const { data, isLoading, isValidating, mutate } = useSWR<
+    PaginatedResult<WallRow>
+  >(`/api/admin/walls?${table.buildQueryParams().toString()}`, fetcher);
+
+  const images = useEntityImages(
+    "item",
+    (data?.data ?? []).map((w) => w.serverLookId),
   );
 
   async function handleDelete(id: number) {
-    const response = await fetch(`/api/admin/walls/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/admin/walls/${id}`, {
+      method: "DELETE",
+    });
 
     if (!response.ok) {
       toast.error("Não foi possível remover a wall.");
@@ -50,6 +58,18 @@ export default function AdminWallsPage() {
 
   const columns: ColumnDef<WallRow>[] = [
     { accessorKey: "id", header: "ID" },
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) => (
+        <EntityThumb
+          entityType="item"
+          id={row.original.serverLookId}
+          name={row.original.name}
+          image={images.get(row.original.serverLookId) ?? null}
+        />
+      ),
+    },
     { accessorKey: "name", header: "Nome" },
     {
       accessorKey: "type",
@@ -131,19 +151,27 @@ export default function AdminWallsPage() {
               title="Importar walls.xml"
               description={
                 <>
-                  Envie um arquivo no formato do <code>walls.xml</code> do RME. Brushes com dados
-                  inválidos são ignorados e reportados ao final.
+                  Envie um arquivo no formato do <code>walls.xml</code> do RME.
+                  Brushes com dados inválidos são ignorados e reportados ao
+                  final.
                 </>
               }
               replaceLabel="Substituir todas as walls existentes antes de importar"
               itemLabel="wall(s)"
               onImported={() => mutate()}
             />
-            <Button variant="outline" nativeButton={false} render={exportXmlLink}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={exportXmlLink}
+            >
               <Download className="size-4" />
               Exportar XML
             </Button>
-            <Button nativeButton={false} render={<Link href="/admin/walls/new" />}>
+            <Button
+              nativeButton={false}
+              render={<Link href="/admin/walls/new" />}
+            >
               <Plus className="size-4" />
               Nova wall
             </Button>

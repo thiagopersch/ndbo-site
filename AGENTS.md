@@ -846,6 +846,7 @@ Utilizar Docker para empacotar o projeto em contêineres:
 - **Docker Compose**: Um arquivo `docker-compose.yml` contendo:
   - Serviço Next.js (`ndbo-web`).
   - Serviço MySQL (`ndbo-db`) com volume persistente para sincronia com o banco de dados do OTSERVER.
+- Se iniciar o projeto deve matar ele para o usuário validar manualmente após a validação
 
 ---
 

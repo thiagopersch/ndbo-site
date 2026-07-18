@@ -16,7 +16,9 @@ export async function GET(request: Request) {
   const { page, pageSize, search } = parsePaginationParams(url);
   const kind = url.searchParams.get("kind");
   const level = url.searchParams.get("level");
-  const groups = (url.searchParams.get("group") ?? "").split(",").filter(Boolean);
+  const groups = (url.searchParams.get("group") ?? "")
+    .split(",")
+    .filter(Boolean);
   const vocationIds = (url.searchParams.get("vocationIds") ?? "")
     .split(",")
     .filter(Boolean)
@@ -27,8 +29,12 @@ export async function GET(request: Request) {
     ...(search ? { name: { contains: search } } : {}),
     ...(kind ? { kind } : {}),
     ...(level ? { level: Number(level) } : {}),
-    ...(groups.length ? { OR: groups.map((group) => ({ group: { contains: group } })) } : {}),
-    ...(vocationIds.length ? { vocations: { some: { vocationId: { in: vocationIds } } } } : {}),
+    ...(groups.length
+      ? { OR: groups.map((group) => ({ group: { contains: group } })) }
+      : {}),
+    ...(vocationIds.length
+      ? { vocations: { some: { vocationId: { in: vocationIds } } } }
+      : {}),
   };
 
   const [spells, total] = await Promise.all([
@@ -43,6 +49,7 @@ export async function GET(request: Request) {
         runeItemId: true,
         level: true,
         mana: true,
+        published: true,
         _count: { select: { vocations: true } },
         vocations: {
           select: { vocation: { select: { name: true } } },

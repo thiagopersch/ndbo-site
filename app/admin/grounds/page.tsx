@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import { useEntityImages } from "@/components/shared/use-entity-images";
 
 type GroundRow = {
   id: number;
@@ -29,13 +31,19 @@ const exportXmlLink = <a href="/api/admin/grounds/export" />;
 export default function AdminGroundsPage() {
   const table = useServerTable();
 
-  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<GroundRow>>(
-    `/api/admin/grounds?${table.buildQueryParams().toString()}`,
-    fetcher
+  const { data, isLoading, isValidating, mutate } = useSWR<
+    PaginatedResult<GroundRow>
+  >(`/api/admin/grounds?${table.buildQueryParams().toString()}`, fetcher);
+
+  const images = useEntityImages(
+    "item",
+    (data?.data ?? []).map((g) => g.serverLookId),
   );
 
   async function handleDelete(id: number) {
-    const response = await fetch(`/api/admin/grounds/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/admin/grounds/${id}`, {
+      method: "DELETE",
+    });
 
     if (!response.ok) {
       toast.error("Não foi possível remover o ground.");
@@ -48,6 +56,18 @@ export default function AdminGroundsPage() {
 
   const columns: ColumnDef<GroundRow>[] = [
     { accessorKey: "id", header: "ID" },
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) => (
+        <EntityThumb
+          entityType="item"
+          id={row.original.serverLookId}
+          name={row.original.name}
+          image={images.get(row.original.serverLookId) ?? null}
+        />
+      ),
+    },
     { accessorKey: "name", header: "Nome" },
     { accessorKey: "serverLookId", header: "server_lookid" },
     { accessorKey: "zOrder", header: "z-order" },
@@ -120,19 +140,27 @@ export default function AdminGroundsPage() {
               title="Importar grounds.xml"
               description={
                 <>
-                  Envie um arquivo no formato do <code>grounds.xml</code> do RME. Brushes com
-                  dados inválidos são ignorados e reportados ao final.
+                  Envie um arquivo no formato do <code>grounds.xml</code> do
+                  RME. Brushes com dados inválidos são ignorados e reportados ao
+                  final.
                 </>
               }
               replaceLabel="Substituir todos os grounds existentes antes de importar"
               itemLabel="ground(s)"
               onImported={() => mutate()}
             />
-            <Button variant="outline" nativeButton={false} render={exportXmlLink}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={exportXmlLink}
+            >
               <Download className="size-4" />
               Exportar XML
             </Button>
-            <Button nativeButton={false} render={<Link href="/admin/grounds/new" />}>
+            <Button
+              nativeButton={false}
+              render={<Link href="/admin/grounds/new" />}
+            >
               <Plus className="size-4" />
               Novo ground
             </Button>

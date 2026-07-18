@@ -21,19 +21,29 @@ export function MonsterVoiceListField<T extends FieldValues>({
   control: Control<T>;
   name: string;
 }) {
-  const { fields, append, remove } = useFieldArray({ control, name: name as FieldArrayPath<T> });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: name as FieldArrayPath<T>,
+  });
 
   return (
     <div className="flex flex-col gap-2">
       {fields.map((field, index) => (
-        <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+        <div
+          key={field.id}
+          className="grid grid-cols-[1fr_auto_auto] items-center gap-2"
+        >
           <FormField
             control={control}
             name={`${name}.${index}.sentence` as FieldPath<T>}
             render={({ field }) => (
               <FormItem>
                 <FormControl>
-                  <Input {...field} value={String(field.value ?? "")} placeholder="Sentença..." />
+                  <Input
+                    {...field}
+                    value={String(field.value ?? "")}
+                    placeholder="Sentença..."
+                  />
                 </FormControl>
               </FormItem>
             )}
@@ -51,11 +61,16 @@ export function MonsterVoiceListField<T extends FieldValues>({
                     onChange={(event) => field.onChange(event.target.checked)}
                   />
                 </FormControl>
-                <span className="text-sm">Yell</span>
+                <span className="text-sm">Gritar (Yell)</span>
               </FormItem>
             )}
           />
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => remove(index)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => remove(index)}
+          >
             <Trash2 className="size-4" />
           </Button>
         </div>

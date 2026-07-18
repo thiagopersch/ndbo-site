@@ -5,7 +5,10 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
-import { monsterFormSchema, type MonsterFormInput } from "@/lib/validations/admin/monster";
+import {
+  monsterFormSchema,
+  type MonsterFormInput,
+} from "@/lib/validations/admin/monster";
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
 
 const MONSTER_LIST_SELECT = {
@@ -18,6 +21,7 @@ const MONSTER_LIST_SELECT = {
   experience: true,
   speed: true,
   healthMax: true,
+  published: true,
 } as const;
 
 type MonsterListRow = {
@@ -30,6 +34,7 @@ type MonsterListRow = {
   experience: number;
   speed: number;
   healthMax: number;
+  published: boolean;
 };
 
 function lootMatches(items: MonsterFormInput["loot"], query: string): boolean {
@@ -38,13 +43,18 @@ function lootMatches(items: MonsterFormInput["loot"], query: string): boolean {
       String(item.id) === query ||
       item.comment.toLowerCase().includes(query) ||
       item.text.toLowerCase().includes(query) ||
-      lootMatches(item.children, query)
+      lootMatches(item.children, query),
   );
 }
 
-function attacksMatch(attacks: MonsterFormInput["attacks"], query: string): boolean {
+function attacksMatch(
+  attacks: MonsterFormInput["attacks"],
+  query: string,
+): boolean {
   return attacks.some(
-    (attack) => attack.name.toLowerCase().includes(query) || attack.script.toLowerCase().includes(query)
+    (attack) =>
+      attack.name.toLowerCase().includes(query) ||
+      attack.script.toLowerCase().includes(query),
   );
 }
 
@@ -53,6 +63,15 @@ export async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  if (url.searchParams.get("all") === "true") {
+    const monsters = await prisma.monster.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    });
+    return NextResponse.json({ data: monsters });
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
   const bestiary = url.searchParams.get("bestiary");
   const category = url.searchParams.get("category");
@@ -94,16 +113,25 @@ export async function GET(request: Request) {
   // Filtros de loot/attacks exigem inspecionar o JSON — não dá para expressar via
   // where do Prisma, então paginamos em memória só quando um desses filtros é usado.
   if (loot || attacks) {
-    const monsters = await prisma.monster.findMany({ where, orderBy: { name: "asc" }, take: 2000 });
+    const monsters = await prisma.monster.findMany({
+      where,
+      orderBy: { name: "asc" },
+      take: 2000,
+    });
     const filtered = monsters
       .map((row) => ({ row, formInput: monsterRowToFormInput(row) }))
-      .filter(({ formInput }) => (loot ? lootMatches(formInput.loot, loot) : true))
-      .filter(({ formInput }) => (attacks ? attacksMatch(formInput.attacks, attacks) : true));
+      .filter(({ formInput }) =>
+        loot ? lootMatches(formInput.loot, loot) : true,
+      )
+      .filter(({ formInput }) =>
+        attacks ? attacksMatch(formInput.attacks, attacks) : true,
+      );
 
     const total = filtered.length;
     const start = (page - 1) * pageSize;
-    const pageItems = filtered.slice(start, start + pageSize).map(
-      ({ row }): MonsterListRow => ({
+    const pageItems = filtered
+      .slice(start, start + pageSize)
+      .map(({ row }): MonsterListRow => ({
         id: row.id,
         name: row.name,
         bestiary: row.bestiary,
@@ -113,10 +141,12 @@ export async function GET(request: Request) {
         experience: row.experience,
         speed: row.speed,
         healthMax: Number(row.healthMax),
-      })
-    );
+        published: row.published,
+      }));
 
-    return NextResponse.json(buildPaginatedResult(pageItems, total, page, pageSize));
+    return NextResponse.json(
+      buildPaginatedResult(pageItems, total, page, pageSize),
+    );
   }
 
   const [monsters, total] = await Promise.all([
@@ -132,11 +162,14 @@ export async function GET(request: Request) {
 
   return NextResponse.json(
     buildPaginatedResult(
-      monsters.map((monster) => ({ ...monster, healthMax: Number(monster.healthMax) })),
+      monsters.map((monster) => ({
+        ...monster,
+        healthMax: Number(monster.healthMax),
+      })),
       total,
       page,
-      pageSize
-    )
+      pageSize,
+    ),
   );
 }
 
@@ -150,16 +183,29 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message ?? "Dados inválidos." },
-      { status: 422 }
+      { status: 422 },
     );
   }
 
-  const existing = await prisma.monster.findUnique({ where: { name: parsed.data.name } });
+  const existing = await prisma.monster.findUnique({
+    where: { name: parsed.data.name },
+  });
   if (existing) {
-    return NextResponse.json({ error: "Já existe um monstro com esse nome." }, { status: 409 });
+    return NextResponse.json(
+      { error: "Já existe um monstro com esse nome." },
+      { status: 409 },
+    );
   }
 
-  const monster = await prisma.monster.create({ data: monsterFormToRow(parsed.data) });
+  const monster = await prisma.monster.create({
+    data: {
+      ...monsterFormToRow(parsed.data),
+      spells: {
+        create: parsed.data.linkedSpellIds.map((spellId) => ({ spellId })),
+      },
+    },
+    include: { spells: { select: { spellId: true } } },
+  });
 
   await logAudit({
     accountId: Number(session.user.id),
@@ -169,5 +215,8 @@ export async function POST(request: Request) {
     metadata: { name: monster.name },
   });
 
-  return NextResponse.json({ monster: monsterRowToFormInput(monster) }, { status: 201 });
+  return NextResponse.json(
+    { monster: monsterRowToFormInput(monster) },
+    { status: 201 },
+  );
 }

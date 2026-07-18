@@ -1,4 +1,4 @@
-import type { Monster, Prisma } from "@/lib/generated/prisma/client";
+import type { Monster, Prisma, PrismaClient } from "@/lib/generated/prisma/client";
 import {
   ELEMENT_KEYS,
   IMMUNITY_KEYS,
@@ -7,6 +7,31 @@ import {
   type ImmunityKey,
   type MonsterFormInput,
 } from "@/lib/validations/admin/monster";
+
+/** Ids de spell vinculados nos attacks/defenses (para resolver `words` na exportação XML). */
+export function spellIdsFromMonsterFormInput(input: Pick<MonsterFormInput, "attacks" | "defenses">): number[] {
+  const ids = [...input.attacks, ...input.defenses]
+    .map((spell) => spell.spellId)
+    .filter((id): id is number => id != null);
+  return Array.from(new Set(ids));
+}
+
+/** Busca as `words` das spells vinculadas aos attacks/defenses do monstro — usadas para
+ * resolver o `name` efetivo no XML exportado (ver `resolveSpellName` em `monster-xml.ts`). */
+export async function fetchWordsBySpellId(
+  prisma: PrismaClient,
+  input: Pick<MonsterFormInput, "attacks" | "defenses">
+): Promise<Record<number, string>> {
+  const spellIds = spellIdsFromMonsterFormInput(input);
+  if (spellIds.length === 0) return {};
+
+  const spells = await prisma.spell.findMany({
+    where: { id: { in: spellIds } },
+    select: { id: true, words: true },
+  });
+
+  return Object.fromEntries(spells.map((spell) => [spell.id, spell.words]));
+}
 
 export function monsterFormToRow(input: MonsterFormInput) {
   return {
@@ -42,6 +67,7 @@ export function monsterFormToRow(input: MonsterFormInput) {
     loot: input.loot as Prisma.InputJsonValue,
     summons: { maxSummons: input.maxSummons, list: input.summons } as Prisma.InputJsonValue,
     script: input.script as Prisma.InputJsonValue,
+    published: input.published,
   };
 }
 
@@ -49,7 +75,9 @@ function zeroRecord<K extends string>(keys: readonly K[]): Record<K, number> {
   return Object.fromEntries(keys.map((key) => [key, 0])) as Record<K, number>;
 }
 
-export function monsterRowToFormInput(monster: Monster): MonsterFormInput {
+export function monsterRowToFormInput(
+  monster: Monster & { spells?: { spellId: number }[] }
+): MonsterFormInput {
   const defenses = (monster.defenses ?? {}) as { armor?: number; defense?: number; list?: unknown[] };
   const voices = (monster.voices ?? {}) as { interval?: number; chance?: number; list?: unknown[] };
   const summons = (monster.summons ?? {}) as { maxSummons?: number; list?: unknown[] };
@@ -100,5 +128,7 @@ export function monsterRowToFormInput(monster: Monster): MonsterFormInput {
     maxSummons: summons.maxSummons ?? 0,
     summons: (summons.list as MonsterFormInput["summons"]) ?? [],
     script: (monster.script as string[]) ?? [],
+    linkedSpellIds: (monster.spells ?? []).map((link) => link.spellId),
+    published: monster.published,
   };
 }

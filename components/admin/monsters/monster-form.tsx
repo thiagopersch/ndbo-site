@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import useSWR from "swr";
 
 import {
   ELEMENT_KEYS,
@@ -16,6 +17,8 @@ import {
   type MonsterFormInput,
 } from "@/lib/validations/admin/monster";
 import { monsterToXml } from "@/lib/monster-xml";
+import { fetcher } from "@/lib/fetcher";
+import type { PaginatedResult } from "@/lib/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,11 +30,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
+import { ItemIdField } from "@/components/shared/item-id-field";
+import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { MonsterFlagsFields } from "@/components/admin/monsters/monster-flags-fields";
 import { MonsterRecordGridField } from "@/components/admin/monsters/monster-record-grid-field";
 import { MonsterSpellListField } from "@/components/admin/monsters/monster-spell-list-field";
+import { MonsterSpellLinkField } from "@/components/admin/monsters/monster-spell-link-field";
 import { MonsterVoiceListField } from "@/components/admin/monsters/monster-voice-list-field";
 import { MonsterSummonListField } from "@/components/admin/monsters/monster-summon-list-field";
 import { MonsterScriptListField } from "@/components/admin/monsters/monster-script-list-field";
@@ -53,12 +66,27 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
   });
 
   const watched = useWatch({ control: form.control });
-  const previewXml = monsterToXml({ ...defaultMonsterValues, ...watched } as MonsterFormInput);
+
+  // Mesma listagem já usada pelos comboboxes de spell (SWR dedupe pela chave, sem custo extra) —
+  // resolve `words` das spells vinculadas para a pré-visualização do XML (ver resolveSpellName em monster-xml.ts).
+  const { data: spellsData } = useSWR<
+    PaginatedResult<{ id: number; words: string }>
+  >("/api/admin/spells?pageSize=200", fetcher);
+  const wordsBySpellId = Object.fromEntries(
+    (spellsData?.data ?? []).map((spell) => [spell.id, spell.words]),
+  );
+
+  const previewXml = monsterToXml(
+    { ...defaultMonsterValues, ...watched } as MonsterFormInput,
+    wordsBySpellId,
+  );
 
   async function onSubmit(values: MonsterFormInput) {
     setIsSubmitting(true);
 
-    const url = isEditing ? `/api/admin/monsters/${monsterId}` : "/api/admin/monsters";
+    const url = isEditing
+      ? `/api/admin/monsters/${monsterId}`
+      : "/api/admin/monsters";
     const method = isEditing ? "PATCH" : "POST";
 
     const response = await fetch(url, {
@@ -83,17 +111,22 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-6"
+        >
           <Tabs defaultValue="basic">
             <TabsList className="flex-wrap">
               <TabsTrigger value="basic">Básico</TabsTrigger>
               <TabsTrigger value="flags">Flags</TabsTrigger>
               <TabsTrigger value="attacks">Ataques</TabsTrigger>
               <TabsTrigger value="defenses">Defesas</TabsTrigger>
+              <TabsTrigger value="spells">Spells</TabsTrigger>
               <TabsTrigger value="resist">Imunidades / elementos</TabsTrigger>
               <TabsTrigger value="voices">Vozes</TabsTrigger>
               <TabsTrigger value="loot">Loot</TabsTrigger>
               <TabsTrigger value="summons">Summons / script</TabsTrigger>
+              <TabsTrigger value="image">Imagem</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
@@ -133,8 +166,11 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                     name="bestiary"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Bestiary</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <FormLabel>Bestiário (Bestiary)</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger className="w-full">
                               <SelectValue />
@@ -154,8 +190,11 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                     name="race"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Race</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <FormLabel>Raça (Race)</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger className="w-full">
                               <SelectValue />
@@ -173,15 +212,27 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                       </FormItem>
                     )}
                   />
-                  <NumberField control={form.control} name="experience" label="Experience" />
-                  <NumberField control={form.control} name="speed" label="Speed" />
-                  <NumberField control={form.control} name="manacost" label="Manacost" />
+                  <NumberField
+                    control={form.control}
+                    name="experience"
+                    label="Experiência (Experience)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="speed"
+                    label="Velocidade (Speed)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="manacost"
+                    label="Custo de mana (Manacost)"
+                  />
                   <FormField
                     control={form.control}
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Universo pertence</FormLabel>
+                        <FormLabel>Universo (category)</FormLabel>
                         <FormControl>
                           <Input {...field} placeholder='ex.: "dragon ball"' />
                         </FormControl>
@@ -194,11 +245,38 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                     name="subcategory"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Subcategoria (subpasta)</FormLabel>
+                        <FormLabel>
+                          Subcategoria/subpasta (subcategory)
+                        </FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder='ex.: "1-50" ou "bosses"' />
+                          <Input
+                            {...field}
+                            placeholder='ex.: "1-50" ou "bosses"'
+                          />
                         </FormControl>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="published"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-2 sm:col-span-2 lg:col-span-3">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            className="size-4"
+                            checked={field.value}
+                            onChange={(event) =>
+                              field.onChange(event.target.checked)
+                            }
+                          />
+                        </FormControl>
+                        <FormLabel className="!mt-0">
+                          Publicado (disponível nas páginas públicas de
+                          gameplay)
+                        </FormLabel>
                       </FormItem>
                     )}
                   />
@@ -210,8 +288,16 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Dados de vida</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <NumberField control={form.control} name="healthNow" label="Health (now)" />
-                  <NumberField control={form.control} name="healthMax" label="Health (max)" />
+                  <NumberField
+                    control={form.control}
+                    name="healthNow"
+                    label="Vida atual (Health now)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="healthMax"
+                    label="Vida máxima (Health max)"
+                  />
                 </CardContent>
               </Card>
 
@@ -220,14 +306,47 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Outfit</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <NumberField control={form.control} name="lookType" label="Look type (outfit)" />
-                  <NumberField control={form.control} name="lookTypeEx" label="Look typeex (item)" />
-                  <NumberField control={form.control} name="lookHead" label="Head" />
-                  <NumberField control={form.control} name="lookBody" label="Body" />
-                  <NumberField control={form.control} name="lookLegs" label="Legs" />
-                  <NumberField control={form.control} name="lookFeet" label="Feet" />
-                  <NumberField control={form.control} name="lookAddons" label="Addons" />
-                  <NumberField control={form.control} name="corpse" label="Corpse (item id)" />
+                  <NumberField
+                    control={form.control}
+                    name="lookType"
+                    label="Tipo de aparência (Look type)"
+                  />
+                  <ItemIdField
+                    control={form.control}
+                    name="lookTypeEx"
+                    label="Tipo de aparência extra (Look typeex)"
+                    nullable
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookHead"
+                    label="Cabeça (Head)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookBody"
+                    label="Corpo (Body)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookLegs"
+                    label="Pernas (Legs)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookFeet"
+                    label="Pés (Feet)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookAddons"
+                    label="Addons"
+                  />
+                  <ItemIdField
+                    control={form.control}
+                    name="corpse"
+                    label="Item de corpo (Corpse)"
+                  />
                 </CardContent>
               </Card>
 
@@ -236,8 +355,16 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Target change</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <NumberField control={form.control} name="targetChangeInterval" label="Interval" />
-                  <NumberField control={form.control} name="targetChangeChance" label="Chance" />
+                  <NumberField
+                    control={form.control}
+                    name="targetChangeInterval"
+                    label="Intervalo (Interval)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="targetChangeChance"
+                    label="Chance"
+                  />
                 </CardContent>
               </Card>
 
@@ -246,8 +373,16 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Strategy</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <NumberField control={form.control} name="strategyAttack" label="Attack (boss)" />
-                  <NumberField control={form.control} name="strategyDefense" label="Defense (boss)" />
+                  <NumberField
+                    control={form.control}
+                    name="strategyAttack"
+                    label="Ataque - boss (Attack)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="strategyDefense"
+                    label="Defesa - boss (Defense)"
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -269,7 +404,11 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Ataques</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <MonsterSpellListField control={form.control} name="attacks" addLabel="Adicionar ataque" />
+                  <MonsterSpellListField
+                    control={form.control}
+                    name="attacks"
+                    addLabel="Adicionar ataque"
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -281,10 +420,36 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <NumberField control={form.control} name="defenseArmor" label="Armor" />
-                    <NumberField control={form.control} name="defenseValue" label="Defense" />
+                    <NumberField
+                      control={form.control}
+                      name="defenseArmor"
+                      label="Armadura (Armor)"
+                    />
+                    <NumberField
+                      control={form.control}
+                      name="defenseValue"
+                      label="Defesa (Defense)"
+                    />
                   </div>
-                  <MonsterSpellListField control={form.control} name="defenses" addLabel="Adicionar defesa" />
+                  <MonsterSpellListField
+                    control={form.control}
+                    name="defenses"
+                    addLabel="Adicionar defesa"
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="spells">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Spells vinculadas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <MonsterSpellLinkField
+                    control={form.control}
+                    name="linkedSpellIds"
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -295,7 +460,11 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Imunidades</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <MonsterRecordGridField control={form.control} basePath="immunities" keys={IMMUNITY_KEYS} />
+                  <MonsterRecordGridField
+                    control={form.control}
+                    basePath="immunities"
+                    keys={IMMUNITY_KEYS}
+                  />
                 </CardContent>
               </Card>
               <Card className="mt-4">
@@ -303,7 +472,11 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Elementos</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <MonsterRecordGridField control={form.control} basePath="elements" keys={ELEMENT_KEYS} />
+                  <MonsterRecordGridField
+                    control={form.control}
+                    basePath="elements"
+                    keys={ELEMENT_KEYS}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -315,8 +488,16 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <NumberField control={form.control} name="voiceInterval" label="Interval" />
-                    <NumberField control={form.control} name="voiceChance" label="Chance" />
+                    <NumberField
+                      control={form.control}
+                      name="voiceInterval"
+                      label="Intervalo (Interval)"
+                    />
+                    <NumberField
+                      control={form.control}
+                      name="voiceChance"
+                      label="Chance"
+                    />
                   </div>
                   <MonsterVoiceListField control={form.control} name="voices" />
                 </CardContent>
@@ -340,8 +521,15 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Summons</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
-                  <NumberField control={form.control} name="maxSummons" label="Max summons" />
-                  <MonsterSummonListField control={form.control} name="summons" />
+                  <NumberField
+                    control={form.control}
+                    name="maxSummons"
+                    label="Máximo de summons (Max summons)"
+                  />
+                  <MonsterSummonListField
+                    control={form.control}
+                    name="summons"
+                  />
                 </CardContent>
               </Card>
               <Card className="mt-4">
@@ -349,7 +537,31 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Script (eventos Lua)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <MonsterScriptListField control={form.control} name="script" />
+                  <MonsterScriptListField
+                    control={form.control}
+                    name="script"
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="image">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Imagem</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isEditing ? (
+                    <EntityImageUpload
+                      entityType="monster"
+                      id={monsterId}
+                      name={watched.name}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Salve o monstro primeiro para poder enviar uma imagem.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -365,8 +577,16 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-              {isSubmitting ? "Salvando..." : isEditing ? "Salvar alterações" : "Criar monstro"}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting
+                ? "Salvando..."
+                : isEditing
+                  ? "Salvar alterações"
+                  : "Criar monstro"}
             </Button>
           </div>
         </form>

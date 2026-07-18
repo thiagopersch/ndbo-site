@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import { useEntityImages } from "@/components/shared/use-entity-images";
 
 type DoodadRow = {
   id: number;
@@ -31,13 +33,19 @@ const exportXmlLink = <a href="/api/admin/doodads/export" />;
 export default function AdminDoodadsPage() {
   const table = useServerTable();
 
-  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<DoodadRow>>(
-    `/api/admin/doodads?${table.buildQueryParams().toString()}`,
-    fetcher
+  const { data, isLoading, isValidating, mutate } = useSWR<
+    PaginatedResult<DoodadRow>
+  >(`/api/admin/doodads?${table.buildQueryParams().toString()}`, fetcher);
+
+  const images = useEntityImages(
+    "item",
+    (data?.data ?? []).map((d) => d.serverLookId),
   );
 
   async function handleDelete(id: number) {
-    const response = await fetch(`/api/admin/doodads/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/admin/doodads/${id}`, {
+      method: "DELETE",
+    });
 
     if (!response.ok) {
       toast.error("Não foi possível remover o doodad.");
@@ -50,6 +58,18 @@ export default function AdminDoodadsPage() {
 
   const columns: ColumnDef<DoodadRow>[] = [
     { accessorKey: "id", header: "ID" },
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) => (
+        <EntityThumb
+          entityType="item"
+          id={row.original.serverLookId}
+          name={row.original.name}
+          image={images.get(row.original.serverLookId) ?? null}
+        />
+      ),
+    },
     { accessorKey: "name", header: "Nome" },
     {
       accessorKey: "type",
@@ -131,19 +151,27 @@ export default function AdminDoodadsPage() {
               title="Importar doodads.xml"
               description={
                 <>
-                  Envie um arquivo no formato do <code>doodads.xml</code> do RME. Brushes com
-                  dados inválidos são ignorados e reportados ao final.
+                  Envie um arquivo no formato do <code>doodads.xml</code> do
+                  RME. Brushes com dados inválidos são ignorados e reportados ao
+                  final.
                 </>
               }
               replaceLabel="Substituir todos os doodads existentes antes de importar"
               itemLabel="doodad(s)"
               onImported={() => mutate()}
             />
-            <Button variant="outline" nativeButton={false} render={exportXmlLink}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={exportXmlLink}
+            >
               <Download className="size-4" />
               Exportar XML
             </Button>
-            <Button nativeButton={false} render={<Link href="/admin/doodads/new" />}>
+            <Button
+              nativeButton={false}
+              render={<Link href="/admin/doodads/new" />}
+            >
               <Plus className="size-4" />
               Novo doodad
             </Button>

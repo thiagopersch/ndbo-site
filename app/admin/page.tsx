@@ -9,6 +9,7 @@ import { getDashboardStats } from "@/lib/dashboard-stats";
 import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { RecentListCard } from "@/components/admin/dashboard/recent-list-card";
 import { DashboardCharts } from "@/components/admin/dashboard/dashboard-charts";
+import { EntityThumb } from "@/components/shared/entity-thumb";
 
 export const metadata: Metadata = {
   title: "Painel administrativo",
@@ -24,7 +25,8 @@ export default async function AdminDashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold">Painel administrativo</h1>
         <p className="text-muted-foreground">
-          Bem-vindo, {session?.user?.name}. Nível de acesso: {session?.user?.groupId}.
+          Bem-vindo, {session?.user?.name}. Nível de acesso:{" "}
+          {session?.user?.groupId}.
         </p>
       </div>
 
@@ -33,7 +35,10 @@ export default async function AdminDashboardPage() {
           title="Contas"
           value={stats.accounts.total}
           description="Últimos 7 dias vs. 7 dias anteriores"
-          trend={{ delta: stats.accounts.delta, percent: stats.accounts.percent }}
+          trend={{
+            delta: stats.accounts.delta,
+            percent: stats.accounts.percent,
+          }}
         />
         <StatCard
           title="Players"
@@ -57,15 +62,42 @@ export default async function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             {stats.monsterBoostToday ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-lg font-semibold">{stats.monsterBoostToday.monster}</span>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">Loot +{stats.monsterBoostToday.loot}%</Badge>
-                  <Badge variant="secondary">Exp +{stats.monsterBoostToday.exp}%</Badge>
+              <div className="flex items-center gap-3">
+                {stats.monsterBoostToday.monsterId != null && (
+                  <EntityThumb
+                    entityType="monster"
+                    id={stats.monsterBoostToday.monsterId}
+                    name={stats.monsterBoostToday.monster}
+                    image={
+                      stats.monsterBoostToday.image
+                        ? {
+                            extension: stats.monsterBoostToday.image.extension,
+                            updatedAt:
+                              stats.monsterBoostToday.image.updatedAt.toISOString(),
+                          }
+                        : null
+                    }
+                    size="md"
+                  />
+                )}
+                <div className="flex flex-col gap-1">
+                  <span className="text-lg font-semibold">
+                    {stats.monsterBoostToday.monster}
+                  </span>
+                  <div className="flex gap-2">
+                    <Badge variant="secondary">
+                      Loot +{stats.monsterBoostToday.loot}%
+                    </Badge>
+                    <Badge variant="secondary">
+                      Exp +{stats.monsterBoostToday.exp}%
+                    </Badge>
+                  </div>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Nenhum monstro impulsionado hoje.</p>
+              <p className="text-sm text-muted-foreground">
+                Nenhum monstro impulsionado hoje.
+              </p>
             )}
           </CardContent>
         </Card>

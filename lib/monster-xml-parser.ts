@@ -46,6 +46,7 @@ function parseAttributes(raw: unknown): AttributeEntryInput[] {
 function parseSpell(raw: XmlNode): MonsterSpellInput {
   const target = a(raw, "target");
   return {
+    spellId: null,
     name: str(a(raw, "name")),
     script: str(a(raw, "script")),
     interval: num(a(raw, "interval") ?? a(raw, "speed")),

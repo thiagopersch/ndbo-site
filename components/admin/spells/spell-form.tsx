@@ -4,7 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useWatch, type Control, type FieldPath } from "react-hook-form";
+import {
+  useForm,
+  useWatch,
+  type Control,
+  type FieldPath,
+} from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -38,6 +43,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
+import { ItemIdField } from "@/components/shared/item-id-field";
+import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { SpellVocationField } from "@/components/admin/spells/spell-vocation-field";
 
@@ -64,22 +71,34 @@ const BEHAVIOR_FIELDS: {
   label: string;
   kinds?: SpellKind[];
 }[] = [
-  { name: "enabled", label: "Habilitada" },
-  { name: "premium", label: "Requer premium" },
-  { name: "aggressive", label: "Agressiva" },
-  { name: "needTarget", label: "Precisa de alvo" },
-  { name: "needWeapon", label: "Precisa de arma" },
-  { name: "selfTarget", label: "Alvo em si mesmo" },
-  { name: "needLearn", label: "Precisa aprender" },
+  { name: "enabled", label: "Habilitada (enabled)" },
+  { name: "premium", label: "Requer premium (premium)" },
+  { name: "aggressive", label: "Agressiva (aggressive)" },
+  { name: "needTarget", label: "Precisa de alvo (needTarget)" },
+  { name: "needWeapon", label: "Precisa de arma (needWeapon)" },
+  { name: "selfTarget", label: "Alvo em si mesmo (selfTarget)" },
+  { name: "needLearn", label: "Precisa aprender (needLearn)" },
   { name: "blockWalls", label: "Bloqueia por linha de visão (blockwalls)" },
-  { name: "hasParam", label: "Aceita parâmetro (params)", kinds: ["instant", "conjure"] },
-  { name: "needDirection", label: "Precisa de direção", kinds: ["instant", "conjure"] },
+  {
+    name: "hasParam",
+    label: "Aceita parâmetro (params)",
+    kinds: ["instant", "conjure"],
+  },
+  {
+    name: "needDirection",
+    label: "Precisa de direção",
+    kinds: ["instant", "conjure"],
+  },
   {
     name: "casterTargetOrDirection",
     label: "Alvo do conjurador ou direção",
     kinds: ["instant", "conjure"],
   },
-  { name: "allowFarUse", label: "Permite uso à distância (allowfaruse)", kinds: ["rune"] },
+  {
+    name: "allowFarUse",
+    label: "Permite uso à distância (allowfaruse)",
+    kinds: ["rune"],
+  },
   { name: "hasCharges", label: "Possui cargas (charges)", kinds: ["rune"] },
 ];
 
@@ -107,7 +126,9 @@ function NullableNumberField({
               onBlur={field.onBlur}
               value={(field.value as number | null) ?? ""}
               onChange={(event) =>
-                field.onChange(event.target.value === "" ? null : Number(event.target.value))
+                field.onChange(
+                  event.target.value === "" ? null : Number(event.target.value),
+                )
               }
             />
           </FormControl>
@@ -129,13 +150,18 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
   });
 
   const watched = useWatch({ control: form.control });
-  const previewXml = spellToXml({ ...defaultSpellValues, ...watched } as SpellFormInput);
+  const previewXml = spellToXml({
+    ...defaultSpellValues,
+    ...watched,
+  } as SpellFormInput);
   const currentKind = (watched.kind ?? "instant") as SpellKind;
 
   async function onSubmit(values: SpellFormInput) {
     setIsSubmitting(true);
 
-    const url = isEditing ? `/api/admin/spells/${spellId}` : "/api/admin/spells";
+    const url = isEditing
+      ? `/api/admin/spells/${spellId}`
+      : "/api/admin/spells";
     const method = isEditing ? "PATCH" : "POST";
 
     const response = await fetch(url, {
@@ -160,13 +186,17 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-6"
+        >
           <Tabs defaultValue="basic">
             <TabsList>
               <TabsTrigger value="basic">Dados básicos</TabsTrigger>
               <TabsTrigger value="behavior">Comportamento</TabsTrigger>
               <TabsTrigger value="script">Script</TabsTrigger>
               <TabsTrigger value="vocations">Vocações</TabsTrigger>
+              <TabsTrigger value="image">Imagem</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
@@ -180,8 +210,11 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                     name="kind"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tipo</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <FormLabel>Tipo (kind)</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger className="w-full">
                               <SelectValue />
@@ -215,10 +248,11 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                   />
 
                   {currentKind === "rune" ? (
-                    <NullableNumberField
+                    <ItemIdField
                       control={form.control}
                       name="runeItemId"
                       label="Item id da rune (id)"
+                      nullable
                     />
                   ) : (
                     <FormField
@@ -236,21 +270,52 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                     />
                   )}
 
-                  <NumberField control={form.control} name="level" label="Level" />
-                  <NumberField control={form.control} name="magicLevel" label="Magic level" />
-                  <NumberField control={form.control} name="mana" label="Mana" />
-                  <NumberField control={form.control} name="manaPercent" label="Mana %" />
-                  <NumberField control={form.control} name="soul" label="Soul" />
-                  <NumberField control={form.control} name="exhaustion" label="Exhaustion (ms)" />
-                  <NumberField control={form.control} name="range" label="Range" />
+                  <NumberField
+                    control={form.control}
+                    name="level"
+                    label="Nível (Level)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="magicLevel"
+                    label="Nível mágico (Magic level)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="mana"
+                    label="Mana"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="manaPercent"
+                    label="Mana %"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="soul"
+                    label="Alma (Soul)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="exhaustion"
+                    label="Exaustão em ms (Exhaustion)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="range"
+                    label="Alcance (Range)"
+                  />
 
                   <FormField
                     control={form.control}
                     name="blockType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Block type</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <FormLabel>Tipo de bloqueio (Block type)</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <FormControl>
                             <SelectTrigger className="w-full">
                               <SelectValue />
@@ -287,11 +352,17 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                     control={form.control}
                     name="group"
                     render={({ field }) => {
-                      const selected = field.value ? (field.value as string).split(",").filter(Boolean) : [];
+                      const selected = field.value
+                        ? (field.value as string).split(",").filter(Boolean)
+                        : [];
 
                       function toggle(option: string) {
                         if (selected.includes(option)) {
-                          field.onChange(selected.filter((value) => value !== option).join(","));
+                          field.onChange(
+                            selected
+                              .filter((value) => value !== option)
+                              .join(","),
+                          );
                         } else {
                           field.onChange([...selected, option].join(","));
                         }
@@ -299,10 +370,13 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
 
                       return (
                         <FormItem className="sm:col-span-2">
-                          <FormLabel>Grupo</FormLabel>
+                          <FormLabel>Grupo (group)</FormLabel>
                           <div className="flex flex-wrap gap-x-4 gap-y-2">
                             {SPELL_GROUP_OPTIONS.map((option) => (
-                              <label key={option} className="flex items-center gap-1.5 text-sm">
+                              <label
+                                key={option}
+                                className="flex items-center gap-1.5 text-sm"
+                              >
                                 <input
                                   type="checkbox"
                                   className="size-4"
@@ -318,6 +392,29 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                       );
                     }}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="published"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-2 sm:col-span-2">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            className="size-4"
+                            checked={field.value}
+                            onChange={(event) =>
+                              field.onChange(event.target.checked)
+                            }
+                          />
+                        </FormControl>
+                        <FormLabel className="!mt-0">
+                          Publicada (disponível nas páginas públicas de
+                          gameplay)
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -329,11 +426,15 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   {currentKind !== "rune" && (
-                    <NumberField control={form.control} name="limitRange" label="Limit range" />
+                    <NumberField
+                      control={form.control}
+                      name="limitRange"
+                      label="Alcance limite (Limit range)"
+                    />
                   )}
 
                   {BEHAVIOR_FIELDS.filter(
-                    (item) => !item.kinds || item.kinds.includes(currentKind)
+                    (item) => !item.kinds || item.kinds.includes(currentKind),
                   ).map(({ name, label }) => (
                     <FormField
                       key={name}
@@ -346,7 +447,9 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                               type="checkbox"
                               className="size-4"
                               checked={Boolean(field.value)}
-                              onChange={(event) => field.onChange(event.target.checked)}
+                              onChange={(event) =>
+                                field.onChange(event.target.checked)
+                              }
                             />
                           </FormControl>
                           <FormLabel className="!mt-0">{label}</FormLabel>
@@ -369,7 +472,7 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                     name="event"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Event</FormLabel>
+                        <FormLabel>Evento (event)</FormLabel>
                         <FormControl>
                           <Input placeholder="script" {...field} />
                         </FormControl>
@@ -408,20 +511,22 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
 
                   {currentKind === "conjure" && (
                     <>
-                      <NullableNumberField
+                      <ItemIdField
                         control={form.control}
                         name="conjureId"
                         label="Item conjurado (conjureId)"
+                        nullable
                       />
                       <NullableNumberField
                         control={form.control}
                         name="conjureCount"
                         label="Quantidade (conjureCount)"
                       />
-                      <NullableNumberField
+                      <ItemIdField
                         control={form.control}
                         name="conjureReagentId"
                         label="Reagente (reagentId)"
+                        nullable
                       />
                     </>
                   )}
@@ -439,6 +544,27 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <TabsContent value="image">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Imagem</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isEditing ? (
+                    <EntityImageUpload
+                      entityType="spell"
+                      id={spellId}
+                      name={watched.name}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Salve a spell primeiro para poder enviar uma imagem.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -451,8 +577,16 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
-              {isSubmitting ? "Salvando..." : isEditing ? "Salvar alterações" : "Criar spell"}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting
+                ? "Salvando..."
+                : isEditing
+                  ? "Salvar alterações"
+                  : "Criar spell"}
             </Button>
           </div>
         </form>

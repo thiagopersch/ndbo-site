@@ -6,17 +6,20 @@ import {
   BadgeCheck,
   Bug,
   Coins,
+  Footprints,
   Ghost,
   Gift,
   LayoutDashboard,
   Layers,
   Newspaper,
+  Package,
   ScrollText,
   Shapes,
   ShieldBan,
   Sparkles,
   SquareStack,
   FolderTree,
+  Terminal,
   Ticket,
   Users,
   Wand2,
@@ -36,7 +39,11 @@ type AdminSection = {
   links: AdminLink[];
 };
 
-const dashboardLink: AdminLink = { label: "Dashboard", href: "/admin", icon: LayoutDashboard };
+const dashboardLink: AdminLink = {
+  label: "Dashboard",
+  href: "/admin",
+  icon: LayoutDashboard,
+};
 
 const adminSections: AdminSection[] = [
   {
@@ -51,8 +58,16 @@ const adminSections: AdminSection[] = [
     title: "Vocações",
     links: [
       { label: "Vocações", href: "/admin/vocations", icon: Sparkles },
-      { label: "Classes de vocação", href: "/admin/vocation-classes", icon: Layers },
-      { label: "Universos de vocação", href: "/admin/vocation-universes", icon: SquareStack },
+      {
+        label: "Classes de vocação",
+        href: "/admin/vocation-classes",
+        icon: Layers,
+      },
+      {
+        label: "Universos de vocação",
+        href: "/admin/vocation-universes",
+        icon: SquareStack,
+      },
     ],
   },
   {
@@ -69,7 +84,19 @@ const adminSections: AdminSection[] = [
     title: "Bestiário",
     links: [
       { label: "Monstros", href: "/admin/monsters", icon: Bug },
-      { label: "Monstros impulsionados", href: "/admin/monster-boost", icon: Ghost },
+      {
+        label: "Monstros impulsionados",
+        href: "/admin/monster-boost",
+        icon: Ghost,
+      },
+    ],
+  },
+  {
+    title: "Itens",
+    links: [
+      { label: "Items", href: "/admin/items", icon: Package },
+      { label: "Movements", href: "/admin/movements", icon: Footprints },
+      { label: "Scripts Lua", href: "/admin/lua-scripts", icon: Terminal },
     ],
   },
   {
@@ -80,7 +107,11 @@ const adminSections: AdminSection[] = [
     title: "Economia",
     links: [
       { label: "Loteria", href: "/admin/lottery", icon: Coins },
-      { label: "Recompensas diárias", href: "/admin/daily-rewards", icon: Gift },
+      {
+        label: "Recompensas diárias",
+        href: "/admin/daily-rewards",
+        icon: Gift,
+      },
     ],
   },
   {
@@ -93,7 +124,9 @@ const adminSections: AdminSection[] = [
   },
   {
     title: "Sistema",
-    links: [{ label: "Auditoria", href: "/admin/audit-logs", icon: ScrollText }],
+    links: [
+      { label: "Auditoria", href: "/admin/audit-logs", icon: ScrollText },
+    ],
   },
 ];
 
@@ -121,7 +154,7 @@ function AdminNavLink({
         "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
         active
           ? "bg-primary/10 font-medium text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       <Icon className="size-4 shrink-0" />

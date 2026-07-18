@@ -3,7 +3,7 @@
 import type { Control, FieldPath } from "react-hook-form";
 
 import { BORDER_EDGES, type BorderFormInput } from "@/lib/validations/admin/border";
-import { NumberField } from "@/components/shared/number-field";
+import { ItemIdField } from "@/components/shared/item-id-field";
 
 type BorderEdgeGridFieldProps = {
   control: Control<BorderFormInput>;
@@ -28,7 +28,7 @@ export function BorderEdgeGridField({ control }: BorderEdgeGridFieldProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {BORDER_EDGES.map((edge, index) => (
-        <NumberField
+        <ItemIdField
           key={edge}
           control={control}
           name={`edges.${index}.itemId` as FieldPath<BorderFormInput>}
