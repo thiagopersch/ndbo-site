@@ -16,7 +16,40 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.TilesetWhereInput = search ? { name: { contains: search } } : {};
+  const searchId = search ? Number(search) : NaN;
+  const isNumericSearch = search !== "" && Number.isFinite(searchId);
+
+  const where: Prisma.TilesetWhereInput = search
+    ? {
+        OR: [
+          { name: { contains: search } },
+          { categories: { some: { grounds: { some: { name: { contains: search } } } } } },
+          { categories: { some: { walls: { some: { name: { contains: search } } } } } },
+          { categories: { some: { doodads: { some: { name: { contains: search } } } } } },
+          ...(isNumericSearch
+            ? [
+                { categories: { some: { grounds: { some: { id: searchId } } } } },
+                { categories: { some: { walls: { some: { id: searchId } } } } },
+                { categories: { some: { doodads: { some: { id: searchId } } } } },
+                {
+                  categories: {
+                    some: {
+                      itemEntries: {
+                        some: {
+                          OR: [
+                            { itemId: searchId },
+                            { AND: [{ fromId: { lte: searchId } }, { toId: { gte: searchId } }] },
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              ]
+            : []),
+        ],
+      }
+    : {};
 
   const [tilesets, total] = await Promise.all([
     prisma.tileset.findMany({

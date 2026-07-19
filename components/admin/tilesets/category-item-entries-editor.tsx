@@ -12,7 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -26,6 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+
+const KIND_LABELS: Record<"ITEM_ID" | "ITEM_RANGE", string> = {
+  ITEM_ID: "ID único",
+  ITEM_RANGE: "Intervalo",
+};
 
 type EntryRow = TilesetItemEntryFormInput & { id: number };
 
@@ -42,6 +48,20 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
   const [fromId, setFromId] = useState("");
   const [toId, setToId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const searchTerm = search.trim();
+  const searchId = searchTerm === "" ? NaN : Number(searchTerm);
+  const filteredEntries =
+    searchTerm === ""
+      ? entries
+      : entries.filter((entry) =>
+          entry.kind === "ITEM_ID"
+            ? String(entry.itemId ?? "").includes(searchTerm)
+            : Number.isFinite(searchId)
+              ? (entry.fromId ?? Infinity) <= searchId && searchId <= (entry.toId ?? -Infinity)
+              : String(entry.fromId ?? "").includes(searchTerm) || String(entry.toId ?? "").includes(searchTerm)
+        );
 
   async function handleAdd() {
     const payload: Partial<TilesetItemEntryFormInput> = {
@@ -105,14 +125,28 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
 
   return (
     <div className="flex flex-col gap-4">
+      {entries.length > 0 && (
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar por ID (único ou dentro de um intervalo)..."
+            className="pl-8"
+          />
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         {entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma entrada ainda.</p>
+        ) : filteredEntries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma entrada encontrada para &quot;{searchTerm}&quot;.</p>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={filteredEntries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
               <div className="flex flex-col gap-2">
-                {entries.map((entry) => (
+                {filteredEntries.map((entry) => (
                   <EntryRowItem key={entry.id} entry={entry} onDelete={() => handleDelete(entry.id)} />
                 ))}
               </div>
@@ -126,11 +160,13 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
           <span className="text-xs text-muted-foreground">Tipo</span>
           <Select value={kind} onValueChange={(v) => v && setKind(v as "ITEM_ID" | "ITEM_RANGE")}>
             <SelectTrigger className="w-40">
-              <SelectValue />
+              <SelectValue>
+                {(value: "ITEM_ID" | "ITEM_RANGE") => KIND_LABELS[value] ?? value}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ITEM_ID">ID único</SelectItem>
-              <SelectItem value="ITEM_RANGE">Intervalo</SelectItem>
+              <SelectItem value="ITEM_ID">{KIND_LABELS.ITEM_ID}</SelectItem>
+              <SelectItem value="ITEM_RANGE">{KIND_LABELS.ITEM_RANGE}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -138,7 +174,10 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
         {kind === "ITEM_ID" ? (
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Item ID</span>
-            <Input type="number" value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-28" />
+            <div className="flex items-center gap-2">
+              <Input type="number" value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-28" />
+              <EntityThumb entityType="item" id={Number(itemId) || 0} />
+            </div>
           </div>
         ) : (
           <>
@@ -171,9 +210,10 @@ function EntryRowItem({ entry, onDelete }: { entry: EntryRow; onDelete: () => vo
       <button type="button" className="cursor-grab touch-none text-muted-foreground" {...attributes} {...listeners}>
         <GripVertical className="size-4" />
       </button>
-      <span className="flex-1">
+      <span className="flex flex-1 items-center gap-2">
         {entry.kind === "ITEM_ID" ? (
           <>
+            <EntityThumb entityType="item" id={entry.itemId ?? 0} />
             ID único — <code>{entry.itemId}</code>
           </>
         ) : (

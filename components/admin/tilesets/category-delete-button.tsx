@@ -95,7 +95,9 @@ export function CategoryDeleteButton({ category, onDeleted }: CategoryDeleteButt
         {needsTarget && (
           <Select value={target != null ? String(target) : undefined} onValueChange={(v) => setTarget(v ? Number(v) : null)}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Categoria de destino..." />
+              <SelectValue placeholder="Categoria de destino...">
+                {(value: string) => options.find((option) => String(option.id) === value)?.label ?? value}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {options.map((option) => (

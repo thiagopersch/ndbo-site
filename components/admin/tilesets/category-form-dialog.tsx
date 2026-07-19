@@ -165,7 +165,11 @@ export function CategoryFormDialog({ tilesetId, trigger, category, nextOrder = 0
                     <Select value={String(field.value)} onValueChange={(v) => v && field.onChange(Number(v))}>
                       <FormControl>
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue>
+                            {(value: string) =>
+                              tilesetOptions.find((tileset) => String(tileset.id) === value)?.name ?? value
+                            }
+                          </SelectValue>
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -191,7 +195,9 @@ export function CategoryFormDialog({ tilesetId, trigger, category, nextOrder = 0
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue />
+                        <SelectValue>
+                          {(value: TilesetCategoryKind) => KIND_LABELS[value] ?? value}
+                        </SelectValue>
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

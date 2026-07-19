@@ -136,7 +136,7 @@ export default function AdminTilesetsPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         isFiltering={!isLoading && isValidating}
-        searchPlaceholder="Buscar por nome..."
+        searchPlaceholder="Buscar por nome, brush ou ID de item..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
         manualPagination
