@@ -18,7 +18,7 @@ const groundFriendSchema = z.object({
 });
 export type GroundFriendInput = z.infer<typeof groundFriendSchema>;
 
-const baseGroundFormSchema = z.object({
+export const baseGroundFormSchema = z.object({
   name: z.string().min(1, "Informe o nome").max(255),
   serverLookId: z.number().int(),
   zOrder: z.number().int(),

@@ -44,7 +44,7 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
   const isEditing = groundId != null;
 
   const { data: bordersData } = useSWR<PaginatedResult<BorderListItem>>(
-    "/api/admin/borders?pageSize=200",
+    "/api/admin/borders?all=true",
     fetcher
   );
 

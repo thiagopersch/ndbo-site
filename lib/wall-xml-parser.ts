@@ -12,8 +12,8 @@ import {
 } from "@/lib/xml-parse-utils";
 import {
   WALL_FILE_BRUSH_TYPES,
+  baseWallFormSchema,
   defaultWallValues,
-  wallFormSchema,
   type FriendInput,
   type WallFormInput,
   type WallSegmentInput,
@@ -114,7 +114,10 @@ export function parseWallsXml(xml: string): ParseWallsXmlResult {
       candidate.alternates = parseAlternates(raw.alternate);
     }
 
-    const result = wallFormSchema.safeParse(candidate);
+    // `tilesetCategoryId` não existe no walls.xml — é atribuído depois, pelo admin, no CRUD
+    // de tilesets. Validar contra o schema completo (que exige categoria) rejeitaria todo
+    // brush importado de um arquivo real.
+    const result = baseWallFormSchema.safeParse(candidate);
 
     if (!result.success) {
       errors.push(`"${name}": ${result.error.issues[0]?.message ?? "dados inválidos"}.`);

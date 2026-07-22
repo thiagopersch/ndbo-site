@@ -123,7 +123,7 @@ export default function AdminGroundsPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         isFiltering={!isLoading && isValidating}
-        searchPlaceholder="Buscar por nome..."
+        searchPlaceholder="Buscar por nome ou id de item (server_lookid ou item usado no conteúdo)..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
         manualPagination

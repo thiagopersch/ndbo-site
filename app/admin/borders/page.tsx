@@ -105,7 +105,7 @@ export default function AdminBordersPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         isFiltering={!isLoading && isValidating}
-        searchPlaceholder="Buscar por nome..."
+        searchPlaceholder="Buscar por nome ou id de item usado nas bordas..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
         manualPagination

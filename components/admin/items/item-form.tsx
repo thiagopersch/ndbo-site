@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import { ImageOff, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -45,6 +45,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/shared/number-field";
 import { RecordGridField } from "@/components/shared/record-grid-field";
 import { BooleanGridField } from "@/components/shared/boolean-grid-field";
@@ -95,6 +96,14 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = itemId != null;
 
+  const [rangeMode, setRangeMode] = useState(false);
+  const [fromId, setFromId] = useState("");
+  const [toId, setToId] = useState("");
+
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+
   const form = useForm<ItemInput, unknown, ItemInput>({
     resolver: zodResolver(itemSchema),
     defaultValues: initialValues ?? defaultItemValues,
@@ -110,13 +119,87 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
   });
 
   const watched = useWatch({ control: form.control });
-  const previewXml = itemToXml({
-    ...defaultItemValues,
-    ...watched,
-  } as ItemInput);
+  const previewXml =
+    !isEditing && rangeMode
+      ? itemToXml({
+          ...defaultItemValues,
+          ...watched,
+          id: Number(fromId) || 0,
+        } as ItemInput).replace(
+          /^<item id="\d+"/,
+          `<item fromid="${fromId || 0}" toid="${toId || 0}"`,
+        )
+      : itemToXml({
+          ...defaultItemValues,
+          ...watched,
+        } as ItemInput);
+
+  function handlePendingImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setPendingImagePreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return URL.createObjectURL(file);
+    });
+    setPendingImageFile(file);
+  }
+
+  function clearPendingImage() {
+    setPendingImagePreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return null;
+    });
+    setPendingImageFile(null);
+  }
+
+  async function uploadPendingImage(id: number, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`/api/admin/images/item/${id}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      toast.error("Item criado, mas não foi possível enviar a imagem.");
+    }
+  }
 
   async function onSubmit(values: ItemInput) {
     setIsSubmitting(true);
+
+    if (!isEditing && rangeMode) {
+      const from = Number(fromId);
+      const to = Number(toId);
+
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from) {
+        setIsSubmitting(false);
+        toast.error("Informe um range de ids válido (de/até).");
+        return;
+      }
+
+      const response = await fetch("/api/admin/items/range", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromId: from, toId: to, item: values }),
+      });
+
+      setIsSubmitting(false);
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error ?? "Não foi possível criar os items.");
+        return;
+      }
+
+      toast.success(`${to - from + 1} items criados (#${from}–#${to}).`);
+      router.push("/admin/items");
+      router.refresh();
+      return;
+    }
 
     const url = isEditing ? `/api/admin/items/${itemId}` : "/api/admin/items";
     const method = isEditing ? "PATCH" : "POST";
@@ -127,14 +210,20 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
       body: JSON.stringify(values),
     });
 
-    setIsSubmitting(false);
-
     if (!response.ok) {
+      setIsSubmitting(false);
       const data = await response.json().catch(() => null);
       toast.error(data?.error ?? "Não foi possível salvar o item.");
       return;
     }
 
+    const data = await response.json();
+
+    if (!isEditing && pendingImageFile && data?.item?.id) {
+      await uploadPendingImage(data.item.id, pendingImageFile);
+    }
+
+    setIsSubmitting(false);
     toast.success(isEditing ? "Item atualizado." : "Item criado.");
     router.push("/admin/items");
     router.refresh();
@@ -168,12 +257,51 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                   <CardTitle>Identificação</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <NumberField
-                    control={form.control}
-                    name="id"
-                    label="ID (server id)"
-                    disabled={isEditing}
-                  />
+                  {!isEditing && (
+                    <div className="flex flex-row items-center gap-2 sm:col-span-2 lg:col-span-3">
+                      <input
+                        type="checkbox"
+                        className="size-4"
+                        id="range-mode"
+                        checked={rangeMode}
+                        onChange={(event) => setRangeMode(event.target.checked)}
+                      />
+                      <Label htmlFor="range-mode" className="font-normal">
+                        Cadastrar como range de ids (mesmo nome/atributos, vários ids
+                        — equivalente a <code>fromid</code>/<code>toid</code> no{" "}
+                        <code>items.xml</code>)
+                      </Label>
+                    </div>
+                  )}
+                  {!isEditing && rangeMode ? (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="range-from-id">ID inicial (from id)</Label>
+                        <Input
+                          id="range-from-id"
+                          type="number"
+                          value={fromId}
+                          onChange={(event) => setFromId(event.target.value)}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="range-to-id">ID final (to id)</Label>
+                        <Input
+                          id="range-to-id"
+                          type="number"
+                          value={toId}
+                          onChange={(event) => setToId(event.target.value)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <NumberField
+                      control={form.control}
+                      name="id"
+                      label="ID (server id)"
+                      disabled={isEditing}
+                    />
+                  )}
                   <FormField
                     control={form.control}
                     name="name"
@@ -285,10 +413,59 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       id={itemId}
                       name={watched.name}
                     />
-                  ) : (
+                  ) : rangeMode ? (
                     <p className="text-sm text-muted-foreground">
-                      Salve o item primeiro para poder enviar uma imagem.
+                      Upload de imagem não está disponível ao cadastrar um range de
+                      ids — envie a imagem depois, individualmente, pela listagem.
                     </p>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-4">
+                        {pendingImagePreview ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- preview local do arquivo selecionado, ainda não enviado
+                          <img
+                            src={pendingImagePreview}
+                            alt="Preview"
+                            className="size-10 shrink-0 rounded-sm border border-border object-contain bg-muted/40"
+                          />
+                        ) : (
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-dashed border-border text-muted-foreground">
+                            <ImageOff className="size-4" />
+                          </span>
+                        )}
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => imageInputRef.current?.click()}
+                          >
+                            {pendingImageFile ? "Trocar imagem" : "Selecionar imagem"}
+                          </Button>
+                          {pendingImageFile && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={clearPendingImage}
+                            >
+                              Remover seleção
+                            </Button>
+                          )}
+                        </div>
+                        <input
+                          ref={imageInputRef}
+                          type="file"
+                          accept="image/png,image/gif"
+                          className="hidden"
+                          onChange={handlePendingImageChange}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        PNG ou GIF, até 2MB. A imagem é enviada automaticamente
+                        assim que o item for criado.
+                      </p>
+                    </div>
                   )}
                 </CardContent>
               </Card>

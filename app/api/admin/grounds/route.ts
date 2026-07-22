@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { groundFormSchema } from "@/lib/validations/admin/ground";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { groundItemIds, idsWithItem } from "@/lib/brush-item-ids";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -15,7 +16,28 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.GroundWhereInput = search ? { name: { contains: search } } : {};
+  const searchId = search ? Number(search) : NaN;
+  const isNumericSearch = search !== "" && Number.isFinite(searchId);
+
+  // Busca por id de item: `server_lookid` (coluna) + qualquer id usado em `items` (grama/
+  // tocos do chão) — não dá pra filtrar JSON aninhado no banco, então varre a tabela em
+  // memória.
+  let contentMatchIds: number[] = [];
+  if (isNumericSearch) {
+    const candidates = await prisma.ground.findMany({ select: { id: true, items: true } });
+    contentMatchIds = idsWithItem(candidates, groundItemIds, searchId);
+  }
+
+  const where: Prisma.GroundWhereInput = search
+    ? {
+        OR: [
+          { name: { contains: search } },
+          ...(isNumericSearch
+            ? [{ serverLookId: searchId }, { id: { in: contentMatchIds } }]
+            : []),
+        ],
+      }
+    : {};
 
   const [grounds, total] = await Promise.all([
     prisma.ground.findMany({

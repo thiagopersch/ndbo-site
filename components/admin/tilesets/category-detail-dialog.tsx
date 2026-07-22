@@ -95,7 +95,7 @@ export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }
           </DialogTitle>
           <DialogDescription>
             {category.type === "BRUSH"
-              ? "Brushes vinculados a esta categoria — edite-os nos CRUDs de Ground/Wall/Doodad; a categoria é sincronizada automaticamente."
+              ? "Brushes vinculados a esta categoria — edite-os nos CRUDs de Ground/Wall/Doodad; a categoria é sincronizada automaticamente. Também é possível soltar ids de item avulsos, sem brush."
               : "Entradas de item (ID único ou intervalo) desta categoria."}
           </DialogDescription>
         </DialogHeader>
@@ -127,6 +127,13 @@ export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }
             {data && hasAnyBrush && !hasFilteredResults && (
               <p className="text-sm text-muted-foreground">Nenhum brush encontrado para &quot;{search}&quot;.</p>
             )}
+
+            <div className="border-t pt-4">
+              <p className="mb-2 text-sm font-medium text-muted-foreground">
+                Item ids avulsos (sem brush)
+              </p>
+              <CategoryItemEntriesEditor categoryId={category.id} onChanged={onChanged} />
+            </div>
           </div>
         ) : (
           <CategoryItemEntriesEditor categoryId={category.id} onChanged={onChanged} />

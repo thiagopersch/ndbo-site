@@ -107,12 +107,14 @@ export async function reassignCategoryEntries(fromCategoryId: number, toCategory
 }
 
 /** Garante que `type` bate com `kind` e que o kind é compatível com o brush type que
- * a rota está tentando vincular (Ground/WallBrush -> TERRAIN*, DoodadBrush -> DOODAD*). */
+ * a rota está tentando vincular (Ground/WallBrush -> TERRAIN*, DoodadBrush -> qualquer
+ * kind BRUSH — o RME já mistura brushes de doodads.xml dentro de tags `terrain`/
+ * `terrain_and_raw`, ex.: a tileset "City Carpets" do arquivo de referência). */
 export function assertCategoryKindMatchesBrushKind(kind: TilesetCategoryKind, brushKind: "terrain" | "doodad"): void {
   if (categoryTypeForKind(kind) !== "BRUSH") {
     throw new TilesetIntegrityError(`A categoria selecionada não é do tipo Brush (kind=${kind}).`, 400);
   }
-  const allowed = brushKind === "terrain" ? TERRAIN_KINDS : DOODAD_KINDS;
+  const allowed = brushKind === "terrain" ? TERRAIN_KINDS : [...TERRAIN_KINDS, ...DOODAD_KINDS];
   if (!allowed.includes(kind)) {
     throw new TilesetIntegrityError(
       `Categoria incompatível: brushes de ${brushKind === "terrain" ? "Ground/Wall" : "Doodad"} exigem kind ${allowed.join(" ou ")}.`,
@@ -122,8 +124,9 @@ export function assertCategoryKindMatchesBrushKind(kind: TilesetCategoryKind, br
 }
 
 /** Valida (buscando no banco) que `categoryId` existe e é uma categoria BRUSH
- * compatível com o tipo de brush (`terrain` para Ground/Wall, `doodad` para Doodad).
- * `null`/`undefined` é sempre aceito (brush fica sem categoria). */
+ * compatível com o tipo de brush (`terrain` para Ground/Wall, `doodad` para Doodad —
+ * este último aceita qualquer categoria BRUSH, terrain ou doodad). `null`/`undefined`
+ * é sempre aceito (brush fica sem categoria). */
 export async function assertCategoryForBrush(categoryId: number | null | undefined, brushKind: "terrain" | "doodad"): Promise<void> {
   if (categoryId == null) return;
 

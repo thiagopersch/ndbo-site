@@ -8,6 +8,7 @@ import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { wallFormSchema } from "@/lib/validations/admin/wall";
 import { wallFormToContent } from "@/lib/wall-mapper";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { idsWithItem, wallItemIds } from "@/lib/brush-item-ids";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -16,7 +17,28 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.WallBrushWhereInput = search ? { name: { contains: search } } : {};
+  const searchId = search ? Number(search) : NaN;
+  const isNumericSearch = search !== "" && Number.isFinite(searchId);
+
+  // Busca por id de item: `server_lookid` (coluna) + qualquer id usado dentro do conteúdo
+  // (walls/items/composites/alternates) — não dá pra filtrar JSON aninhado no banco, então
+  // varre a tabela em memória.
+  let contentMatchIds: number[] = [];
+  if (isNumericSearch) {
+    const candidates = await prisma.wallBrush.findMany({ select: { id: true, content: true } });
+    contentMatchIds = idsWithItem(candidates, wallItemIds, searchId);
+  }
+
+  const where: Prisma.WallBrushWhereInput = search
+    ? {
+        OR: [
+          { name: { contains: search } },
+          ...(isNumericSearch
+            ? [{ serverLookId: searchId }, { id: { in: contentMatchIds } }]
+            : []),
+        ],
+      }
+    : {};
 
   const [brushes, total] = await Promise.all([
     prisma.wallBrush.findMany({

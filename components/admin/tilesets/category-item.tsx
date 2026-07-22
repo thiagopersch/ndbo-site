@@ -59,7 +59,7 @@ export function CategoryItem({ category, tilesetId, onSaved, onOpenDetail }: Cat
 
   const entryCount =
     category.type === "BRUSH"
-      ? category._count.grounds + category._count.walls + category._count.doodads
+      ? category._count.grounds + category._count.walls + category._count.doodads + category._count.itemEntries
       : category._count.itemEntries;
 
   return (

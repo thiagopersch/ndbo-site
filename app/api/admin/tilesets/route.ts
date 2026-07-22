@@ -8,6 +8,7 @@ import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { tilesetFormSchema } from "@/lib/validations/admin/tileset";
 import { tilesetToFormInput } from "@/lib/tileset-mapper";
 import { assertUniqueTilesetName, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { doodadItemIds, groundItemIds, idsWithItem, wallItemIds } from "@/lib/brush-item-ids";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -18,6 +19,23 @@ export async function GET(request: Request) {
 
   const searchId = search ? Number(search) : NaN;
   const isNumericSearch = search !== "" && Number.isFinite(searchId);
+
+  // Busca por id de item: casa contra `server_lookid` (coluna) e contra qualquer id usado
+  // dentro do conteúdo de cada brush vinculado (composites/alternates/etc.) — não dá pra
+  // filtrar JSON aninhado no banco, então varre as 3 tabelas de brush em memória.
+  let groundContentMatchIds: number[] = [];
+  let wallContentMatchIds: number[] = [];
+  let doodadContentMatchIds: number[] = [];
+  if (isNumericSearch) {
+    const [groundCandidates, wallCandidates, doodadCandidates] = await Promise.all([
+      prisma.ground.findMany({ select: { id: true, items: true } }),
+      prisma.wallBrush.findMany({ select: { id: true, content: true } }),
+      prisma.doodadBrush.findMany({ select: { id: true, content: true } }),
+    ]);
+    groundContentMatchIds = idsWithItem(groundCandidates, groundItemIds, searchId);
+    wallContentMatchIds = idsWithItem(wallCandidates, wallItemIds, searchId);
+    doodadContentMatchIds = idsWithItem(doodadCandidates, doodadItemIds, searchId);
+  }
 
   const where: Prisma.TilesetWhereInput = search
     ? {
@@ -31,6 +49,12 @@ export async function GET(request: Request) {
                 { categories: { some: { grounds: { some: { id: searchId } } } } },
                 { categories: { some: { walls: { some: { id: searchId } } } } },
                 { categories: { some: { doodads: { some: { id: searchId } } } } },
+                { categories: { some: { grounds: { some: { serverLookId: searchId } } } } },
+                { categories: { some: { walls: { some: { serverLookId: searchId } } } } },
+                { categories: { some: { doodads: { some: { serverLookId: searchId } } } } },
+                { categories: { some: { grounds: { some: { id: { in: groundContentMatchIds } } } } } },
+                { categories: { some: { walls: { some: { id: { in: wallContentMatchIds } } } } } },
+                { categories: { some: { doodads: { some: { id: { in: doodadContentMatchIds } } } } } },
                 {
                   categories: {
                     some: {

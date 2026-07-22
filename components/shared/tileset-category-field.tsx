@@ -25,11 +25,13 @@ type CategoryApiResult = {
 };
 
 /** `terrain` -> categorias de Ground/Wall (`TERRAIN`/`TERRAIN_AND_RAW`); `doodad` ->
- * categorias de Doodad (`DOODAD`/`DOODAD_AND_RAW`). Reflete `TERRAIN_KINDS`/`DOODAD_KINDS`
- * de `lib/validations/admin/tileset.ts`. */
+ * qualquer categoria BRUSH (terrain ou doodad) — o RME já mistura brushes de
+ * doodads.xml dentro de tags `terrain`/`terrain_and_raw` (ex.: tileset "City Carpets"
+ * do arquivo de referência), então um DoodadBrush pode ser categorizado em qualquer
+ * uma. Reflete `assertCategoryKindMatchesBrushKind` em `lib/tileset-integrity.ts`. */
 const KIND_QUERY: Record<"terrain" | "doodad", string> = {
   terrain: "TERRAIN,TERRAIN_AND_RAW",
-  doodad: "DOODAD,DOODAD_AND_RAW",
+  doodad: "TERRAIN,TERRAIN_AND_RAW,DOODAD,DOODAD_AND_RAW",
 };
 
 type TilesetCategoryFieldProps<TFieldValues extends FieldValues> = {

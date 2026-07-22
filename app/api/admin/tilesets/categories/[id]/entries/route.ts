@@ -38,10 +38,10 @@ export async function POST(request: Request, { params }: Params) {
   if (!category) {
     return NextResponse.json({ error: "Categoria não encontrada." }, { status: 404 });
   }
-  if (category.type !== "ITEM") {
-    return NextResponse.json({ error: "Só é possível adicionar entradas de item em categorias do tipo ITEM." }, { status: 422 });
-  }
 
+  // Categorias BRUSH (terrain/doodad) também podem ter entradas de item soltas — o RME já
+  // mistura `<brush>` e `<item>` na mesma tag (ex.: `doodad`, `terrain_and_raw`); ver
+  // `tilesetCategoryToXmlCategory` em lib/tileset-mapper.ts.
   const entry = await prisma.tilesetItemEntry.create({
     data: {
       categoryId,

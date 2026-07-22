@@ -12,8 +12,8 @@ import {
 } from "@/lib/xml-parse-utils";
 import {
   DOODAD_BRUSH_TYPES,
+  baseDoodadFormSchema,
   defaultDoodadValues,
-  doodadFormSchema,
   isWallBrushType,
   type CarpetEntryInput,
   type DoodadFormInput,
@@ -122,7 +122,10 @@ export function parseDoodadsXml(xml: string): ParseDoodadsXmlResult {
       candidate.tables = parseTables(raw.table);
     }
 
-    const result = doodadFormSchema.safeParse(candidate);
+    // `tilesetCategoryId` não existe no doodads.xml — é atribuído depois, pelo admin, no CRUD
+    // de tilesets (ex.: seção "Sem categoria"). Validar contra o schema completo (que exige
+    // categoria) rejeitaria todo brush importado de um arquivo real.
+    const result = baseDoodadFormSchema.safeParse(candidate);
 
     if (!result.success) {
       errors.push(`"${name}": ${result.error.issues[0]?.message ?? "dados inválidos"}.`);

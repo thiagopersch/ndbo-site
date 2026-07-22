@@ -1,7 +1,7 @@
 import { asArray, bool, createXmlParser, num, parseItems, str, type XmlNode } from "@/lib/xml-parse-utils";
 import {
+  baseGroundFormSchema,
   defaultGroundValues,
-  groundFormSchema,
   type GroundBorderRefInput,
   type GroundFormInput,
   type GroundFriendInput,
@@ -73,7 +73,10 @@ export function parseGroundsXml(xml: string): ParseGroundsXmlResult {
       friends: parseFriends(raw.friend),
     };
 
-    const result = groundFormSchema.safeParse(candidate);
+    // `tilesetCategoryId` não existe no grounds.xml — é atribuído depois, pelo admin, no CRUD
+    // de tilesets. Validar contra o schema completo (que exige categoria) rejeitaria todo
+    // brush importado de um arquivo real.
+    const result = baseGroundFormSchema.safeParse(candidate);
 
     if (!result.success) {
       errors.push(`"${name}": ${result.error.issues[0]?.message ?? "dados inválidos"}.`);

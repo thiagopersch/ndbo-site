@@ -20,6 +20,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { XmlBundlePanel } from "@/components/shared/xml-bundle-panel";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { EntityImageUploadDialog } from "@/components/shared/entity-image-upload-dialog";
 import { useEntityImages } from "@/components/shared/use-entity-images";
 import { PublishedToggle } from "@/components/shared/published-toggle";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
@@ -229,6 +230,13 @@ export default function AdminItemsPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <EntityImageUploadDialog
+            entityType="item"
+            id={row.original.id}
+            name={row.original.name}
+            image={images.get(row.original.id) ?? null}
+            onUploaded={() => mutate()}
+          />
           <Button
             variant="ghost"
             size="icon-sm"

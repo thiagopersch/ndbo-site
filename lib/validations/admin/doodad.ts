@@ -106,7 +106,7 @@ const tableSegmentSchema = z.object({
   items: z.array(itemRefSchema),
 });
 
-const baseDoodadFormSchema = z.object({
+export const baseDoodadFormSchema = z.object({
   name: z.string().min(1, "Informe o nome").max(255),
   type: z.enum(DOODAD_BRUSH_TYPES),
   serverLookId: z.number().int(),

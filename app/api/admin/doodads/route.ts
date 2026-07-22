@@ -8,6 +8,7 @@ import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { doodadFormSchema } from "@/lib/validations/admin/doodad";
 import { doodadFormToContent } from "@/lib/doodad-mapper";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { doodadItemIds, idsWithItem } from "@/lib/brush-item-ids";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -16,7 +17,28 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.DoodadBrushWhereInput = search ? { name: { contains: search } } : {};
+  const searchId = search ? Number(search) : NaN;
+  const isNumericSearch = search !== "" && Number.isFinite(searchId);
+
+  // Busca por id de item: além do `server_lookid` (coluna), também casa contra qualquer id
+  // usado dentro do conteúdo do brush (items/composites/alternates/carpets/walls/tables) —
+  // não dá pra filtrar isso no banco (JSON aninhado), então varre a tabela em memória.
+  let contentMatchIds: number[] = [];
+  if (isNumericSearch) {
+    const candidates = await prisma.doodadBrush.findMany({ select: { id: true, content: true } });
+    contentMatchIds = idsWithItem(candidates, doodadItemIds, searchId);
+  }
+
+  const where: Prisma.DoodadBrushWhereInput = search
+    ? {
+        OR: [
+          { name: { contains: search } },
+          ...(isNumericSearch
+            ? [{ serverLookId: searchId }, { id: { in: contentMatchIds } }]
+            : []),
+        ],
+      }
+    : {};
 
   const [brushes, total] = await Promise.all([
     prisma.doodadBrush.findMany({

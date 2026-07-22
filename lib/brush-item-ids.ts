@@ -1,4 +1,4 @@
-import type { Ground, WallBrush, DoodadBrush } from "@/lib/generated/prisma/client";
+import type { Border, Ground, WallBrush, DoodadBrush } from "@/lib/generated/prisma/client";
 import type {
   AlternateInput,
   CarpetEntryInput,
@@ -7,6 +7,7 @@ import type {
   TableSegmentInput,
 } from "@/lib/validations/admin/doodad";
 import type { WallSegmentInput } from "@/lib/validations/admin/wall";
+import type { BorderEdgeItemInput } from "@/lib/validations/admin/border";
 
 /**
  * Extrai, de cada tipo de brush, a lista "achatada" de item ids que ele realmente usa
@@ -90,4 +91,21 @@ export function doodadItemIds(doodad: Pick<DoodadBrush, "content">): number[] {
     ...idsFromWallSegments(content.walls as WallSegmentInput[] | undefined),
     ...idsFromTables(content.tables as TableSegmentInput[] | undefined),
   ]);
+}
+
+/** Ids de item usados pelos `<borderitem>` (um por `edge`) de um Border. */
+export function borderItemIds(border: Pick<Border, "edges">): number[] {
+  const edges = (border.edges as BorderEdgeItemInput[] | null) ?? [];
+  return cleanIds(edges.map((edge) => edge.itemId));
+}
+
+/** Filtra `rows` (um scan completo da tabela, já que não dá pra buscar dentro de um JSON
+ * aninhado direto no Prisma/MySQL) pelas que usam `searchId` em algum lugar do conteúdo —
+ * usado pela busca por "id de item" nas listagens de Ground/Wall/Doodad/Border. */
+export function idsWithItem<T extends { id: number }>(
+  rows: T[],
+  extractItemIds: (row: T) => number[],
+  searchId: number
+): number[] {
+  return rows.filter((row) => extractItemIds(row).includes(searchId)).map((row) => row.id);
 }

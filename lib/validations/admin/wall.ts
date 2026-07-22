@@ -84,7 +84,7 @@ const friendSchema = z.object({
 });
 export type FriendInput = z.infer<typeof friendSchema>;
 
-const baseWallFormSchema = z.object({
+export const baseWallFormSchema = z.object({
   name: z.string().min(1, "Informe o nome").max(255),
   type: z.enum(WALL_FILE_BRUSH_TYPES),
   serverLookId: z.number().int(),
