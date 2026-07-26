@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
@@ -202,6 +203,11 @@ export default function AdminSpellsPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/spells/${row.original.id}/duplicate`}
+            editPathBase="/admin/spells"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">

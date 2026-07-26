@@ -8,7 +8,23 @@ import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { wallFormSchema } from "@/lib/validations/admin/wall";
 import { wallFormToContent } from "@/lib/wall-mapper";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
-import { idsWithItem, wallItemIds } from "@/lib/brush-item-ids";
+import { idsWithContentArray, idsWithItem, wallItemIds } from "@/lib/brush-item-ids";
+import { hasDuplicateName } from "@/lib/unique-name";
+
+const BOOLEAN_FILTER_KEYS = [
+  "draggable",
+  "onBlocking",
+  "onDuplicate",
+  "oneSize",
+  "redoBorders",
+  "reborder",
+] as const;
+
+function parseBooleanParam(value: string | null): boolean | undefined {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -16,6 +32,10 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
+
+  const type = url.searchParams.get("type");
+  const tilesetCategoryId = url.searchParams.get("tilesetCategoryId");
+  const contentShape = url.searchParams.get("contentShape"); // "walls" | "items" | "composites" | "alternates"
 
   const searchId = search ? Number(search) : NaN;
   const isNumericSearch = search !== "" && Number.isFinite(searchId);
@@ -29,16 +49,39 @@ export async function GET(request: Request) {
     contentMatchIds = idsWithItem(candidates, wallItemIds, searchId);
   }
 
-  const where: Prisma.WallBrushWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search } },
-          ...(isNumericSearch
-            ? [{ serverLookId: searchId }, { id: { in: contentMatchIds } }]
-            : []),
-        ],
-      }
-    : {};
+  // Filtro "conteúdo" (segmentos de parede/itens diretos/composites/alternates): mesma
+  // limitação de JSON aninhado — varre a tabela em memória.
+  let contentShapeMatchIds: number[] | null = null;
+  if (
+    contentShape === "walls" ||
+    contentShape === "items" ||
+    contentShape === "composites" ||
+    contentShape === "alternates"
+  ) {
+    const candidates = await prisma.wallBrush.findMany({ select: { id: true, content: true } });
+    contentShapeMatchIds = idsWithContentArray(candidates, contentShape);
+  }
+
+  const where: Prisma.WallBrushWhereInput = {
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            ...(isNumericSearch
+              ? [{ serverLookId: searchId }, { id: { in: contentMatchIds } }]
+              : []),
+          ],
+        }
+      : {}),
+    ...(type ? { type } : {}),
+    ...(tilesetCategoryId ? { tilesetCategoryId: Number(tilesetCategoryId) } : {}),
+    ...(contentShapeMatchIds ? { id: { in: contentShapeMatchIds } } : {}),
+    ...Object.fromEntries(
+      BOOLEAN_FILTER_KEYS.map((key) => [key, parseBooleanParam(url.searchParams.get(key))]).filter(
+        ([, value]) => value !== undefined
+      )
+    ),
+  };
 
   const [brushes, total] = await Promise.all([
     prisma.wallBrush.findMany({
@@ -51,7 +94,12 @@ export async function GET(request: Request) {
         serverLookId: true,
         draggable: true,
         onBlocking: true,
+        onDuplicate: true,
+        oneSize: true,
+        redoBorders: true,
+        reborder: true,
         thickness: true,
+        tilesetCategoryId: true,
       },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -75,6 +123,11 @@ export async function POST(request: Request) {
 
   try {
     await assertCategoryForBrush(parsed.data.tilesetCategoryId, "terrain");
+
+    const existingNames = await prisma.wallBrush.findMany({ select: { id: true, name: true } });
+    if (hasDuplicateName(existingNames, parsed.data.name)) {
+      return NextResponse.json({ error: "Já existe uma wall com esse nome." }, { status: 409 });
+    }
 
     const brush = await prisma.wallBrush.create({
       data: {

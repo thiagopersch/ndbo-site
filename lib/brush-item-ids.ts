@@ -109,3 +109,19 @@ export function idsWithItem<T extends { id: number }>(
 ): number[] {
   return rows.filter((row) => extractItemIds(row).includes(searchId)).map((row) => row.id);
 }
+
+/** `true` se `content[key]` for um array JSON não-vazio — usado pelo filtro "conteúdo"
+ * (itens diretos/composites/alternates/segmentos de parede) de Doodad/Wall, que não dá
+ * pra expressar como filtro nativo do Prisma sobre uma coluna Json. */
+export function contentArrayNonEmpty(content: unknown, key: string): boolean {
+  const value = (content as Record<string, unknown> | null)?.[key];
+  return Array.isArray(value) && value.length > 0;
+}
+
+/** Ids das linhas cujo `content[key]` (Doodad/Wall) é um array não-vazio. */
+export function idsWithContentArray<T extends { id: number; content: unknown }>(
+  rows: T[],
+  key: string
+): number[] {
+  return rows.filter((row) => contentArrayNonEmpty(row.content, key)).map((row) => row.id);
+}

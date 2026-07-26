@@ -192,7 +192,18 @@ export function CategoryFormDialog({ tilesetId, trigger, category, nextOrder = 0
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value: TilesetCategoryKind | null) => {
+                      if (!value) return;
+                      field.onChange(value);
+                      // `type` não tem campo próprio no form (é 1:1 derivado de `kind`), mas o
+                      // schema exige os dois em sincronia (`refine`) — sem isto, trocar o kind
+                      // deixa `type` com o valor antigo e o submit falha em silêncio (nenhum
+                      // FormField/FormMessage pro campo "type" pra mostrar o erro).
+                      form.setValue("type", categoryTypeForKind(value), { shouldValidate: true });
+                    }}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue>

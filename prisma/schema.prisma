@@ -1020,6 +1020,14 @@ model Tileset {
   active      Boolean @default(true)
   icon        String? @db.VarChar(255)
 
+  /// Se `true` (padrão, comportamento legado): os ids de item derivados dos brushes de
+  /// cada categoria (grama/tocos de Ground, item/porta de cada segmento de WallBrush,
+  /// item de DoodadBrush) são misturados na própria tag da categoria junto com os
+  /// `<brush>` (ex.: `<terrain>`), como um `terrain_and_raw`. Se `false`, esses ids não
+  /// aparecem na categoria original — em vez disso, saem agrupados numa tag `<raw>`
+  /// sintética ao final do tileset exportado.
+  rawIdsInBrush Boolean @default(true) @map("raw_ids_in_brush")
+
   categories TilesetCategory[]
 
   createdAt DateTime @default(now()) @map("created_at")

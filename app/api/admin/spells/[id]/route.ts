@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { spellFormSchema } from "@/lib/validations/admin/spell";
 import { spellFormToScalarData, spellToFormInput } from "@/lib/spell-mapper";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -35,6 +36,15 @@ export async function PATCH(request: Request, { params }: Params) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
+  }
+
+  // Unicidade escopada por `kind` — ver comentário equivalente em app/api/admin/spells/route.ts.
+  const existingNames = await prisma.spell.findMany({
+    where: { kind: parsed.data.kind },
+    select: { id: true, name: true },
+  });
+  if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
+    return NextResponse.json({ error: "Já existe uma spell desse kind com esse nome." }, { status: 409 });
   }
 
   const spell = await prisma.spell.update({

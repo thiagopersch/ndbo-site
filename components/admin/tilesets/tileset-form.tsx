@@ -122,6 +122,28 @@ export function TilesetForm({ tilesetId, initialValues, onSaved }: TilesetFormPr
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="rawIdsInBrush"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center gap-2 sm:col-span-2">
+                <FormControl>
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={field.value}
+                    onChange={(event) => field.onChange(event.target.checked)}
+                  />
+                </FormControl>
+                <FormLabel className="!mt-0">
+                  Ids do raw aparecem no brush (misturados na mesma tag, ex.:{" "}
+                  <code>terrain_and_raw</code>). Se desmarcado, saem numa tag{" "}
+                  <code>&lt;raw&gt;</code> separada ao exportar.
+                </FormLabel>
+              </FormItem>
+            )}
+          />
         </div>
 
         <FormField

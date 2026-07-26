@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { MonsterXmlImportDialog } from "@/components/admin/monsters/monster-xml-import-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { PublishedToggle } from "@/components/shared/published-toggle";
@@ -219,6 +220,11 @@ export default function AdminMonstersPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/monsters/${row.original.id}/duplicate`}
+            editPathBase="/admin/monsters"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">

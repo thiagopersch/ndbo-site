@@ -8,14 +8,18 @@ import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
+import { WALL_FILE_BRUSH_TYPES } from "@/lib/validations/admin/wall";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useEntityImages } from "@/components/shared/use-entity-images";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type WallRow = {
   id: number;
@@ -24,8 +28,21 @@ type WallRow = {
   serverLookId: number;
   draggable: boolean;
   onBlocking: boolean;
+  onDuplicate: boolean;
+  oneSize: boolean;
+  redoBorders: boolean;
+  reborder: boolean;
   thickness: string;
+  tilesetCategoryId: number | null;
 };
+
+type CategoryOption = { id: number; label: string };
+type CategoryApiResult = { categories: CategoryOption[] };
+
+const YES_NO_OPTIONS = [
+  { value: "true", label: "Sim" },
+  { value: "false", label: "Não" },
+];
 
 // eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page route
 const exportXmlLink = <a href="/api/admin/walls/export" />;
@@ -36,6 +53,11 @@ export default function AdminWallsPage() {
   const { data, isLoading, isValidating, mutate } = useSWR<
     PaginatedResult<WallRow>
   >(`/api/admin/walls?${table.buildQueryParams().toString()}`, fetcher);
+
+  const { data: categoriesData } = useSWR<CategoryApiResult>(
+    "/api/admin/tilesets/categories?type=BRUSH&kind=TERRAIN,TERRAIN_AND_RAW",
+    fetcher,
+  );
 
   const images = useEntityImages(
     "item",
@@ -55,6 +77,41 @@ export default function AdminWallsPage() {
     toast.success("Wall removida.");
     mutate();
   }
+
+  const filterFields: FilterFieldConfig[] = [
+    {
+      key: "type",
+      label: "Tipo",
+      type: "select",
+      options: WALL_FILE_BRUSH_TYPES.map((type) => ({ value: type, label: type })),
+    },
+    { key: "draggable", label: "Draggable", type: "select", options: YES_NO_OPTIONS },
+    { key: "onBlocking", label: "On blocking", type: "select", options: YES_NO_OPTIONS },
+    { key: "onDuplicate", label: "On duplicate", type: "select", options: YES_NO_OPTIONS },
+    { key: "redoBorders", label: "Redo borders", type: "select", options: YES_NO_OPTIONS },
+    { key: "oneSize", label: "One size", type: "select", options: YES_NO_OPTIONS },
+    { key: "reborder", label: "Reborder", type: "select", options: YES_NO_OPTIONS },
+    {
+      key: "tilesetCategoryId",
+      label: "Categoria do tileset",
+      type: "select",
+      options: (categoriesData?.categories ?? []).map((category) => ({
+        value: String(category.id),
+        label: category.label,
+      })),
+    },
+    {
+      key: "contentShape",
+      label: "Conteúdo",
+      type: "select",
+      options: [
+        { value: "walls", label: "Possui segmentos de parede" },
+        { value: "items", label: "Possui itens diretos" },
+        { value: "composites", label: "Possui composites" },
+        { value: "alternates", label: "Possui alternates" },
+      ],
+    },
+  ];
 
   const columns: ColumnDef<WallRow>[] = [
     { accessorKey: "id", header: "ID" },
@@ -104,6 +161,11 @@ export default function AdminWallsPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/walls/${row.original.id}/duplicate`}
+            editPathBase="/admin/walls"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">
@@ -137,6 +199,11 @@ export default function AdminWallsPage() {
         searchPlaceholder="Buscar por nome ou id de item (server_lookid ou item usado no conteúdo)..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}
@@ -159,6 +226,12 @@ export default function AdminWallsPage() {
               replaceLabel="Substituir todas as walls existentes antes de importar"
               itemLabel="wall(s)"
               onImported={() => mutate()}
+            />
+            <CopyXmlButton
+              getText={async () => {
+                const response = await fetch("/api/admin/walls/export");
+                return response.text();
+              }}
             />
             <Button
               variant="outline"

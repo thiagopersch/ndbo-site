@@ -17,6 +17,8 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { XmlBundlePanel } from "@/components/shared/xml-bundle-panel";
 import { EntityThumb } from "@/components/shared/entity-thumb";
@@ -245,6 +247,11 @@ export default function AdminItemsPage() {
           >
             <Download className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/items/${row.original.id}/duplicate`}
+            editPathBase="/admin/items"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">
@@ -307,6 +314,12 @@ export default function AdminItemsPage() {
                 replaceLabel="Substituir todos os items existentes antes de importar"
                 itemLabel="item(ns)"
                 onImported={() => mutate()}
+              />
+              <CopyXmlButton
+                getText={async () => {
+                  const response = await fetch("/api/admin/items/export");
+                  return response.text();
+                }}
               />
               <Button
                 variant="outline"

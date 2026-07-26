@@ -13,9 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useEntityImages } from "@/components/shared/use-entity-images";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type GroundRow = {
   id: number;
@@ -23,7 +26,16 @@ type GroundRow = {
   serverLookId: number;
   zOrder: number;
   soloOptional: boolean;
+  tilesetCategoryId: number | null;
 };
+
+type CategoryOption = { id: number; label: string };
+type CategoryApiResult = { categories: CategoryOption[] };
+
+const YES_NO_OPTIONS = [
+  { value: "true", label: "Sim" },
+  { value: "false", label: "Não" },
+];
 
 // eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page route
 const exportXmlLink = <a href="/api/admin/grounds/export" />;
@@ -34,6 +46,11 @@ export default function AdminGroundsPage() {
   const { data, isLoading, isValidating, mutate } = useSWR<
     PaginatedResult<GroundRow>
   >(`/api/admin/grounds?${table.buildQueryParams().toString()}`, fetcher);
+
+  const { data: categoriesData } = useSWR<CategoryApiResult>(
+    "/api/admin/tilesets/categories?type=BRUSH&kind=TERRAIN,TERRAIN_AND_RAW",
+    fetcher,
+  );
 
   const images = useEntityImages(
     "item",
@@ -53,6 +70,23 @@ export default function AdminGroundsPage() {
     toast.success("Ground removido.");
     mutate();
   }
+
+  const filterFields: FilterFieldConfig[] = [
+    { key: "soloOptional", label: "Solo optional", type: "select", options: YES_NO_OPTIONS },
+    {
+      key: "tilesetCategoryId",
+      label: "Categoria do tileset",
+      type: "select",
+      options: (categoriesData?.categories ?? []).map((category) => ({
+        value: String(category.id),
+        label: category.label,
+      })),
+    },
+    { key: "zOrderMin", label: "Z-order mínimo", type: "number" },
+    { key: "zOrderMax", label: "Z-order máximo", type: "number" },
+    { key: "hasBorders", label: "Possui bordas vinculadas", type: "select", options: YES_NO_OPTIONS },
+    { key: "hasFriends", label: "Possui friends", type: "select", options: YES_NO_OPTIONS },
+  ];
 
   const columns: ColumnDef<GroundRow>[] = [
     { accessorKey: "id", header: "ID" },
@@ -93,6 +127,11 @@ export default function AdminGroundsPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/grounds/${row.original.id}/duplicate`}
+            editPathBase="/admin/grounds"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">
@@ -126,6 +165,11 @@ export default function AdminGroundsPage() {
         searchPlaceholder="Buscar por nome ou id de item (server_lookid ou item usado no conteúdo)..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}
@@ -148,6 +192,12 @@ export default function AdminGroundsPage() {
               replaceLabel="Substituir todos os grounds existentes antes de importar"
               itemLabel="ground(s)"
               onImported={() => mutate()}
+            />
+            <CopyXmlButton
+              getText={async () => {
+                const response = await fetch("/api/admin/grounds/export");
+                return response.text();
+              }}
             />
             <Button
               variant="outline"

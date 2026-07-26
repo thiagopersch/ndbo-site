@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { groundFormSchema } from "@/lib/validations/admin/ground";
 import { groundToFormInput } from "@/lib/ground-mapper";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,6 +38,11 @@ export async function PATCH(request: Request, { params }: Params) {
 
   try {
     await assertCategoryForBrush(parsed.data.tilesetCategoryId, "terrain");
+
+    const existingNames = await prisma.ground.findMany({ select: { id: true, name: true } });
+    if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
+      return NextResponse.json({ error: "Já existe um ground com esse nome." }, { status: 409 });
+    }
 
     const ground = await prisma.ground.update({
       where: { id: Number(id) },

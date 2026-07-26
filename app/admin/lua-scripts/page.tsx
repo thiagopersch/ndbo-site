@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { LuaScriptImportDialog } from "@/components/admin/lua-scripts/lua-script-import-dialog";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
@@ -128,6 +129,11 @@ export default function AdminLuaScriptsPage() {
           >
             <Download className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/lua-scripts/${row.original.id}/duplicate`}
+            editPathBase="/admin/lua-scripts"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">

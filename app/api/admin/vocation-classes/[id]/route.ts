@@ -4,6 +4,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { vocationTypeSchema } from "@/lib/validations/admin/vocation";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,6 +18,11 @@ export async function PATCH(request: Request, { params }: Params) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
+  }
+
+  const existingNames = await prisma.vocationTypeClass.findMany({ select: { id: true, name: true } });
+  if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
+    return NextResponse.json({ error: "Já existe uma classe com esse nome." }, { status: 409 });
   }
 
   const vocationClass = await prisma.vocationTypeClass.update({

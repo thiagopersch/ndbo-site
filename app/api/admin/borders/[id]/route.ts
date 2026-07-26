@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { borderFormSchema } from "@/lib/validations/admin/border";
 import { borderToFormInput } from "@/lib/border-mapper";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,6 +33,11 @@ export async function PATCH(request: Request, { params }: Params) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
+  }
+
+  const existingNames = await prisma.border.findMany({ select: { id: true, name: true } });
+  if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
+    return NextResponse.json({ error: "Já existe um border com esse nome." }, { status: 409 });
   }
 
   const border = await prisma.border.update({

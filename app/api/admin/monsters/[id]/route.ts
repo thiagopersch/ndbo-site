@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { monsterFormSchema } from "@/lib/validations/admin/monster";
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -40,10 +41,8 @@ export async function PATCH(request: Request, { params }: Params) {
     );
   }
 
-  const duplicate = await prisma.monster.findFirst({
-    where: { name: parsed.data.name, NOT: { id: Number(id) } },
-  });
-  if (duplicate) {
+  const existingNames = await prisma.monster.findMany({ select: { id: true, name: true } });
+  if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
     return NextResponse.json({ error: "Já existe um monstro com esse nome." }, { status: 409 });
   }
 

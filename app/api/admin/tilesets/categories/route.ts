@@ -35,6 +35,8 @@ export async function GET(request: Request) {
       : {}),
   };
 
+  // Sem `take`: o combobox "Categoria do Tileset" (Doodad/Wall/Ground) filtra client-side
+  // sobre a lista inteira recebida aqui, então um teto cortaria categorias reais da lista.
   const categories = await prisma.tilesetCategory.findMany({
     where,
     orderBy: [{ tileset: { order: "asc" } }, { order: "asc" }],
@@ -46,7 +48,6 @@ export async function GET(request: Request) {
       tilesetId: true,
       tileset: { select: { name: true } },
     },
-    take: 200,
   });
 
   return NextResponse.json({

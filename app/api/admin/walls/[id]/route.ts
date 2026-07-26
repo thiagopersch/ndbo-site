@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { wallFormSchema } from "@/lib/validations/admin/wall";
 import { wallBrushToFormInput, wallFormToContent } from "@/lib/wall-mapper";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,6 +38,11 @@ export async function PATCH(request: Request, { params }: Params) {
 
   try {
     await assertCategoryForBrush(parsed.data.tilesetCategoryId, "terrain");
+
+    const existingNames = await prisma.wallBrush.findMany({ select: { id: true, name: true } });
+    if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
+      return NextResponse.json({ error: "Já existe uma wall com esse nome." }, { status: 409 });
+    }
 
     const brush = await prisma.wallBrush.update({
       where: { id: Number(id) },

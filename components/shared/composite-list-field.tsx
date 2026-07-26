@@ -7,12 +7,12 @@ import {
   type FieldPath,
   type FieldValues,
 } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { NumberField } from "@/components/shared/number-field";
 import { TileListField } from "@/components/shared/tile-list-field";
+import { CollapsibleFieldCard } from "@/components/shared/collapsible-field-card";
 
 type CompositeListFieldProps<T extends FieldValues> = {
   control: Control<T>;
@@ -34,24 +34,18 @@ export function CompositeListField<T extends FieldValues>({
     <div className="flex flex-col gap-2">
       <span className="text-sm font-medium">{label}</span>
       {fields.map((field, index) => (
-        <Card key={field.id}>
-          <CardContent className="flex flex-col gap-3 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                Composite #{index + 1}
-              </span>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={() => remove(index)}>
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-            <NumberField
-              control={control}
-              name={`${name}.${index}.chance` as FieldPath<T>}
-              label="Chance"
-            />
-            <TileListField control={control} name={`${name}.${index}.tiles`} />
-          </CardContent>
-        </Card>
+        <CollapsibleFieldCard
+          key={field.id}
+          title={`Composite #${index + 1}`}
+          onRemove={() => remove(index)}
+        >
+          <NumberField
+            control={control}
+            name={`${name}.${index}.chance` as FieldPath<T>}
+            label="Chance"
+          />
+          <TileListField control={control} name={`${name}.${index}.tiles`} />
+        </CollapsibleFieldCard>
       ))}
       <Button
         type="button"

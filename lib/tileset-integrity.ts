@@ -6,6 +6,7 @@ import {
   type TilesetCategoryKind,
   type TilesetCategoryType,
 } from "@/lib/validations/admin/tileset";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 /** Erro de integridade de domínio (nome duplicado, exclusão bloqueada por vínculos,
  * etc.) — rotas de API capturam isso e traduzem para o `status` HTTP indicado. */
@@ -20,11 +21,8 @@ export class TilesetIntegrityError extends Error {
 }
 
 export async function assertUniqueTilesetName(name: string, excludeId?: number): Promise<void> {
-  const existing = await prisma.tileset.findFirst({
-    where: { name, ...(excludeId != null ? { id: { not: excludeId } } : {}) },
-    select: { id: true },
-  });
-  if (existing) {
+  const existingNames = await prisma.tileset.findMany({ select: { id: true, name: true } });
+  if (hasDuplicateName(existingNames, name, excludeId)) {
     throw new TilesetIntegrityError(`Já existe um tileset chamado "${name}".`);
   }
 }

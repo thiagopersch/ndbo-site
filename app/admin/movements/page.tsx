@@ -17,6 +17,8 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { XmlBundlePanel } from "@/components/shared/xml-bundle-panel";
 import { EntityThumb } from "@/components/shared/entity-thumb";
@@ -139,6 +141,11 @@ export default function AdminMovementsPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/movements/${row.original.id}/duplicate`}
+            editPathBase="/admin/movements"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">
@@ -199,6 +206,12 @@ export default function AdminMovementsPage() {
               replaceLabel="Substituir todos os movements existentes antes de importar"
               itemLabel="movement(s)"
               onImported={() => mutate()}
+            />
+            <CopyXmlButton
+              getText={async () => {
+                const response = await fetch("/api/admin/movements/export");
+                return response.text();
+              }}
             />
             <Button
               variant="outline"

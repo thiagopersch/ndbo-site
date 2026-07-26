@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { doodadFormSchema } from "@/lib/validations/admin/doodad";
 import { doodadBrushToFormInput, doodadFormToContent } from "@/lib/doodad-mapper";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,6 +38,11 @@ export async function PATCH(request: Request, { params }: Params) {
 
   try {
     await assertCategoryForBrush(parsed.data.tilesetCategoryId, "doodad");
+
+    const existingNames = await prisma.doodadBrush.findMany({ select: { id: true, name: true } });
+    if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
+      return NextResponse.json({ error: "Já existe um doodad com esse nome." }, { status: 409 });
+    }
 
     const brush = await prisma.doodadBrush.update({
       where: { id: Number(id) },

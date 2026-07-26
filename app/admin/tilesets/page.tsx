@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Download, ListTodo, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, ListTodo, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -13,8 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { TilesetImportDialog } from "@/components/admin/tilesets/tileset-import-dialog";
 import { IntegrityCheckDialog } from "@/components/admin/tilesets/integrity-check-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type TilesetRow = {
   id: number;
@@ -23,6 +26,7 @@ type TilesetRow = {
   order: number;
   active: boolean;
   _count: { categories: number };
+  categories: { name: string }[];
 };
 
 // eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page route
@@ -49,19 +53,6 @@ export default function AdminTilesetsPage() {
     mutate();
   }
 
-  async function handleDuplicate(id: number) {
-    const response = await fetch(`/api/admin/tilesets/${id}/duplicate`, { method: "POST" });
-    const body = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      toast.error(body?.error ?? "Não foi possível duplicar o tileset.");
-      return;
-    }
-
-    toast.success(`Tileset duplicado como "${body.tileset.name}".`);
-    mutate();
-  }
-
   const columns: ColumnDef<TilesetRow>[] = [
     { accessorKey: "id", header: "ID" },
     { accessorKey: "name", header: "Nome" },
@@ -72,7 +63,24 @@ export default function AdminTilesetsPage() {
     {
       id: "categories",
       header: "Categorias",
-      cell: ({ row }) => row.original._count.categories,
+      cell: ({ row }) => {
+        const names = row.original.categories.map((category) => category.name);
+
+        if (names.length === 0) return <span className="text-muted-foreground">—</span>;
+
+        const text = names.join(", ");
+
+        return (
+          <Tooltip>
+            <TooltipTrigger className="block max-w-[240px] cursor-default truncate text-left underline decoration-dotted underline-offset-2">
+              {text}
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">{text}</p>
+            </TooltipContent>
+          </Tooltip>
+        );
+      },
     },
     {
       accessorKey: "active",
@@ -97,14 +105,11 @@ export default function AdminTilesetsPage() {
           >
             <Pencil className="size-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => handleDuplicate(row.original.id)}
-            title="Duplicar"
-          >
-            <Copy className="size-4" />
-          </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/tilesets/${row.original.id}/duplicate`}
+            editPathBase="/admin/tilesets"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm" title="Excluir">
@@ -122,7 +127,8 @@ export default function AdminTilesetsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <TooltipProvider>
+      <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Tilesets</h1>
         <p className="text-muted-foreground">
@@ -154,6 +160,12 @@ export default function AdminTilesetsPage() {
             </Button>
             <IntegrityCheckDialog />
             <TilesetImportDialog onImported={() => mutate()} />
+            <CopyXmlButton
+              getText={async () => {
+                const response = await fetch("/api/admin/tilesets/export");
+                return response.text();
+              }}
+            />
             <Button variant="outline" nativeButton={false} render={exportAllXmlLink}>
               <Download className="size-4" />
               Exportar todos (XML)
@@ -165,6 +177,7 @@ export default function AdminTilesetsPage() {
           </>
         }
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

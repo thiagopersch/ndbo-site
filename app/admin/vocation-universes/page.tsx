@@ -13,6 +13,7 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
 
 const fields: SimpleField<VocationTypeInput>[] = [{ name: "name", label: "Nome (ex.: Dragon Ball, Naruto)" }];
@@ -71,6 +72,11 @@ export default function AdminVocationUniversesPage() {
                 <Pencil className="size-4" />
               </Button>
             }
+          />
+          <DuplicateButton
+            endpoint={`/api/admin/vocation-universes/${row.original.id}/duplicate`}
+            editPathBase="/admin/vocation-universes"
+            onDuplicated={() => mutate()}
           />
           <ConfirmDialog
             trigger={

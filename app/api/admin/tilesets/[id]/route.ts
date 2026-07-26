@@ -55,6 +55,7 @@ export async function PATCH(request: Request, { params }: Params) {
         order: parsed.data.order,
         active: parsed.data.active,
         icon: parsed.data.icon,
+        rawIdsInBrush: parsed.data.rawIdsInBrush,
       },
     });
 

@@ -48,6 +48,10 @@ export const tilesetFormSchema = z.object({
   order: z.number().int(),
   active: z.boolean(),
   icon: z.string().max(255).nullable(),
+  /** Se `true`, os ids de item derivados dos brushes aparecem misturados na própria
+   * categoria (`<terrain>`/`<doodad>`, como um `_and_raw`). Se `false`, saem numa tag
+   * `<raw>` separada ao final do tileset exportado. */
+  rawIdsInBrush: z.boolean(),
 });
 export type TilesetFormInput = z.infer<typeof tilesetFormSchema>;
 
@@ -57,6 +61,7 @@ export const defaultTilesetValues: TilesetFormInput = {
   order: 0,
   active: true,
   icon: null,
+  rawIdsInBrush: true,
 };
 
 export const tilesetItemEntryFormSchema = z

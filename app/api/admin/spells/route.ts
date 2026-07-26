@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { spellFormSchema } from "@/lib/validations/admin/spell";
 import { spellFormToScalarData } from "@/lib/spell-mapper";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -74,6 +75,17 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
+  }
+
+  // Unicidade escopada por `kind`: é comum no spells.xml real uma rune e a instant que a
+  // conjura compartilharem o mesmo `name` (kinds diferentes) — só bloqueia duplicata
+  // dentro do mesmo kind (instant/rune/conjure).
+  const existingNames = await prisma.spell.findMany({
+    where: { kind: parsed.data.kind },
+    select: { id: true, name: true },
+  });
+  if (hasDuplicateName(existingNames, parsed.data.name)) {
+    return NextResponse.json({ error: "Já existe uma spell desse kind com esse nome." }, { status: 409 });
   }
 
   const spell = await prisma.spell.create({

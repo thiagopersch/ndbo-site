@@ -7,7 +7,14 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { groundFormSchema } from "@/lib/validations/admin/ground";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
-import { groundItemIds, idsWithItem } from "@/lib/brush-item-ids";
+import { contentArrayNonEmpty, groundItemIds, idsWithItem } from "@/lib/brush-item-ids";
+import { hasDuplicateName } from "@/lib/unique-name";
+
+function parseBooleanParam(value: string | null): boolean | undefined {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -15,6 +22,13 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
+
+  const soloOptional = parseBooleanParam(url.searchParams.get("soloOptional"));
+  const tilesetCategoryId = url.searchParams.get("tilesetCategoryId");
+  const zOrderMin = url.searchParams.get("zOrderMin");
+  const zOrderMax = url.searchParams.get("zOrderMax");
+  const hasBorders = url.searchParams.get("hasBorders");
+  const hasFriends = url.searchParams.get("hasFriends");
 
   const searchId = search ? Number(search) : NaN;
   const isNumericSearch = search !== "" && Number.isFinite(searchId);
@@ -28,22 +42,71 @@ export async function GET(request: Request) {
     contentMatchIds = idsWithItem(candidates, groundItemIds, searchId);
   }
 
-  const where: Prisma.GroundWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search } },
-          ...(isNumericSearch
-            ? [{ serverLookId: searchId }, { id: { in: contentMatchIds } }]
-            : []),
-        ],
-      }
-    : {};
+  // Filtros "possui bordas vinculadas"/"possui friends": `borders`/`friends` são colunas
+  // Json (array) — não dá pra filtrar array-não-vazio no banco, então varre em memória.
+  let hasBordersMatchIds: number[] | null = null;
+  let hasFriendsMatchIds: number[] | null = null;
+  if (hasBorders === "true" || hasBorders === "false" || hasFriends === "true" || hasFriends === "false") {
+    const candidates = await prisma.ground.findMany({ select: { id: true, borders: true, friends: true } });
+    if (hasBorders === "true" || hasBorders === "false") {
+      const want = hasBorders === "true";
+      hasBordersMatchIds = candidates
+        .filter((row) => contentArrayNonEmpty(row, "borders") === want)
+        .map((row) => row.id);
+    }
+    if (hasFriends === "true" || hasFriends === "false") {
+      const want = hasFriends === "true";
+      hasFriendsMatchIds = candidates
+        .filter((row) => contentArrayNonEmpty(row, "friends") === want)
+        .map((row) => row.id);
+    }
+  }
+
+  const where: Prisma.GroundWhereInput = {
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            ...(isNumericSearch
+              ? [{ serverLookId: searchId }, { id: { in: contentMatchIds } }]
+              : []),
+          ],
+        }
+      : {}),
+    ...(soloOptional !== undefined ? { soloOptional } : {}),
+    ...(tilesetCategoryId ? { tilesetCategoryId: Number(tilesetCategoryId) } : {}),
+    ...(zOrderMin || zOrderMax
+      ? {
+          zOrder: {
+            ...(zOrderMin ? { gte: Number(zOrderMin) } : {}),
+            ...(zOrderMax ? { lte: Number(zOrderMax) } : {}),
+          },
+        }
+      : {}),
+    ...(hasBordersMatchIds || hasFriendsMatchIds
+      ? {
+          id: {
+            in:
+              hasBordersMatchIds && hasFriendsMatchIds
+                ? hasBordersMatchIds.filter((id) => hasFriendsMatchIds!.includes(id))
+                : (hasBordersMatchIds ?? hasFriendsMatchIds)!,
+          },
+        }
+      : {}),
+  };
 
   const [grounds, total] = await Promise.all([
     prisma.ground.findMany({
       where,
       orderBy: { id: "asc" },
-      select: { id: true, name: true, serverLookId: true, zOrder: true, soloOptional: true },
+      select: {
+        id: true,
+        name: true,
+        serverLookId: true,
+        zOrder: true,
+        soloOptional: true,
+        tilesetCategoryId: true,
+      },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -66,6 +129,11 @@ export async function POST(request: Request) {
 
   try {
     await assertCategoryForBrush(parsed.data.tilesetCategoryId, "terrain");
+
+    const existingNames = await prisma.ground.findMany({ select: { id: true, name: true } });
+    if (hasDuplicateName(existingNames, parsed.data.name)) {
+      return NextResponse.json({ error: "Já existe um ground com esse nome." }, { status: 409 });
+    }
 
     const ground = await prisma.ground.create({
       data: {

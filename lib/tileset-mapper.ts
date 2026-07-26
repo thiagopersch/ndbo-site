@@ -18,6 +18,7 @@ export function tilesetToFormInput(tileset: Tileset): TilesetFormInput {
     order: tileset.order,
     active: tileset.active,
     icon: tileset.icon,
+    rawIdsInBrush: tileset.rawIdsInBrush,
   };
 }
 
@@ -61,8 +62,16 @@ export type TilesetCategoryWithEntries = TilesetCategory & {
  * está configurado no CRUD do brush, nunca curado manualmente), as entradas de item
  * soltas e os nomes de brush não resolvidos preservados na importação — para gerar a
  * categoria XML final. RME já mistura `<brush>` e `<item>` na mesma tag em categorias
- * reais (ex.: `doodad`, `terrain_and_raw`), então isso é compatível com o formato. */
-export function tilesetCategoryToXmlCategory(category: TilesetCategoryWithEntries): TilesetXmlCategory {
+ * reais (ex.: `doodad`, `terrain_and_raw`), então isso é compatível com o formato.
+ *
+ * `includeRawIds` controla só os ids *derivados* dos brushes (a mistura em si é opt-out
+ * por `Tileset.rawIdsInBrush`): quando `false`, eles saem de `entries` e voltam em
+ * `rawItemIds` para o chamador (`tilesetToXmlDocument`) agrupar numa tag `<raw>` própria
+ * em vez de misturar na categoria original. */
+export function tilesetCategoryToXmlCategory(
+  category: TilesetCategoryWithEntries,
+  options: { includeRawIds: boolean } = { includeRawIds: true }
+): { category: TilesetXmlCategory; rawItemIds: number[] } {
   const brushEntries: TilesetXmlEntry[] = [...category.grounds, ...category.walls, ...category.doodads].map((brush) => ({
     type: "brush",
     name: brush.name,
@@ -89,11 +98,9 @@ export function tilesetCategoryToXmlCategory(category: TilesetCategoryWithEntrie
     : [];
 
   let order = brushEntries.length + itemEntries.length;
-  const derivedEntries: TilesetXmlEntry[] = Array.from(derivedItemIds).map((itemId) => ({
-    type: "item",
-    itemId,
-    order: order++,
-  }));
+  const derivedEntries: TilesetXmlEntry[] = options.includeRawIds
+    ? Array.from(derivedItemIds).map((itemId) => ({ type: "item", itemId, order: order++ }))
+    : [];
   const unresolvedEntries: TilesetXmlEntry[] = unresolvedNames.map((name) => ({
     type: "brush",
     name,
@@ -101,15 +108,35 @@ export function tilesetCategoryToXmlCategory(category: TilesetCategoryWithEntrie
   }));
 
   return {
-    name: category.name,
-    kind: category.kind as TilesetCategoryKind,
-    entries: [...brushEntries, ...itemEntries, ...derivedEntries, ...unresolvedEntries],
+    category: {
+      name: category.name,
+      kind: category.kind as TilesetCategoryKind,
+      entries: [...brushEntries, ...itemEntries, ...derivedEntries, ...unresolvedEntries],
+    },
+    rawItemIds: options.includeRawIds ? [] : Array.from(derivedItemIds),
   };
 }
 
 export function tilesetToXmlDocument(tileset: Tileset & { categories: TilesetCategoryWithEntries[] }): TilesetXmlDocument {
-  return {
-    name: tileset.name,
-    categories: [...tileset.categories].sort((a, b) => a.order - b.order).map(tilesetCategoryToXmlCategory),
-  };
+  const results = [...tileset.categories]
+    .sort((a, b) => a.order - b.order)
+    .map((category) => tilesetCategoryToXmlCategory(category, { includeRawIds: tileset.rawIdsInBrush }));
+
+  const categories = results.map((result) => result.category);
+
+  if (!tileset.rawIdsInBrush) {
+    const rawItemIds = new Set<number>();
+    for (const result of results) for (const itemId of result.rawItemIds) rawItemIds.add(itemId);
+
+    if (rawItemIds.size > 0) {
+      let order = 0;
+      categories.push({
+        name: "",
+        kind: "RAW",
+        entries: Array.from(rawItemIds).map((itemId) => ({ type: "item", itemId, order: order++ })),
+      });
+    }
+  }
+
+  return { name: tileset.name, categories };
 }

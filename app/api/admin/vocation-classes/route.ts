@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { vocationTypeSchema } from "@/lib/validations/admin/vocation";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -40,8 +41,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
-  const existing = await prisma.vocationTypeClass.findUnique({ where: { name: parsed.data.name } });
-  if (existing) {
+  const existingNames = await prisma.vocationTypeClass.findMany({ select: { id: true, name: true } });
+  if (hasDuplicateName(existingNames, parsed.data.name)) {
     return NextResponse.json({ error: "Já existe uma classe com esse nome." }, { status: 409 });
   }
 

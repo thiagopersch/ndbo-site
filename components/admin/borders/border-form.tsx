@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 import { defaultBorderValues, borderFormSchema, type BorderFormInput } from "@/lib/validations/admin/border";
@@ -12,6 +13,7 @@ import { borderToXml } from "@/lib/border-xml";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleTrigger, CollapsiblePanel } from "@/components/ui/collapsible";
 import {
   Form,
   FormControl,
@@ -131,12 +133,19 @@ export function BorderForm({ isEditing = false, initialValues }: BorderFormProps
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Direções (borderitem)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BorderEdgeGridField control={form.control} />
-            </CardContent>
+            <Collapsible defaultOpen>
+              <CardHeader>
+                <CollapsibleTrigger className="w-full justify-between">
+                  <CardTitle>Direções (borderitem)</CardTitle>
+                  <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 data-panel-open:rotate-180" />
+                </CollapsibleTrigger>
+              </CardHeader>
+              <CollapsiblePanel>
+                <CardContent>
+                  <BorderEdgeGridField control={form.control} />
+                </CardContent>
+              </CollapsiblePanel>
+            </Collapsible>
           </Card>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

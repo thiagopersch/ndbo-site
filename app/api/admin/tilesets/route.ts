@@ -79,7 +79,10 @@ export async function GET(request: Request) {
     prisma.tileset.findMany({
       where,
       orderBy: [{ order: "asc" }, { name: "asc" }],
-      include: { _count: { select: { categories: true } } },
+      include: {
+        _count: { select: { categories: true } },
+        categories: { select: { name: true }, orderBy: { order: "asc" } },
+      },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -110,6 +113,7 @@ export async function POST(request: Request) {
         order: parsed.data.order,
         active: parsed.data.active,
         icon: parsed.data.icon,
+        rawIdsInBrush: parsed.data.rawIdsInBrush,
       },
     });
 

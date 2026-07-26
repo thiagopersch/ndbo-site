@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type BorderRow = {
   id: number;
@@ -21,6 +24,11 @@ type BorderRow = {
   group: number | null;
   optional: boolean;
 };
+
+const YES_NO_OPTIONS = [
+  { value: "true", label: "Sim" },
+  { value: "false", label: "Não" },
+];
 
 // eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page route
 const exportXmlLink = <a href="/api/admin/borders/export" />;
@@ -44,6 +52,12 @@ export default function AdminBordersPage() {
     toast.success("Border removido.");
     mutate();
   }
+
+  const filterFields: FilterFieldConfig[] = [
+    { key: "optional", label: "Opcional", type: "select", options: YES_NO_OPTIONS },
+    { key: "group", label: "Group", type: "number" },
+    { key: "edgesConfigured", label: "Possui edges configurados", type: "select", options: YES_NO_OPTIONS },
+  ];
 
   const columns: ColumnDef<BorderRow>[] = [
     { accessorKey: "id", header: "ID" },
@@ -75,6 +89,11 @@ export default function AdminBordersPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/borders/${row.original.id}/duplicate`}
+            editPathBase="/admin/borders"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="ghost" size="icon-sm">
@@ -108,6 +127,11 @@ export default function AdminBordersPage() {
         searchPlaceholder="Buscar por nome ou id de item usado nas bordas..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}
@@ -129,6 +153,12 @@ export default function AdminBordersPage() {
               replaceLabel="Substituir todos os borders existentes antes de importar"
               itemLabel="border(s)"
               onImported={() => mutate()}
+            />
+            <CopyXmlButton
+              getText={async () => {
+                const response = await fetch("/api/admin/borders/export");
+                return response.text();
+              }}
             />
             <Button variant="outline" nativeButton={false} render={exportXmlLink}>
               <Download className="size-4" />

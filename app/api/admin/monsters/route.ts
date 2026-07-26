@@ -10,6 +10,7 @@ import {
   type MonsterFormInput,
 } from "@/lib/validations/admin/monster";
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 const MONSTER_LIST_SELECT = {
   id: true,
@@ -187,10 +188,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const existing = await prisma.monster.findUnique({
-    where: { name: parsed.data.name },
-  });
-  if (existing) {
+  const existingNames = await prisma.monster.findMany({ select: { id: true, name: true } });
+  if (hasDuplicateName(existingNames, parsed.data.name)) {
     return NextResponse.json(
       { error: "Já existe um monstro com esse nome." },
       { status: 409 },

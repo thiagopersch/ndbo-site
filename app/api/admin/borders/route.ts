@@ -7,10 +7,25 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { borderFormSchema } from "@/lib/validations/admin/border";
 import { borderItemIds, idsWithItem } from "@/lib/brush-item-ids";
+import type { BorderEdgeItemInput } from "@/lib/validations/admin/border";
+import { hasDuplicateName } from "@/lib/unique-name";
 
 /** Teto de segurança para `all=true` — bem acima do que `borders.xml` real chega a ter,
  * só para não deixar a query totalmente sem limite. */
 const ALL_BORDERS_CAP = 2000;
+
+function parseBooleanParam(value: string | null): boolean | undefined {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
+/** `true` se ao menos um dos 12 slots de `edges` tiver um `itemId` configurado (> 0) —
+ * usado pelo filtro "possui edges configurados", já que muitos borders cadastrados são
+ * apenas o esqueleto vazio (12 slots com itemId=0) ainda não preenchido. */
+function hasConfiguredEdge(edges: unknown): boolean {
+  return ((edges as BorderEdgeItemInput[] | null) ?? []).some((edge) => edge.itemId > 0);
+}
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -24,6 +39,10 @@ export async function GET(request: Request) {
   // de 200 cadastrados) fora da lista.
   const all = url.searchParams.get("all") === "true";
 
+  const optional = parseBooleanParam(url.searchParams.get("optional"));
+  const group = url.searchParams.get("group");
+  const edgesConfigured = parseBooleanParam(url.searchParams.get("edgesConfigured"));
+
   const searchId = search ? Number(search) : NaN;
   const isNumericSearch = search !== "" && Number.isFinite(searchId);
 
@@ -35,14 +54,29 @@ export async function GET(request: Request) {
     contentMatchIds = idsWithItem(candidates, borderItemIds, searchId);
   }
 
-  const where: Prisma.BorderWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search } },
-          ...(isNumericSearch ? [{ id: { in: contentMatchIds } }] : []),
-        ],
-      }
-    : {};
+  // Filtro "possui edges configurados": mesma limitação de JSON aninhado — varre a
+  // tabela em memória.
+  let edgesConfiguredMatchIds: number[] | null = null;
+  if (edgesConfigured !== undefined) {
+    const candidates = await prisma.border.findMany({ select: { id: true, edges: true } });
+    edgesConfiguredMatchIds = candidates
+      .filter((row) => hasConfiguredEdge(row.edges) === edgesConfigured)
+      .map((row) => row.id);
+  }
+
+  const where: Prisma.BorderWhereInput = {
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            ...(isNumericSearch ? [{ id: { in: contentMatchIds } }] : []),
+          ],
+        }
+      : {}),
+    ...(optional !== undefined ? { optional } : {}),
+    ...(group ? { group: Number(group) } : {}),
+    ...(edgesConfiguredMatchIds ? { id: { in: edgesConfiguredMatchIds } } : {}),
+  };
   const skip = all ? 0 : (page - 1) * pageSize;
   const take = all ? ALL_BORDERS_CAP : pageSize;
 
@@ -76,6 +110,11 @@ export async function POST(request: Request) {
   const existing = await prisma.border.findUnique({ where: { id: parsed.data.id } });
   if (existing) {
     return NextResponse.json({ error: "Já existe um border com esse id." }, { status: 409 });
+  }
+
+  const existingNames = await prisma.border.findMany({ select: { id: true, name: true } });
+  if (hasDuplicateName(existingNames, parsed.data.name)) {
+    return NextResponse.json({ error: "Já existe um border com esse nome." }, { status: 409 });
   }
 
   const border = await prisma.border.create({

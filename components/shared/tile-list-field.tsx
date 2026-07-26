@@ -7,12 +7,12 @@ import {
   type FieldPath,
   type FieldValues,
 } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { NumberField } from "@/components/shared/number-field";
 import { ItemsListField } from "@/components/shared/items-list-field";
+import { CollapsibleFieldCard } from "@/components/shared/collapsible-field-card";
 
 type TileListFieldProps<T extends FieldValues> = {
   control: Control<T>;
@@ -28,24 +28,19 @@ export function TileListField<T extends FieldValues>({ control, name }: TileList
   return (
     <div className="flex flex-col gap-2 pl-4">
       {fields.map((field, index) => (
-        <Card key={field.id} className="bg-muted/30">
-          <CardContent className="flex flex-col gap-3 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                Tile #{index + 1}
-              </span>
-              <Button type="button" variant="ghost" size="icon-sm" onClick={() => remove(index)}>
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <NumberField control={control} name={`${name}.${index}.x` as FieldPath<T>} label="x" />
-              <NumberField control={control} name={`${name}.${index}.y` as FieldPath<T>} label="y" />
-              <NumberField control={control} name={`${name}.${index}.z` as FieldPath<T>} label="z (opcional)" />
-            </div>
-            <ItemsListField control={control} name={`${name}.${index}.items`} />
-          </CardContent>
-        </Card>
+        <CollapsibleFieldCard
+          key={field.id}
+          title={`Tile #${index + 1}`}
+          onRemove={() => remove(index)}
+          className="bg-muted/30"
+        >
+          <div className="grid grid-cols-3 gap-2">
+            <NumberField control={control} name={`${name}.${index}.x` as FieldPath<T>} label="x" />
+            <NumberField control={control} name={`${name}.${index}.y` as FieldPath<T>} label="y" />
+            <NumberField control={control} name={`${name}.${index}.z` as FieldPath<T>} label="z (opcional)" />
+          </div>
+          <ItemsListField control={control} name={`${name}.${index}.items`} />
+        </CollapsibleFieldCard>
       ))}
       <Button
         type="button"
