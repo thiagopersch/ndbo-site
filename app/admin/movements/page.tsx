@@ -138,6 +138,7 @@ export default function AdminMovementsPage() {
             size="icon-sm"
             nativeButton={false}
             render={<Link href={`/admin/movements/${row.original.id}`} />}
+            title="Editar"
           >
             <Pencil className="size-4" />
           </Button>
@@ -148,7 +149,7 @@ export default function AdminMovementsPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

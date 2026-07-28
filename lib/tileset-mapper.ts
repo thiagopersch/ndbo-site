@@ -98,8 +98,9 @@ export function tilesetCategoryToXmlCategory(
     : [];
 
   let order = brushEntries.length + itemEntries.length;
+  const sortedDerivedItemIds = Array.from(derivedItemIds).sort((a, b) => a - b);
   const derivedEntries: TilesetXmlEntry[] = options.includeRawIds
-    ? Array.from(derivedItemIds).map((itemId) => ({ type: "item", itemId, order: order++ }))
+    ? sortedDerivedItemIds.map((itemId) => ({ type: "item", itemId, order: order++ }))
     : [];
   const unresolvedEntries: TilesetXmlEntry[] = unresolvedNames.map((name) => ({
     type: "brush",
@@ -113,7 +114,7 @@ export function tilesetCategoryToXmlCategory(
       kind: category.kind as TilesetCategoryKind,
       entries: [...brushEntries, ...itemEntries, ...derivedEntries, ...unresolvedEntries],
     },
-    rawItemIds: options.includeRawIds ? [] : Array.from(derivedItemIds),
+    rawItemIds: options.includeRawIds ? [] : sortedDerivedItemIds,
   };
 }
 
@@ -130,10 +131,11 @@ export function tilesetToXmlDocument(tileset: Tileset & { categories: TilesetCat
 
     if (rawItemIds.size > 0) {
       let order = 0;
+      const sortedRawItemIds = Array.from(rawItemIds).sort((a, b) => a - b);
       categories.push({
         name: "",
         kind: "RAW",
-        entries: Array.from(rawItemIds).map((itemId) => ({ type: "item", itemId, order: order++ })),
+        entries: sortedRawItemIds.map((itemId) => ({ type: "item", itemId, order: order++ })),
       });
     }
   }

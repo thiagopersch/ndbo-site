@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 
 import { prisma } from "@/lib/prisma";
 import { BAN_TYPES } from "@/lib/validations/admin/ban";
+import { SLOT_TYPES, WEAPON_TYPES } from "@/lib/validations/admin/item";
 
 const TREND_DAYS = 30;
 
@@ -54,6 +55,9 @@ export async function getDashboardStats() {
     totalMonsters,
     monstersByCategory,
 
+    itemsBySlotType,
+    itemsByWeaponType,
+
     totalBans,
     activeBans,
     latestBans,
@@ -98,6 +102,9 @@ export async function getDashboardStats() {
 
     prisma.monster.count(),
     prisma.monster.groupBy({ by: ["category"], _count: { _all: true } }),
+
+    prisma.item.groupBy({ by: ["slotType"], _count: { _all: true } }),
+    prisma.item.groupBy({ by: ["weaponType"], _count: { _all: true } }),
 
     prisma.ban.count(),
     prisma.ban.count({ where: { active: true } }),
@@ -169,6 +176,16 @@ export async function getDashboardStats() {
     total: row._count._all,
   }));
 
+  // Quantidade de items por slot (head/body/legs/...) + por weapon type (sword/axe/...)
+  // num único gráfico — um item pode contar em ambos (ex.: uma espada tem slotType="hand"
+  // e weaponType="sword"), cada eixo é uma classificação independente do item.
+  const slotTypeTotals = new Map(itemsBySlotType.map((row) => [row.slotType, row._count._all]));
+  const weaponTypeTotals = new Map(itemsByWeaponType.map((row) => [row.weaponType, row._count._all]));
+  const itemsByTypeChart = [
+    ...SLOT_TYPES.filter(Boolean).map((slot) => ({ label: slot, total: slotTypeTotals.get(slot) ?? 0 })),
+    ...WEAPON_TYPES.filter(Boolean).map((weapon) => ({ label: weapon, total: weaponTypeTotals.get(weapon) ?? 0 })),
+  ];
+
   const monstersByCategoryChart = monstersByCategory
     .map((row) => ({
       label: row.category || "Sem universo",
@@ -206,6 +223,9 @@ export async function getDashboardStats() {
     monsters: {
       total: totalMonsters,
       byCategory: monstersByCategoryChart,
+    },
+    items: {
+      byType: itemsByTypeChart,
     },
     bans: {
       total: totalBans,

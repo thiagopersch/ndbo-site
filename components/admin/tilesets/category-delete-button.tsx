@@ -77,7 +77,7 @@ export function CategoryDeleteButton({ category, onDeleted }: CategoryDeleteButt
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant="ghost" size="icon-sm" title="Excluir categoria">
+          <Button variant="destructive" size="icon-sm" title="Excluir categoria">
             <Trash2 className="size-4" />
           </Button>
         }

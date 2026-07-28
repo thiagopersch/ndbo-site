@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy } from "lucide-react";
+import { CopyPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,7 @@ export function DuplicateButton({
           disabled={isDuplicating}
           title="Duplicar"
         >
-          <Copy className="size-4" />
+          <CopyPlus className="size-4" />
         </Button>
       ) : (
         <Button
@@ -84,7 +84,7 @@ export function DuplicateButton({
           onClick={handleDuplicate}
           disabled={isDuplicating}
         >
-          <Copy className="size-4" />
+          <CopyPlus className="size-4" />
           Duplicar
         </Button>
       )}

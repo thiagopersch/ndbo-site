@@ -15,6 +15,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { LastUpdatedCell } from "@/components/shared/last-updated-cell";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useEntityImages } from "@/components/shared/use-entity-images";
@@ -27,6 +28,7 @@ type GroundRow = {
   zOrder: number;
   soloOptional: boolean;
   tilesetCategoryId: number | null;
+  updatedAt: string;
 };
 
 type CategoryOption = { id: number; label: string };
@@ -115,6 +117,11 @@ export default function AdminGroundsPage() {
       ),
     },
     {
+      accessorKey: "updatedAt",
+      header: "Última atualização",
+      cell: ({ row }) => <LastUpdatedCell date={row.original.updatedAt} />,
+    },
+    {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
@@ -124,9 +131,18 @@ export default function AdminGroundsPage() {
             size="icon-sm"
             nativeButton={false}
             render={<Link href={`/admin/grounds/${row.original.id}`} />}
+            title="Editar"
           >
             <Pencil className="size-4" />
           </Button>
+          <CopyXmlButton
+            variant="icon"
+            label="Copiar XML deste ground"
+            getText={async () => {
+              const response = await fetch(`/api/admin/grounds/${row.original.id}/export`);
+              return response.text();
+            }}
+          />
           <DuplicateButton
             endpoint={`/api/admin/grounds/${row.original.id}/duplicate`}
             editPathBase="/admin/grounds"
@@ -134,7 +150,7 @@ export default function AdminGroundsPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

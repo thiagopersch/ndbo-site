@@ -12,6 +12,7 @@ import { ACCOUNT_GROUPS } from "@/lib/account-groups";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/shared/number-field";
 import {
   Form,
@@ -37,6 +38,7 @@ type AccountFormProps = {
 export function AccountForm({ accountId, initialValues }: AccountFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const form = useForm<AccountUpdateInput>({
     resolver: zodResolver(accountUpdateSchema),
@@ -66,7 +68,7 @@ export function AccountForm({ accountId, initialValues }: AccountFormProps) {
   }
 
   return (
-    <Card className="mx-auto max-w-2xl">
+    <Card>
       <CardHeader>
         <CardTitle>Editar conta</CardTitle>
       </CardHeader>
@@ -87,25 +89,47 @@ export function AccountForm({ accountId, initialValues }: AccountFormProps) {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nova senha (opcional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        autoComplete="new-password"
-                        placeholder="Deixe em branco para manter a atual"
-                        maxLength={255}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {changingPassword ? (
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nova senha</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder="Digite a nova senha"
+                          maxLength={255}
+                          autoFocus
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="self-start"
+                        onClick={() => {
+                          form.setValue("password", "");
+                          setChangingPassword(false);
+                        }}
+                      >
+                        Cancelar alteração de senha
+                      </Button>
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormItem>
+                  <Label>Senha</Label>
+                  <Button type="button" variant="outline" onClick={() => setChangingPassword(true)}>
+                    Alterar senha
+                  </Button>
+                </FormItem>
+              )}
               <FormField
                 control={form.control}
                 name="email"

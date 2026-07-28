@@ -11,6 +11,7 @@ import {
 } from "@/lib/validations/admin/monster";
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
 import { hasDuplicateName } from "@/lib/unique-name";
+import { hasImageIdFilter } from "@/lib/entity-image-filter";
 
 const MONSTER_LIST_SELECT = {
   id: true,
@@ -85,9 +86,11 @@ export async function GET(request: Request) {
   const hpMax = url.searchParams.get("hpMax");
   const loot = url.searchParams.get("loot")?.trim().toLowerCase();
   const attacks = url.searchParams.get("attacks")?.trim().toLowerCase();
+  const hasImage = await hasImageIdFilter("monster", url.searchParams.get("hasImage"));
 
   const where: Prisma.MonsterWhereInput = {
     ...(search ? { name: { contains: search } } : {}),
+    ...(hasImage ? { id: hasImage } : {}),
     ...(bestiary ? { bestiary } : {}),
     ...(category ? { category } : {}),
     ...(subcategory ? { subcategory } : {}),

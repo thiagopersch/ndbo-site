@@ -20,8 +20,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { CategoryRow } from "@/components/admin/tilesets/category-item";
 import { CategoryItemEntriesEditor } from "@/components/admin/tilesets/category-item-entries-editor";
+import { CategoryBrushOrderList } from "@/components/admin/tilesets/category-brush-order-list";
 
-type BrushRef = { id: number; name: string };
+type BrushRef = { id: number; name: string; tilesetOrder: number };
 
 type CategoryDetailResponse = {
   category: {
@@ -72,11 +73,17 @@ function filterBrushes(items: BrushRef[], search: string): BrushRef[] {
 }
 
 export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }: CategoryDetailDialogProps) {
-  const { data } = useSWR<CategoryDetailResponse>(
+  const { data, mutate } = useSWR<CategoryDetailResponse>(
     category.type === "BRUSH" && open ? `/api/admin/tilesets/categories/${category.id}` : null,
     fetcher
   );
+
+  function refresh() {
+    mutate();
+    onChanged();
+  }
   const [search, setSearch] = useState("");
+  const [brushOrderDirty, setBrushOrderDirty] = useState(false);
 
   const grounds = filterBrushes(data?.category.grounds ?? [], search);
   const walls = filterBrushes(data?.category.walls ?? [], search);
@@ -86,8 +93,8 @@ export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }
   const hasFilteredResults = grounds.length + walls.length + doodads.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+    <Dialog open={open} onOpenChange={onOpenChange} disablePointerDismissal={brushOrderDirty}>
+      <DialogContent className="flex h-[90vh] max-h-[90vh] w-[90vw] max-w-[90vw] flex-col overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {category.name}
@@ -95,7 +102,7 @@ export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }
           </DialogTitle>
           <DialogDescription>
             {category.type === "BRUSH"
-              ? "Brushes vinculados a esta categoria — edite-os nos CRUDs de Ground/Wall/Doodad; a categoria é sincronizada automaticamente. Também é possível soltar ids de item avulsos, sem brush."
+              ? "Brushes vinculados a esta categoria — edite-os nos CRUDs de Ground/Wall/Doodad; a categoria é sincronizada automaticamente. Arraste pelo ícone para reordenar e clique em \"Salvar ordem\" — essa ordem é a que sai ao exportar/copiar o XML. Também é possível soltar ids de item avulsos, sem brush."
               : "Entradas de item (ID único ou intervalo) desta categoria."}
           </DialogDescription>
         </DialogHeader>
@@ -114,9 +121,23 @@ export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }
               </div>
             )}
 
-            <BrushLinkList title="Grounds" items={grounds} href={(id) => `/admin/grounds/${id}`} />
-            <BrushLinkList title="Walls" items={walls} href={(id) => `/admin/walls/${id}`} />
-            <BrushLinkList title="Doodads" items={doodads} href={(id) => `/admin/doodads/${id}`} />
+            {search.trim() === "" ? (
+              <CategoryBrushOrderList
+                key={category.id}
+                categoryId={category.id}
+                grounds={data?.category.grounds ?? []}
+                walls={data?.category.walls ?? []}
+                doodads={data?.category.doodads ?? []}
+                onSaved={refresh}
+                onDirtyChange={setBrushOrderDirty}
+              />
+            ) : (
+              <>
+                <BrushLinkList title="Grounds" items={grounds} href={(id) => `/admin/grounds/${id}`} />
+                <BrushLinkList title="Walls" items={walls} href={(id) => `/admin/walls/${id}`} />
+                <BrushLinkList title="Doodads" items={doodads} href={(id) => `/admin/doodads/${id}`} />
+              </>
+            )}
 
             {data && !hasAnyBrush && (
               <p className="text-sm text-muted-foreground">

@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import { playerUpdateSchema, type PlayerUpdateInput } from "@/lib/validations/admin/player";
+import { ACCOUNT_GROUPS } from "@/lib/account-groups";
+import { uint32ToIp } from "@/lib/ip-address";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,7 @@ import { NumberField } from "@/components/shared/number-field";
 import { MultiCheckboxField } from "@/components/shared/multi-checkbox-field";
 
 type VocationOption = { id: number; name: string };
+type TownOption = { id: number; name: string };
 
 type PlayerReadOnly = {
   lastlogin: number;
@@ -73,6 +76,9 @@ export function PlayerForm({ playerId, initialValues, readOnly }: PlayerFormProp
     fetcher
   );
   const vocations = vocationsData?.data ?? [];
+
+  const { data: townsData } = useSWR<{ data: TownOption[] }>("/api/admin/towns?all=true", fetcher);
+  const towns = townsData?.data ?? [];
 
   const form = useForm<PlayerUpdateInput>({
     resolver: zodResolver(playerUpdateSchema),
@@ -138,7 +144,35 @@ export function PlayerForm({ playerId, initialValues, readOnly }: PlayerFormProp
                 />
                 <NumberField control={form.control} name="worldId" label="World ID" />
                 <NumberField control={form.control} name="accountId" label="Account ID" />
-                <NumberField control={form.control} name="groupId" label="Group ID" />
+                <FormField
+                  control={form.control}
+                  name="groupId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Grupo</FormLabel>
+                      <Select value={String(field.value)} onValueChange={(v) => v && field.onChange(Number(v))}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue>
+                              {(value: string) => {
+                                const group = ACCOUNT_GROUPS.find((g) => String(g.id) === value);
+                                return group ? `${group.id} — ${group.name}` : value;
+                              }}
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {ACCOUNT_GROUPS.map((group) => (
+                            <SelectItem key={group.id} value={String(group.id)}>
+                              {group.id} — {group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <NumberField control={form.control} name="rankId" label="Rank ID" />
                 <FormField
                   control={form.control}
@@ -192,6 +226,7 @@ export function PlayerForm({ playerId, initialValues, readOnly }: PlayerFormProp
                   )}
                 />
                 <NumberField control={form.control} name="level" label="Level" />
+                <NumberField control={form.control} name="maglevel" label="Magic level" />
                 <FormField
                   control={form.control}
                   name="online"
@@ -215,7 +250,23 @@ export function PlayerForm({ playerId, initialValues, readOnly }: PlayerFormProp
                     </FormItem>
                   )}
                 />
-                <NumberField control={form.control} name="deleted" label="Deletado (0 = ativo)" />
+                <FormField
+                  control={form.control}
+                  name="deleted"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center gap-2 self-end pb-2">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          className="size-4"
+                          checked={field.value !== 0}
+                          onChange={(event) => field.onChange(event.target.checked ? 1 : 0)}
+                        />
+                      </FormControl>
+                      <FormLabel className="!mt-0 font-normal">Deletado</FormLabel>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="save"
@@ -240,18 +291,38 @@ export function PlayerForm({ playerId, initialValues, readOnly }: PlayerFormProp
           <TabsContent value="resources">
             <Card>
               <CardHeader>
-                <CardTitle>Vida & recursos</CardTitle>
+                <CardTitle>Vida</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <NumberField control={form.control} name="health" label="Health" />
                 <NumberField control={form.control} name="healthmax" label="Health max" />
+              </CardContent>
+            </Card>
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Mana</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <NumberField control={form.control} name="mana" label="Mana" />
                 <NumberField control={form.control} name="manamax" label="Mana max" />
+                <NumberField control={form.control} name="manaspent" label="Mana spent" />
+              </CardContent>
+            </Card>
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Capacidade & Soul</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <NumberField control={form.control} name="cap" label="Capacidade" />
                 <NumberField control={form.control} name="soul" label="Soul" />
-                <NumberField control={form.control} name="maglevel" label="Magic level" />
+              </CardContent>
+            </Card>
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Demais recursos</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <NumberField control={form.control} name="experience" label="Experience" />
-                <NumberField control={form.control} name="manaspent" label="Mana spent" />
                 <NumberField control={form.control} name="resets" label="Resets" />
                 <NumberField control={form.control} name="skillPoints" label="Skill points" />
               </CardContent>
@@ -264,7 +335,35 @@ export function PlayerForm({ playerId, initialValues, readOnly }: PlayerFormProp
                 <CardTitle>Posição</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <NumberField control={form.control} name="townId" label="Town ID" />
+                <FormField
+                  control={form.control}
+                  name="townId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Town</FormLabel>
+                      <Select value={String(field.value)} onValueChange={(v) => v && field.onChange(Number(v))}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue>
+                              {(value: string) => {
+                                const town = towns.find((t) => String(t.id) === value);
+                                return town ? `#${town.id} — ${town.name}` : value;
+                              }}
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {towns.map((town) => (
+                            <SelectItem key={town.id} value={String(town.id)}>
+                              #{town.id} — {town.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <NumberField control={form.control} name="posx" label="Posição X" />
                 <NumberField control={form.control} name="posy" label="Posição Y" />
                 <NumberField control={form.control} name="posz" label="Posição Z" />
@@ -424,7 +523,7 @@ export function PlayerForm({ playerId, initialValues, readOnly }: PlayerFormProp
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <ReadOnlyField label="Último login" value={formatUnixOrNever(readOnly.lastlogin)} />
-                <ReadOnlyField label="Último IP" value={readOnly.lastip > 0 ? readOnly.lastip.toString() : "—"} />
+                <ReadOnlyField label="Último IP" value={readOnly.lastip > 0 ? uint32ToIp(readOnly.lastip) : "—"} />
                 <ReadOnlyField label="Último logout" value={formatUnixOrNever(readOnly.lastlogout)} />
                 <ReadOnlyField label="Stamina" value={formatStaminaMs(readOnly.stamina)} />
                 <ReadOnlyField

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { groundToFormInput } from "@/lib/ground-mapper";
 import { GroundForm } from "@/components/admin/grounds/ground-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 
 export const metadata: Metadata = {
   title: "Editar ground",
@@ -29,11 +30,14 @@ export default async function EditGroundPage({
           <h1 className="text-2xl font-semibold">Editar ground: {ground.name}</h1>
           <p className="text-muted-foreground">Preencha os dados e acompanhe o XML gerado ao lado.</p>
         </div>
-        <DuplicateButton
-          endpoint={`/api/admin/grounds/${ground.id}/duplicate`}
-          editPathBase="/admin/grounds"
-          variant="header"
-        />
+        <div className="flex items-center gap-2">
+          <CopyXmlButton endpoint={`/api/admin/grounds/${ground.id}/export`} />
+          <DuplicateButton
+            endpoint={`/api/admin/grounds/${ground.id}/duplicate`}
+            editPathBase="/admin/grounds"
+            variant="header"
+          />
+        </div>
       </div>
       <GroundForm groundId={ground.id} initialValues={groundToFormInput(ground)} />
     </div>

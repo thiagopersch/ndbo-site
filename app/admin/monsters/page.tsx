@@ -144,6 +144,15 @@ export default function AdminMonstersPage() {
       type: "number",
       placeholder: "ex.: 1777",
     },
+    {
+      key: "hasImage",
+      label: "Possui imagem",
+      type: "select",
+      options: [
+        { value: "true", label: "Sim" },
+        { value: "false", label: "Não" },
+      ],
+    },
   ];
 
   const columns: ColumnDef<MonsterRow>[] = [
@@ -217,6 +226,7 @@ export default function AdminMonstersPage() {
             size="icon-sm"
             nativeButton={false}
             render={<Link href={`/admin/monsters/${row.original.id}`} />}
+            title="Editar"
           >
             <Pencil className="size-4" />
           </Button>
@@ -227,7 +237,7 @@ export default function AdminMonstersPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

@@ -5,6 +5,10 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 
+function parseUnlockedVocations(value: string): number[] {
+  return [...value.matchAll(/\d+/g)].map((match) => Number(match[0]));
+}
+
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
@@ -17,16 +21,28 @@ export async function GET(request: Request) {
   const [players, total] = await Promise.all([
     prisma.player.findMany({
       where,
-      orderBy: { id: "desc" },
+      orderBy: [{ level: "desc" }, { experience: "desc" }],
       select: {
         id: true,
         name: true,
         level: true,
+        experience: true,
         vocation: true,
         groupId: true,
         online: true,
         deleted: true,
         accountId: true,
+        sex: true,
+        resets: true,
+        health: true,
+        healthmax: true,
+        mana: true,
+        manamax: true,
+        cap: true,
+        townId: true,
+        age: true,
+        balance: true,
+        unlockedVocations: true,
       },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -34,15 +50,38 @@ export async function GET(request: Request) {
     prisma.player.count({ where }),
   ]);
 
-  const vocationIds = [...new Set(players.map((player) => player.vocation))];
-  const vocations = vocationIds.length
-    ? await prisma.vocation.findMany({ where: { id: { in: vocationIds } }, select: { id: true, name: true } })
-    : [];
-  const vocationNameById = new Map(vocations.map((vocation) => [vocation.id, vocation.name]));
+  const unlockedVocationIdsByPlayer = new Map(
+    players.map((player) => [player.id, parseUnlockedVocations(player.unlockedVocations)])
+  );
 
-  const data = players.map((player) => ({
+  const vocationIds = [
+    ...new Set([
+      ...players.map((player) => player.vocation),
+      ...[...unlockedVocationIdsByPlayer.values()].flat(),
+    ]),
+  ];
+  const townIds = [...new Set(players.map((player) => player.townId))];
+
+  const [vocations, towns] = await Promise.all([
+    vocationIds.length
+      ? prisma.vocation.findMany({ where: { id: { in: vocationIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+    townIds.length
+      ? prisma.town.findMany({ where: { id: { in: townIds } }, select: { id: true, name: true } })
+      : Promise.resolve([]),
+  ]);
+  const vocationNameById = new Map(vocations.map((vocation) => [vocation.id, vocation.name]));
+  const townNameById = new Map(towns.map((town) => [town.id, town.name]));
+
+  const data = players.map(({ experience, ...player }) => ({
     ...player,
+    experience: Number(experience),
     vocationName: vocationNameById.get(player.vocation) ?? "Desconhecida",
+    townName: townNameById.get(player.townId) ?? null,
+    unlockedVocations: (unlockedVocationIdsByPlayer.get(player.id) ?? []).map((id) => ({
+      id,
+      name: vocationNameById.get(id) ?? "Desconhecida",
+    })),
   }));
 
   return NextResponse.json(buildPaginatedResult(data, total, page, pageSize));

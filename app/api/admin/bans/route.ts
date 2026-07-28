@@ -14,16 +14,31 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
   const searchAsNumber = Number(search);
+  const type = url.searchParams.get("type");
+  const active = url.searchParams.get("active");
+  const expiresState = url.searchParams.get("expiresState");
+  const now = Math.floor(Date.now() / 1000);
 
-  const where: Prisma.BanWhereInput = search
-    ? {
-        OR: [
-          ...(Number.isFinite(searchAsNumber) ? [{ value: searchAsNumber }] : []),
-          { comment: { contains: search } },
-          { statement: { contains: search } },
-        ],
-      }
-    : {};
+  const where: Prisma.BanWhereInput = {
+    ...(search
+      ? {
+          OR: [
+            ...(Number.isFinite(searchAsNumber) ? [{ value: searchAsNumber }] : []),
+            { comment: { contains: search } },
+            { statement: { contains: search } },
+          ],
+        }
+      : {}),
+    ...(type ? { type: Number(type) } : {}),
+    ...(active === "true" || active === "false" ? { active: active === "true" } : {}),
+    ...(expiresState === "permanent"
+      ? { expires: 0 }
+      : expiresState === "active"
+        ? { expires: { gt: now } }
+        : expiresState === "expired"
+          ? { expires: { gt: 0, lte: now } }
+          : {}),
+  };
 
   const [bans, total] = await Promise.all([
     prisma.ban.findMany({

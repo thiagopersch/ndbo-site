@@ -15,6 +15,7 @@ import {
   type WallFormInput,
 } from "@/lib/validations/admin/wall";
 import { wallBrushToXml } from "@/lib/wall-xml";
+import { wallFormItemIds } from "@/lib/brush-item-ids";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +42,8 @@ import { AlternateListField } from "@/components/shared/alternate-list-field";
 import { WallSegmentListField } from "@/components/admin/walls/wall-segment-list-field";
 import { FriendListField } from "@/components/admin/walls/friend-list-field";
 import { TilesetCategoryField } from "@/components/shared/tileset-category-field";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { EntitySpritePreview, type SpritePreviewEntry } from "@/components/shared/entity-sprite-preview";
 
 type WallFormProps = {
   brushId?: number;
@@ -65,6 +68,13 @@ export function WallForm({ brushId, initialValues }: WallFormProps) {
 
   const watched = useWatch({ control: form.control });
   const previewXml = wallBrushToXml({ ...defaultWallValues, ...watched } as WallFormInput);
+
+  const spritePreviewItems: SpritePreviewEntry[] = [
+    ...(watched.serverLookId ? [{ id: watched.serverLookId, label: "Preview" }] : []),
+    ...wallFormItemIds(watched as WallFormInput)
+      .filter((id) => id !== watched.serverLookId)
+      .map((id) => ({ id, label: `#${id}` })),
+  ];
 
   const [contentMode, setContentMode] = useState<"wall" | "doodad">(() =>
     resolveContentMode(initialValues ?? defaultWallValues)
@@ -286,16 +296,25 @@ export function WallForm({ brushId, initialValues }: WallFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EntitySpritePreview items={spritePreviewItems} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

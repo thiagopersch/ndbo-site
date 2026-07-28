@@ -27,6 +27,17 @@ function hasConfiguredEdge(edges: unknown): boolean {
   return ((edges as BorderEdgeItemInput[] | null) ?? []).some((edge) => edge.itemId > 0);
 }
 
+/** Sprite de pré-visualização da listagem: canto diagonal noroeste (dnw), senão leste (e),
+ * senão norte (n), senão sul (s) — o primeiro desses 4 edges com um item configurado. */
+function previewItemId(edges: unknown): number | null {
+  const list = (edges as BorderEdgeItemInput[] | null) ?? [];
+  for (const edgeName of ["dnw", "e", "n", "s"] as const) {
+    const itemId = list.find((edge) => edge.edge === edgeName)?.itemId;
+    if (itemId != null && itemId > 0) return itemId;
+  }
+  return null;
+}
+
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
@@ -80,16 +91,29 @@ export async function GET(request: Request) {
   const skip = all ? 0 : (page - 1) * pageSize;
   const take = all ? ALL_BORDERS_CAP : pageSize;
 
-  const [borders, total] = await Promise.all([
+  const [rows, total] = await Promise.all([
     prisma.border.findMany({
       where,
       orderBy: { id: "asc" },
-      select: { id: true, name: true, group: true, optional: true },
+      select: {
+        id: true,
+        name: true,
+        group: true,
+        optional: true,
+        updatedAt: true,
+        edges: true,
+      },
       skip,
       take,
     }),
     prisma.border.count({ where }),
   ]);
+
+  const borders = rows.map(({ edges, ...row }) => ({
+    ...row,
+    ...(all ? { edges } : {}),
+    previewItemId: previewItemId(edges),
+  }));
 
   return NextResponse.json(
     all ? buildPaginatedResult(borders, total, 1, Math.max(total, 1)) : buildPaginatedResult(borders, total, page, pageSize)

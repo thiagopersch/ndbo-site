@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/shared/session-provider";
+import { ThemeProvider } from "@/components/shared/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const outfit = Outfit({subsets:['latin'],variable:'--font-sans'});
@@ -33,14 +34,16 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={cn("h-full", "dark", "antialiased", geistSans.variable, geistMono.variable, "font-sans", outfit.variable)}
+      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", outfit.variable)}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <SessionProvider>
-          {children}
-          <Toaster />
-        </SessionProvider>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <SessionProvider>
+            {children}
+            <Toaster />
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -712,19 +712,25 @@ model AppLog {
 }
 
 /// Posts/notícias do site, gerenciados por administradores (`group_id = 6`).
+/// `page` diz em qual rota pública o post aparece (`home` = landing/`/posts`, ou uma
+/// das seções de gameplay que viraram CMS: town/system/event/quest/raid/task/mission).
+/// `content` guarda o documento do editor rico (Tiptap) como JSON, não HTML/texto puro.
+/// A imagem de capa usa a mesma infra de `EntityImage` (`entityType = "post"`).
 model Post {
   id          Int       @id @default(autoincrement())
   authorId    Int       @map("author_id")
+  page        String    @default("home") @db.VarChar(20)
   title       String    @db.VarChar(255)
   slug        String    @unique @db.VarChar(255)
   excerpt     String?   @db.VarChar(500)
-  content     String    @db.Text
+  content     Json
   published   Boolean   @default(false)
   publishedAt DateTime? @map("published_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@index([published, publishedAt])
+  @@index([page, published])
   @@map("posts")
 }
 
@@ -985,6 +991,24 @@ model Border {
   @@map("borders")
 }
 
+/// Cidade/local do mundo (referenciada por `Player.townId`/`House.town`, sem FK — o id do
+/// OTServer legado nem sempre bate com o que é curado aqui). `id` é definido manualmente
+/// pelo admin (mesmo id usado no `town_id` dos players). `templeX/Y/Z` é a posição do
+/// templo, usada para teleportar recém-criados/mortos e exibida na página pública.
+model Town {
+  id        Int     @id
+  name      String  @db.VarChar(100)
+  templeX   Int     @map("temple_x")
+  templeY   Int     @map("temple_y")
+  templeZ   Int     @map("temple_z")
+  published Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("towns")
+}
+
 /// `<brush type="ground">` do `grounds.xml` (RME). `borders` referencia `Border.id` por
 /// `align` (outer/inner) — exibido como combobox de autocomplete no formulário.
 model Ground {
@@ -1020,13 +1044,13 @@ model Tileset {
   active      Boolean @default(true)
   icon        String? @db.VarChar(255)
 
-  /// Se `true` (padrão, comportamento legado): os ids de item derivados dos brushes de
-  /// cada categoria (grama/tocos de Ground, item/porta de cada segmento de WallBrush,
-  /// item de DoodadBrush) são misturados na própria tag da categoria junto com os
-  /// `<brush>` (ex.: `<terrain>`), como um `terrain_and_raw`. Se `false`, esses ids não
+  /// Se `true` (comportamento legado): os ids de item derivados dos brushes de cada
+  /// categoria (grama/tocos de Ground, item/porta de cada segmento de WallBrush, item de
+  /// DoodadBrush) são misturados na própria tag da categoria junto com os `<brush>`
+  /// (ex.: `<terrain>`), como um `terrain_and_raw`. Se `false` (padrão): esses ids não
   /// aparecem na categoria original — em vez disso, saem agrupados numa tag `<raw>`
   /// sintética ao final do tileset exportado.
-  rawIdsInBrush Boolean @default(true) @map("raw_ids_in_brush")
+  rawIdsInBrush Boolean @default(false) @map("raw_ids_in_brush")
 
   categories TilesetCategory[]
 

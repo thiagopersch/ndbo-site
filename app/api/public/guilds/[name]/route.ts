@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { publicPlayerVisibilityWhere } from "@/lib/public-player-visibility";
 
 type Params = { params: Promise<{ name: string }> };
 
@@ -22,7 +23,7 @@ export async function GET(_request: Request, { params }: Params) {
   const rankIds = guild.ranks.map((rank) => rank.id);
   const members = rankIds.length
     ? await prisma.player.findMany({
-        where: { rankId: { in: rankIds }, deleted: 0 },
+        where: { rankId: { in: rankIds }, deleted: 0, ...publicPlayerVisibilityWhere() },
         select: { id: true, name: true, level: true, rankId: true, online: true },
         orderBy: { level: "desc" },
       })

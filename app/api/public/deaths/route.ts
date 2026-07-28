@@ -3,14 +3,18 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { publicPlayerVisibilityWhere } from "@/lib/public-player-visibility";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.PlayerDeathWhereInput = search
-    ? { player: { name: { contains: search } } }
-    : {};
+  const where: Prisma.PlayerDeathWhereInput = {
+    player: {
+      ...publicPlayerVisibilityWhere(),
+      AND: search ? [{ name: { contains: search } }] : undefined,
+    },
+  };
 
   const [deaths, total] = await Promise.all([
     prisma.playerDeath.findMany({

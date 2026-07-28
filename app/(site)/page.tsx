@@ -3,6 +3,7 @@ import Link from "next/link";
 import dayjs from "dayjs";
 
 import { prisma } from "@/lib/prisma";
+import { publicPlayerVisibilityWhere } from "@/lib/public-player-visibility";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,13 +17,14 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const [topPlayers, onlineCount, recentDeaths, posts] = await Promise.all([
     prisma.player.findMany({
-      where: { deleted: 0 },
+      where: { deleted: 0, ...publicPlayerVisibilityWhere() },
       orderBy: [{ level: "desc" }, { experience: "desc" }],
       take: 5,
       select: { id: true, name: true, level: true, online: true },
     }),
-    prisma.player.count({ where: { online: 1, deleted: 0 } }),
+    prisma.player.count({ where: { online: 1, deleted: 0, ...publicPlayerVisibilityWhere() } }),
     prisma.playerDeath.findMany({
+      where: { player: publicPlayerVisibilityWhere() },
       orderBy: { date: "desc" },
       take: 5,
       include: { player: { select: { name: true } } },

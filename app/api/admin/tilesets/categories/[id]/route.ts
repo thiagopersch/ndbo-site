@@ -18,9 +18,9 @@ export async function GET(_request: Request, { params }: Params) {
     where: { id: Number(id) },
     include: {
       _count: { select: { grounds: true, walls: true, doodads: true, itemEntries: true } },
-      grounds: { select: { id: true, name: true }, orderBy: { tilesetOrder: "asc" } },
-      walls: { select: { id: true, name: true }, orderBy: { tilesetOrder: "asc" } },
-      doodads: { select: { id: true, name: true }, orderBy: { tilesetOrder: "asc" } },
+      grounds: { select: { id: true, name: true, tilesetOrder: true }, orderBy: { tilesetOrder: "asc" } },
+      walls: { select: { id: true, name: true, tilesetOrder: true }, orderBy: { tilesetOrder: "asc" } },
+      doodads: { select: { id: true, name: true, tilesetOrder: true }, orderBy: { tilesetOrder: "asc" } },
     },
   });
 

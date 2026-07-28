@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { doodadBrushToFormInput } from "@/lib/doodad-mapper";
 import { DoodadForm } from "@/components/admin/doodads/doodad-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 
 export const metadata: Metadata = {
   title: "Editar doodad",
@@ -29,11 +30,14 @@ export default async function EditDoodadPage({
           <h1 className="text-2xl font-semibold">Editar doodad: {brush.name}</h1>
           <p className="text-muted-foreground">Preencha os dados e acompanhe o XML gerado ao lado.</p>
         </div>
-        <DuplicateButton
-          endpoint={`/api/admin/doodads/${brush.id}/duplicate`}
-          editPathBase="/admin/doodads"
-          variant="header"
-        />
+        <div className="flex items-center gap-2">
+          <CopyXmlButton endpoint={`/api/admin/doodads/${brush.id}/export`} />
+          <DuplicateButton
+            endpoint={`/api/admin/doodads/${brush.id}/duplicate`}
+            editPathBase="/admin/doodads"
+            variant="header"
+          />
+        </div>
       </div>
       <DoodadForm brushId={brush.id} initialValues={doodadBrushToFormInput(brush)} />
     </div>

@@ -8,7 +8,12 @@ import { useForm, useWatch } from "react-hook-form";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-import { defaultBorderValues, borderFormSchema, type BorderFormInput } from "@/lib/validations/admin/border";
+import {
+  defaultBorderValues,
+  borderFormSchema,
+  type BorderEdge,
+  type BorderFormInput,
+} from "@/lib/validations/admin/border";
 import { borderToXml } from "@/lib/border-xml";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +28,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { BorderRingPreview } from "@/components/shared/border-ring-preview";
 import { BorderEdgeGridField } from "@/components/admin/borders/border-edge-grid-field";
 
 type BorderFormProps = {
@@ -41,6 +48,10 @@ export function BorderForm({ isEditing = false, initialValues }: BorderFormProps
 
   const watched = useWatch({ control: form.control });
   const previewXml = borderToXml({ ...defaultBorderValues, ...watched } as BorderFormInput);
+
+  const edgeMap: Partial<Record<BorderEdge, number>> = Object.fromEntries(
+    (watched.edges ?? []).filter((entry): entry is { edge: BorderEdge; itemId: number } => entry?.edge != null).map((entry) => [entry.edge, entry.itemId])
+  );
 
   async function onSubmit(values: BorderFormInput) {
     setIsSubmitting(true);
@@ -165,16 +176,25 @@ export function BorderForm({ isEditing = false, initialValues }: BorderFormProps
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BorderRingPreview edges={edgeMap} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

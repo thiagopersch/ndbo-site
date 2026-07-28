@@ -31,7 +31,7 @@ export function BooleanGridField<T extends FieldValues>({
               <FormControl>
                 <input
                   type="checkbox"
-                  className="size-4"
+                  className="size-4 cursor-pointer"
                   checked={Boolean(field.value)}
                   onChange={(event) => field.onChange(event.target.checked)}
                 />

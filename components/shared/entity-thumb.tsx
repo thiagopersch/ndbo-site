@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { EntityImageInfo } from "@/components/shared/use-entity-images";
 
-const SIZE_CLASSES = { sm: "size-6", md: "size-10" } as const;
+const SIZE_CLASSES = { sm: "size-6", md: "size-10", lg: "size-16" } as const;
 
 /** Tamanho máximo (px) do preview ampliado no tooltip, mesmo que a imagem original seja
  * grande — evita um preview gigante para uma imagem custom fora do padrão de sprite. */
@@ -84,11 +84,11 @@ export function EntityThumb({
         const { naturalWidth, naturalHeight } = event.currentTarget;
         setNaturalSize({ width: naturalWidth, height: naturalHeight });
       }}
-      className={`${sizeClass} shrink-0 rounded-sm border border-border object-contain bg-muted/40`}
+      className={`${sizeClass} shrink-0 scale-100 rounded-sm border border-border object-contain bg-muted/40 transition-transform duration-150 hover:z-10 hover:scale-150`}
     />
   ) : (
     <span
-      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-sm border border-dashed border-border text-muted-foreground`}
+      className={`${sizeClass} flex shrink-0 scale-100 items-center justify-center rounded-sm border border-dashed border-border text-muted-foreground transition-transform duration-150 hover:z-10 hover:scale-150`}
     >
       <ImageOff className="size-3.5" />
     </span>

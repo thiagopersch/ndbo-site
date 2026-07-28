@@ -109,6 +109,7 @@ export default async function AdminDashboardPage() {
         bansByType={stats.bans.byType}
         monstersByCategory={stats.monsters.byCategory}
         ticketsByStatus={stats.tickets.byStatus}
+        itemsByType={stats.items.byType}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">

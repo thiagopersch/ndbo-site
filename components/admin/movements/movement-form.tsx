@@ -42,6 +42,8 @@ import { Input } from "@/components/ui/input";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { EntitySpritePreview, type SpritePreviewEntry } from "@/components/shared/entity-sprite-preview";
 import { MovementVocationField } from "@/components/admin/movements/movement-vocation-field";
 
 type MovementFormProps = {
@@ -101,6 +103,19 @@ export function MovementForm({ movementId, initialValues }: MovementFormProps) {
   const eventType = form.watch("eventType");
   const actionKind = form.watch("actionKind");
   const isEquipEvent = eventType === "Equip" || eventType === "DeEquip";
+
+  const spritePreviewItems: SpritePreviewEntry[] =
+    selectorType === "ITEM_ID"
+      ? [
+          ...(watched.itemId != null ? [{ id: watched.itemId, label: "Item" }] : []),
+          ...(watched.itemIdRangeEnd != null ? [{ id: watched.itemIdRangeEnd, label: "Até" }] : []),
+        ]
+      : selectorType === "ITEM_RANGE"
+        ? (watched.ranges ?? []).flatMap((range, index) => [
+            ...(range?.from != null ? [{ id: range.from, label: `#${index + 1} de` }] : []),
+            ...(range?.to != null ? [{ id: range.to, label: `#${index + 1} até` }] : []),
+          ])
+        : [];
 
   async function onSubmit(values: MovementInput) {
     setIsSubmitting(true);
@@ -459,16 +474,25 @@ export function MovementForm({ movementId, initialValues }: MovementFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EntitySpritePreview items={spritePreviewItems} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

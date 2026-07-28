@@ -36,7 +36,7 @@ export function EntityImageUploadDialog({
     <Dialog onOpenChange={(open) => !open && onUploaded?.()}>
       <DialogTrigger
         render={
-          <Button variant="ghost" size="icon-sm">
+          <Button variant="ghost" size="icon-sm" title="Enviar/trocar imagem">
             <ImageUp className="size-4" />
           </Button>
         }

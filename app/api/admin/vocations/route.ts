@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { vocationSchema } from "@/lib/validations/admin/vocation";
 import { vocationInputToPrismaData, vocationToInput } from "@/lib/vocation-mapper";
+import { hasImageIdFilter } from "@/lib/entity-image-filter";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
   const typeUniverseId = url.searchParams.get("typeUniverseId");
   const needpremium = url.searchParams.get("needpremium");
   const published = url.searchParams.get("published");
+  const hasImage = await hasImageIdFilter("vocation", url.searchParams.get("hasImage"));
 
   const where: Prisma.VocationWhereInput = {
     ...(search
@@ -28,6 +30,7 @@ export async function GET(request: Request) {
           ],
         }
       : {}),
+    ...(hasImage ? { id: hasImage } : {}),
     ...(typeClassId ? { typeClassId: Number(typeClassId) } : {}),
     ...(typeUniverseId ? { typeUniverseId: Number(typeUniverseId) } : {}),
     ...(needpremium === "true" || needpremium === "false"

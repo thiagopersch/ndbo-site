@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { ACCOUNT_MANAGER_NAME, PUBLIC_LISTING_GROUP_ID_LIMIT } from "@/lib/public-player-visibility";
 
 type Params = { params: Promise<{ name: string }> };
 
@@ -25,9 +26,18 @@ export type EquipmentSlotKey = (typeof EQUIPMENT_SLOTS)[number]["key"];
 
 export async function GET(_request: Request, { params }: Params) {
   const { name } = await params;
+  const decodedName = decodeURIComponent(name);
+
+  if (decodedName === ACCOUNT_MANAGER_NAME) {
+    return NextResponse.json({ error: "Personagem não encontrado." }, { status: 404 });
+  }
 
   const player = await prisma.player.findFirst({
-    where: { name: decodeURIComponent(name), deleted: 0 },
+    where: {
+      name: decodedName,
+      deleted: 0,
+      account: { groupId: { lt: PUBLIC_LISTING_GROUP_ID_LIMIT } },
+    },
     select: {
       id: true,
       name: true,

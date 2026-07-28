@@ -47,7 +47,7 @@ export function ItemsListField<T extends FieldValues>({ control, name }: ItemsLi
         variant="outline"
         size="sm"
         className="self-start"
-        onClick={() => append({ id: 0, chance: 0 } as never)}
+        onClick={() => append({ id: 0, chance: 10 } as never)}
       >
         <Plus className="size-4" />
         Adicionar item

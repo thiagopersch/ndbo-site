@@ -52,7 +52,7 @@ export function CompositeListField<T extends FieldValues>({
         variant="outline"
         size="sm"
         className="self-start"
-        onClick={() => append({ chance: 0, tiles: [] } as never)}
+        onClick={() => append({ chance: 10, tiles: [] } as never)}
       >
         <Plus className="size-4" />
         Adicionar composite

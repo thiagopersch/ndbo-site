@@ -29,7 +29,7 @@ import { itemToXml } from "@/lib/item-xml";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -52,6 +52,10 @@ import { BooleanGridField } from "@/components/shared/boolean-grid-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { ItemIdField } from "@/components/shared/item-id-field";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { ScrollableTabsList } from "@/components/shared/scrollable-tabs-list";
+import { CollapsibleSectionCard } from "@/components/shared/collapsible-section-card";
 import { ItemLinkedMovementsPanel } from "@/components/admin/items/item-linked-movements-panel";
 
 type ItemFormProps = {
@@ -237,7 +241,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
           className="flex flex-col gap-6"
         >
           <Tabs defaultValue="basic">
-            <TabsList className="flex-wrap">
+            <ScrollableTabsList>
               <TabsTrigger value="basic">Básico</TabsTrigger>
               <TabsTrigger value="combat">Combate</TabsTrigger>
               <TabsTrigger value="resist">Resistências</TabsTrigger>
@@ -249,19 +253,18 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
               <TabsTrigger value="flags">Flags</TabsTrigger>
               <TabsTrigger value="extra">Atributos extras</TabsTrigger>
               <TabsTrigger value="movements">Movements vinculados</TabsTrigger>
-            </TabsList>
+            </ScrollableTabsList>
 
             <TabsContent value="basic">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Identificação</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CollapsibleSectionCard
+                title="Identificação"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   {!isEditing && (
                     <div className="flex flex-row items-center gap-2 sm:col-span-2 lg:col-span-3">
                       <input
                         type="checkbox"
-                        className="size-4"
+                        className="size-4 cursor-pointer"
                         id="range-mode"
                         checked={rangeMode}
                         onChange={(event) => setRangeMode(event.target.checked)}
@@ -385,7 +388,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={field.value}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -399,14 +402,12 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
 
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Imagem</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <CollapsibleSectionCard
+                title="Imagem"
+                className="mt-4"
+              >
                   {isEditing ? (
                     <EntityImageUpload
                       entityType="item"
@@ -430,7 +431,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                           />
                         ) : (
                           <span className="flex size-10 shrink-0 items-center justify-center rounded-sm border border-dashed border-border text-muted-foreground">
-                            <ImageOff className="size-4" />
+                            <ImageOff className="size-4 cursor-pointer" />
                           </span>
                         )}
                         <div className="flex flex-col gap-2">
@@ -467,16 +468,14 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </p>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="combat">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Classificação de combate</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CollapsibleSectionCard
+                title="Classificação de combate"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   <FormField
                     control={form.control}
                     name="weaponType"
@@ -568,14 +567,13 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
 
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Stats</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <CollapsibleSectionCard
+                title="Stats"
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+              >
                   <NumberField
                     control={form.control}
                     name="weight"
@@ -642,40 +640,35 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                     label="Rotacionar para (Rotate to)"
                     nullable
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
 
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Skills concedidas</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <CollapsibleSectionCard
+                title="Skills concedidas"
+                className="mt-4"
+              >
                   <RecordGridField
                     control={form.control}
                     basePath="skills"
                     keys={ITEM_SKILL_KEYS}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
 
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Dano elemental (arma)</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <CollapsibleSectionCard
+                title="Dano elemental (arma)"
+                className="mt-4"
+              >
                   <RecordGridField
                     control={form.control}
                     basePath="elements"
                     keys={ITEM_ELEMENT_KEYS}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
 
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Rune (spell vinculada)</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
+              <CollapsibleSectionCard
+                title="Rune (spell vinculada)"
+                className="mt-4"
+                contentClassName="flex flex-col gap-3"
+              >
                   <p className="text-sm text-muted-foreground">
                     Selecione uma spell existente para preencher o nome
                     automaticamente, ou digite livremente — o XML sempre usa o
@@ -706,84 +699,68 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="resist">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Absorb %</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <CollapsibleSectionCard
+                title="Absorb %"
+              >
                   <RecordGridField
                     control={form.control}
                     basePath="absorbPercent"
                     keys={ITEM_ABSORB_KEYS}
                   />
-                </CardContent>
-              </Card>
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>
-                    Field absorb % (parado no próprio campo)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+              </CollapsibleSectionCard>
+              <CollapsibleSectionCard
+                title="Field absorb % (parado no próprio campo)"
+                className="mt-4"
+              >
                   <RecordGridField
                     control={form.control}
                     basePath="fieldAbsorbPercent"
                     keys={ITEM_FIELD_ABSORB_KEYS}
                   />
-                </CardContent>
-              </Card>
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Reflect %</CardTitle>
-                </CardHeader>
-                <CardContent>
+              </CollapsibleSectionCard>
+              <CollapsibleSectionCard
+                title="Reflect %"
+                className="mt-4"
+              >
                   <RecordGridField
                     control={form.control}
                     basePath="reflectPercent"
                     keys={ITEM_ABSORB_KEYS}
                   />
-                </CardContent>
-              </Card>
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Reflect chance</CardTitle>
-                </CardHeader>
-                <CardContent>
+              </CollapsibleSectionCard>
+              <CollapsibleSectionCard
+                title="Reflect chance"
+                className="mt-4"
+              >
                   <RecordGridField
                     control={form.control}
                     basePath="reflectChance"
                     keys={ITEM_ABSORB_KEYS}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="suppress">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Imunidade a condições</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <CollapsibleSectionCard
+                title="Imunidade a condições"
+              >
                   <BooleanGridField
                     control={form.control}
                     basePath="suppress"
                     keys={ITEM_SUPPRESS_KEYS}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="decay">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Decay</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CollapsibleSectionCard
+                title="Decay"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   <ItemIdField
                     control={form.control}
                     name="decayTo"
@@ -803,7 +780,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -824,7 +801,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -837,14 +814,13 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
 
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Transformação</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CollapsibleSectionCard
+                title="Transformação"
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   <ItemIdField
                     control={form.control}
                     name="transformEquipTo"
@@ -889,14 +865,13 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
 
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Charges</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CollapsibleSectionCard
+                title="Charges"
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   <NumberField
                     control={form.control}
                     name="charges"
@@ -910,7 +885,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -931,7 +906,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -944,28 +919,25 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="container">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Container</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CollapsibleSectionCard
+                title="Container"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   <NumberField
                     control={form.control}
                     name="containerSize"
                     label="Tamanho do container (Container size)"
                   />
-                </CardContent>
-              </Card>
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Texto</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              </CollapsibleSectionCard>
+              <CollapsibleSectionCard
+                title="Texto"
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   <FormField
                     control={form.control}
                     name="readable"
@@ -974,7 +946,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -995,7 +967,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -1019,16 +991,14 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                     label="Item id (uso único ao escrever) (Write once item id)"
                     nullable
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="regen">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Luz</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <CollapsibleSectionCard
+                title="Luz"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
                   <NumberField
                     control={form.control}
                     name="lightLevel"
@@ -1039,13 +1009,12 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                     name="lightColor"
                     label="Cor da luz (Light color)"
                   />
-                </CardContent>
-              </Card>
-              <Card className="mt-4">
-                <CardHeader>
-                  <CardTitle>Regeneração / stats concedidos</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              </CollapsibleSectionCard>
+              <CollapsibleSectionCard
+                title="Regeneração / stats concedidos"
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+              >
                   <NumberField
                     control={form.control}
                     name="speed"
@@ -1079,7 +1048,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -1152,18 +1121,14 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                     name="increaseHealingPercent"
                     label="Aumento de cura % (Increase healing %)"
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="field">
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    Bloco de magic field (só relevante quando type=magicfield)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
+              <CollapsibleSectionCard
+                title="Bloco de magic field (só relevante quando type=magicfield)"
+                contentClassName="flex flex-col gap-4"
+              >
                   <FormField
                     control={form.control}
                     name="field.enabled"
@@ -1172,7 +1137,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         <FormControl>
                           <input
                             type="checkbox"
-                            className="size-4"
+                            className="size-4 cursor-pointer"
                             checked={Boolean(field.value)}
                             onChange={(event) =>
                               field.onChange(event.target.checked)
@@ -1238,7 +1203,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                             className="self-end"
                             onClick={() => fieldDamages.remove(index)}
                           >
-                            <Trash2 className="size-4" />
+                            <Trash2 className="size-4 cursor-pointer" />
                           </Button>
                         </div>
                       ))}
@@ -1249,21 +1214,18 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         className="self-start"
                         onClick={() => fieldDamages.append(emptyFieldDamage)}
                       >
-                        <Plus className="size-4" />
+                        <Plus className="size-4 cursor-pointer" />
                         Adicionar dano
                       </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="flags">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Flags</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <CollapsibleSectionCard
+                title="Flags"
+              >
                   <BooleanGridField
                     control={form.control}
                     basePath="flags"
@@ -1287,16 +1249,14 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       "allowDistRead",
                     ]}
                   />
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="extra">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Atributos extras</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-2">
+              <CollapsibleSectionCard
+                title="Atributos extras"
+                contentClassName="flex flex-col gap-2"
+              >
                   <p className="text-sm text-muted-foreground">
                     Atributos <code>{"<attribute key>"}</code> não modelados nas
                     abas acima — usado principalmente para preservar dados
@@ -1328,7 +1288,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                         size="icon-sm"
                         onClick={() => extraAttributes.remove(index)}
                       >
-                        <Trash2 className="size-4" />
+                        <Trash2 className="size-4 cursor-pointer" />
                       </Button>
                     </div>
                   ))}
@@ -1341,19 +1301,16 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       extraAttributes.append({ key: "", value: "" })
                     }
                   >
-                    <Plus className="size-4" />
+                    <Plus className="size-4 cursor-pointer" />
                     Adicionar atributo
                   </Button>
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="movements">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Movements vinculados</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <CollapsibleSectionCard
+                title="Movements vinculados"
+              >
                   {isEditing ? (
                     <ItemLinkedMovementsPanel itemId={itemId} />
                   ) : (
@@ -1362,8 +1319,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       a ele.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+              </CollapsibleSectionCard>
             </TabsContent>
           </Tabs>
 
@@ -1392,16 +1348,31 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <EntityThumb entityType="item" id={itemId} name={watched.name} size="lg" />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Salve o item primeiro para poder enviar/ver a imagem.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

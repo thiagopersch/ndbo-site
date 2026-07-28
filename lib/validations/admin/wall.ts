@@ -121,7 +121,7 @@ export const defaultWallValues: WallFormInput = {
   serverLookId: 0,
   draggable: false,
   onBlocking: false,
-  thickness: "",
+  thickness: "10/100",
   onDuplicate: false,
   oneSize: false,
   redoBorders: false,

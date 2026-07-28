@@ -15,6 +15,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { LastUpdatedCell } from "@/components/shared/last-updated-cell";
 import { TilesetImportDialog } from "@/components/admin/tilesets/tileset-import-dialog";
 import { IntegrityCheckDialog } from "@/components/admin/tilesets/integrity-check-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -25,6 +26,7 @@ type TilesetRow = {
   description: string | null;
   order: number;
   active: boolean;
+  updatedAt: string;
   _count: { categories: number };
   categories: { name: string }[];
 };
@@ -92,6 +94,11 @@ export default function AdminTilesetsPage() {
       ),
     },
     {
+      accessorKey: "updatedAt",
+      header: "Última atualização",
+      cell: ({ row }) => <LastUpdatedCell date={row.original.updatedAt} />,
+    },
+    {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
@@ -105,6 +112,14 @@ export default function AdminTilesetsPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <CopyXmlButton
+            variant="icon"
+            label="Copiar XML deste tileset"
+            getText={async () => {
+              const response = await fetch(`/api/admin/tilesets/export?ids=${row.original.id}`);
+              return response.text();
+            }}
+          />
           <DuplicateButton
             endpoint={`/api/admin/tilesets/${row.original.id}/duplicate`}
             editPathBase="/admin/tilesets"
@@ -112,7 +127,7 @@ export default function AdminTilesetsPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Excluir">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

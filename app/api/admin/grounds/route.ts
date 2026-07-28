@@ -106,6 +106,7 @@ export async function GET(request: Request) {
         zOrder: true,
         soloOptional: true,
         tilesetCategoryId: true,
+        updatedAt: true,
       },
       skip: (page - 1) * pageSize,
       take: pageSize,

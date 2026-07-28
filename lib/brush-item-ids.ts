@@ -6,8 +6,13 @@ import type {
   ItemRefInput,
   TableSegmentInput,
 } from "@/lib/validations/admin/doodad";
-import type { WallSegmentInput } from "@/lib/validations/admin/wall";
+import type { WallSegmentInput as WallBrushSegmentInput } from "@/lib/validations/admin/wall";
 import type { BorderEdgeItemInput } from "@/lib/validations/admin/border";
+
+/** Formato mínimo comum a `WallSegmentInput` do Doodad e do WallBrush — os dois têm um
+ * schema de `door` diferente (`hate` vs. `locked`), mas ambos bastam aqui: só usamos os
+ * ids de item/porta, não o resto do segmento. */
+type WallSegmentLike = { items?: ItemRefInput[]; doors?: { id: number }[] };
 
 /**
  * Extrai, de cada tipo de brush, a lista "achatada" de item ids que ele realmente usa
@@ -40,7 +45,7 @@ function idsFromAlternates(alternates: AlternateInput[] | undefined): number[] {
   return ids;
 }
 
-function idsFromWallSegments(walls: WallSegmentInput[] | undefined): number[] {
+function idsFromWallSegments(walls: WallSegmentLike[] | undefined): number[] {
   const ids: number[] = [];
   for (const wall of walls ?? []) {
     ids.push(...idsFromItems(wall.items));
@@ -74,7 +79,7 @@ export function groundItemIds(ground: Pick<Ground, "items">): number[] {
 export function wallItemIds(wall: Pick<WallBrush, "content">): number[] {
   const content = (wall.content ?? {}) as Record<string, unknown>;
   return cleanIds([
-    ...idsFromWallSegments(content.walls as WallSegmentInput[] | undefined),
+    ...idsFromWallSegments(content.walls as WallBrushSegmentInput[] | undefined),
     ...idsFromItems(content.items as ItemRefInput[] | undefined),
     ...idsFromComposites(content.composites as CompositeInput[] | undefined),
     ...idsFromAlternates(content.alternates as AlternateInput[] | undefined),
@@ -88,7 +93,7 @@ export function doodadItemIds(doodad: Pick<DoodadBrush, "content">): number[] {
     ...idsFromComposites(content.composites as CompositeInput[] | undefined),
     ...idsFromAlternates(content.alternates as AlternateInput[] | undefined),
     ...idsFromCarpets(content.carpets as CarpetEntryInput[] | undefined),
-    ...idsFromWallSegments(content.walls as WallSegmentInput[] | undefined),
+    ...idsFromWallSegments(content.walls as WallSegmentLike[] | undefined),
     ...idsFromTables(content.tables as TableSegmentInput[] | undefined),
   ]);
 }
@@ -97,6 +102,42 @@ export function doodadItemIds(doodad: Pick<DoodadBrush, "content">): number[] {
 export function borderItemIds(border: Pick<Border, "edges">): number[] {
   const edges = (border.edges as BorderEdgeItemInput[] | null) ?? [];
   return cleanIds(edges.map((edge) => edge.itemId));
+}
+
+/** Mesma extração de `doodadItemIds`, mas direto do `DoodadFormInput` "achatado" do form
+ * (sem o indireto `content` JSON) — usada pela pré-visualização de sprites ao vivo. */
+export function doodadFormItemIds(input: {
+  items?: ItemRefInput[];
+  composites?: CompositeInput[];
+  alternates?: AlternateInput[];
+  carpets?: CarpetEntryInput[];
+  walls?: WallSegmentLike[];
+  tables?: TableSegmentInput[];
+}): number[] {
+  return cleanIds([
+    ...idsFromItems(input.items),
+    ...idsFromComposites(input.composites),
+    ...idsFromAlternates(input.alternates),
+    ...idsFromCarpets(input.carpets),
+    ...idsFromWallSegments(input.walls),
+    ...idsFromTables(input.tables),
+  ]);
+}
+
+/** Mesma extração de `wallItemIds`, mas direto do `WallFormInput` "achatado" do form (sem o
+ * indireto `content` JSON) — usada pela pré-visualização de sprites ao vivo. */
+export function wallFormItemIds(input: {
+  items?: ItemRefInput[];
+  composites?: CompositeInput[];
+  alternates?: AlternateInput[];
+  walls?: WallBrushSegmentInput[];
+}): number[] {
+  return cleanIds([
+    ...idsFromWallSegments(input.walls),
+    ...idsFromItems(input.items),
+    ...idsFromComposites(input.composites),
+    ...idsFromAlternates(input.alternates),
+  ]);
 }
 
 /** Filtra `rows` (um scan completo da tabela, já que não dá pra buscar dentro de um JSON

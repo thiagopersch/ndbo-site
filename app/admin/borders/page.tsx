@@ -15,7 +15,10 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { LastUpdatedCell } from "@/components/shared/last-updated-cell";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import { useEntityImages } from "@/components/shared/use-entity-images";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type BorderRow = {
@@ -23,6 +26,8 @@ type BorderRow = {
   name: string;
   group: number | null;
   optional: boolean;
+  updatedAt: string;
+  previewItemId: number | null;
 };
 
 const YES_NO_OPTIONS = [
@@ -39,6 +44,11 @@ export default function AdminBordersPage() {
   const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<BorderRow>>(
     `/api/admin/borders?${table.buildQueryParams().toString()}`,
     fetcher
+  );
+
+  const images = useEntityImages(
+    "item",
+    (data?.data ?? []).flatMap((b) => (b.previewItemId ? [b.previewItemId] : []))
   );
 
   async function handleDelete(id: number) {
@@ -61,6 +71,21 @@ export default function AdminBordersPage() {
 
   const columns: ColumnDef<BorderRow>[] = [
     { accessorKey: "id", header: "ID" },
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) =>
+        row.original.previewItemId ? (
+          <EntityThumb
+            entityType="item"
+            id={row.original.previewItemId}
+            name={row.original.name}
+            image={images.get(row.original.previewItemId) ?? null}
+          />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
     { accessorKey: "name", header: "Nome" },
     {
       accessorKey: "group",
@@ -77,6 +102,11 @@ export default function AdminBordersPage() {
       ),
     },
     {
+      accessorKey: "updatedAt",
+      header: "Última atualização",
+      cell: ({ row }) => <LastUpdatedCell date={row.original.updatedAt} />,
+    },
+    {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
@@ -86,9 +116,18 @@ export default function AdminBordersPage() {
             size="icon-sm"
             nativeButton={false}
             render={<Link href={`/admin/borders/${row.original.id}`} />}
+            title="Editar"
           >
             <Pencil className="size-4" />
           </Button>
+          <CopyXmlButton
+            variant="icon"
+            label="Copiar XML deste border"
+            getText={async () => {
+              const response = await fetch(`/api/admin/borders/${row.original.id}/export`);
+              return response.text();
+            }}
+          />
           <DuplicateButton
             endpoint={`/api/admin/borders/${row.original.id}/duplicate`}
             editPathBase="/admin/borders"
@@ -96,7 +135,7 @@ export default function AdminBordersPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "@/lib/generated/prisma/client";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
-import { postSchema } from "@/lib/validations/admin/post";
+import { defaultPostContent, postSchema } from "@/lib/validations/admin/post";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -13,10 +13,14 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
+  const pageFilter = url.searchParams.get("postPage");
+  const published = url.searchParams.get("published");
 
-  const where: Prisma.PostWhereInput = search
-    ? { OR: [{ title: { contains: search } }, { slug: { contains: search } }] }
-    : {};
+  const where: Prisma.PostWhereInput = {
+    ...(search ? { OR: [{ title: { contains: search } }, { slug: { contains: search } }] } : {}),
+    ...(pageFilter ? { page: pageFilter } : {}),
+    ...(published === "true" || published === "false" ? { published: published === "true" } : {}),
+  };
 
   const [posts, total] = await Promise.all([
     prisma.post.findMany({
@@ -28,7 +32,23 @@ export async function GET(request: Request) {
     prisma.post.count({ where }),
   ]);
 
-  return NextResponse.json(buildPaginatedResult(posts, total, page, pageSize));
+  const ids = posts.map((post) => post.id);
+  const images = ids.length
+    ? await prisma.entityImage.findMany({
+        where: { entityType: "post", entityId: { in: ids } },
+        select: { entityId: true, extension: true, updatedAt: true },
+      })
+    : [];
+  const imageByPostId = new Map(images.map((image) => [image.entityId, image]));
+
+  return NextResponse.json(
+    buildPaginatedResult(
+      posts.map((post) => ({ ...post, image: imageByPostId.get(post.id) ?? null })),
+      total,
+      page,
+      pageSize
+    )
+  );
 }
 
 export async function POST(request: Request) {
@@ -36,10 +56,10 @@ export async function POST(request: Request) {
   if (response) return response;
 
   const body = await request.json();
-  const parsed = postSchema.safeParse(body);
+  const parsed = postSchema.partial({ content: true }).safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Dados inválidos." }, { status: 422 });
   }
 
   const existing = await prisma.post.findUnique({ where: { slug: parsed.data.slug } });
@@ -50,6 +70,7 @@ export async function POST(request: Request) {
   const post = await prisma.post.create({
     data: {
       ...parsed.data,
+      content: (parsed.data.content ?? defaultPostContent) as Prisma.InputJsonValue,
       authorId: Number(session.user.id),
       publishedAt: parsed.data.published ? new Date() : null,
     },

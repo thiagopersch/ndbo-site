@@ -95,6 +95,7 @@ export async function GET(request: Request) {
         reborder: true,
         thickness: true,
         tilesetCategoryId: true,
+        updatedAt: true,
       },
       skip: (page - 1) * pageSize,
       take: pageSize,

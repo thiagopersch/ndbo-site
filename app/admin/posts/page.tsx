@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -9,20 +11,54 @@ import dayjs from "dayjs";
 import { fetcher } from "@/lib/fetcher";
 import type { Post } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
+import { POST_PAGES, defaultPostContent } from "@/lib/validations/admin/post";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { PostFormDialog } from "@/components/admin/posts/post-form-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import type { EntityImageInfo } from "@/components/shared/use-entity-images";
+
+type PostRow = Post & { image: EntityImageInfo | null };
+
+const PAGE_LABELS = Object.fromEntries(POST_PAGES.map((p) => [p.value, p.label]));
 
 export default function AdminPostsPage() {
+  const router = useRouter();
   const table = useServerTable();
+  const [isCreating, setIsCreating] = useState(false);
 
-  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<Post>>(
+  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<PostRow>>(
     `/api/admin/posts?${table.buildQueryParams().toString()}`,
     fetcher
   );
+
+  async function handleCreate() {
+    setIsCreating(true);
+    const response = await fetch("/api/admin/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Novo post",
+        slug: `novo-post-${Date.now()}`,
+        page: "home",
+        excerpt: null,
+        content: defaultPostContent,
+        published: false,
+      }),
+    });
+    setIsCreating(false);
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      toast.error(errData?.error ?? "Não foi possível criar o post.");
+      return;
+    }
+
+    const responseData = await response.json();
+    router.push(`/admin/posts/${responseData.post.id}`);
+  }
 
   async function handleDelete(id: number) {
     const response = await fetch(`/api/admin/posts/${id}`, { method: "DELETE" });
@@ -36,9 +72,21 @@ export default function AdminPostsPage() {
     mutate();
   }
 
-  const columns: ColumnDef<Post>[] = [
+  const columns: ColumnDef<PostRow>[] = [
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) => (
+        <EntityThumb entityType="post" id={row.original.id} name={row.original.title} image={row.original.image} />
+      ),
+    },
     { accessorKey: "title", header: "Título" },
     { accessorKey: "slug", header: "Slug" },
+    {
+      accessorKey: "page",
+      header: "Página",
+      cell: ({ row }) => PAGE_LABELS[row.original.page] ?? row.original.page,
+    },
     {
       accessorKey: "published",
       header: "Status",
@@ -58,18 +106,18 @@ export default function AdminPostsPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <PostFormDialog
-            post={row.original}
-            onSaved={() => mutate()}
-            trigger={
-              <Button variant="ghost" size="icon-sm">
-                <Pencil className="size-4" />
-              </Button>
-            }
-          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Editar"
+            nativeButton={false}
+            render={<a href={`/admin/posts/${row.original.id}`} />}
+          >
+            <Pencil className="size-4" />
+          </Button>
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }
@@ -88,17 +136,12 @@ export default function AdminPostsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Posts</h1>
-          <p className="text-muted-foreground">Notícias e posts exibidos no site.</p>
+          <p className="text-muted-foreground">Conteúdo exibido nas páginas públicas do site.</p>
         </div>
-        <PostFormDialog
-          onSaved={() => mutate()}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Novo post
-            </Button>
-          }
-        />
+        <Button onClick={handleCreate} disabled={isCreating}>
+          <Plus className="size-4" />
+          Novo post
+        </Button>
       </div>
 
       <DataTable

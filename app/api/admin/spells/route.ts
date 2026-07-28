@@ -8,6 +8,7 @@ import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { spellFormSchema } from "@/lib/validations/admin/spell";
 import { spellFormToScalarData } from "@/lib/spell-mapper";
 import { hasDuplicateName } from "@/lib/unique-name";
+import { hasImageIdFilter } from "@/lib/entity-image-filter";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -26,8 +27,11 @@ export async function GET(request: Request) {
     .map(Number)
     .filter((id) => Number.isFinite(id));
 
+  const hasImage = await hasImageIdFilter("spell", url.searchParams.get("hasImage"));
+
   const where: Prisma.SpellWhereInput = {
     ...(search ? { name: { contains: search } } : {}),
+    ...(hasImage ? { id: hasImage } : {}),
     ...(kind ? { kind } : {}),
     ...(level ? { level: Number(level) } : {}),
     ...(groups.length

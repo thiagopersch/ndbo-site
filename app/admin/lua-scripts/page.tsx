@@ -116,6 +116,7 @@ export default function AdminLuaScriptsPage() {
             size="icon-sm"
             nativeButton={false}
             render={<Link href={`/admin/lua-scripts/${row.original.id}`} />}
+            title="Editar"
           >
             <Pencil className="size-4" />
           </Button>
@@ -136,7 +137,7 @@ export default function AdminLuaScriptsPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

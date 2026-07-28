@@ -45,7 +45,9 @@ import {
 import { NumberField } from "@/components/shared/number-field";
 import { ItemIdField } from "@/components/shared/item-id-field";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
+import { EntityThumb } from "@/components/shared/entity-thumb";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
 import { SpellVocationField } from "@/components/admin/spells/spell-vocation-field";
 
 type SpellFormProps = {
@@ -592,17 +594,32 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>Pré-visualização do XML</CardTitle>
-          <CopyXmlButton getText={() => previewXml} />
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle>Pré-visualização do XML</CardTitle>
+            <CopyXmlButton getText={() => previewXml} />
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <EntityThumb entityType="spell" id={spellId} name={watched.name} size="lg" />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Salve a spell primeiro para poder enviar/ver a imagem.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

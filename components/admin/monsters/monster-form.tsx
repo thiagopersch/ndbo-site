@@ -41,6 +41,7 @@ import {
 import { NumberField } from "@/components/shared/number-field";
 import { ItemIdField } from "@/components/shared/item-id-field";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
+import { EntityThumb } from "@/components/shared/entity-thumb";
 import { MonsterFlagsFields } from "@/components/admin/monsters/monster-flags-fields";
 import { MonsterRecordGridField } from "@/components/admin/monsters/monster-record-grid-field";
 import { MonsterSpellListField } from "@/components/admin/monsters/monster-spell-list-field";
@@ -49,6 +50,7 @@ import { MonsterVoiceListField } from "@/components/admin/monsters/monster-voice
 import { MonsterSummonListField } from "@/components/admin/monsters/monster-summon-list-field";
 import { MonsterScriptListField } from "@/components/admin/monsters/monster-script-list-field";
 import { MonsterLootListField } from "@/components/admin/monsters/monster-loot-list-field";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
 
 type MonsterFormProps = {
   monsterId?: number;
@@ -592,16 +594,31 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <EntityThumb entityType="monster" id={monsterId} name={watched.name} size="lg" />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Salve o monstro primeiro para poder enviar/ver a imagem.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

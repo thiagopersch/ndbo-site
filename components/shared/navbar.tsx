@@ -9,6 +9,8 @@ import { isAdmin } from "@/lib/auth-constants";
 import { accountMenu, navMenu } from "@/lib/nav-menu";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { OnlineBadge } from "@/components/shared/online-badge";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -32,9 +34,12 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          NDBO
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="text-lg font-bold tracking-tight">
+            NDBO
+          </Link>
+          <OnlineBadge />
+        </div>
 
         <NavigationMenu className="hidden lg:flex">
           <NavigationMenuList>
@@ -115,13 +120,15 @@ export function Navbar() {
           </NavigationMenuList>
         </NavigationMenu>
 
-        <Sheet>
-          <SheetTrigger
-            render={<Button variant="outline" size="icon" className="lg:hidden" />}
-          >
-            <Menu className="size-5" />
-            <span className="sr-only">Abrir menu</span>
-          </SheetTrigger>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Sheet>
+            <SheetTrigger
+              render={<Button variant="outline" size="icon" className="lg:hidden" />}
+            >
+              <Menu className="size-5" />
+              <span className="sr-only">Abrir menu</span>
+            </SheetTrigger>
           <SheetContent side="right" className="w-72 overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Menu</SheetTitle>
@@ -186,7 +193,8 @@ export function Navbar() {
               </div>
             </nav>
           </SheetContent>
-        </Sheet>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

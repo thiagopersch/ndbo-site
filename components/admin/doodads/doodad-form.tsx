@@ -15,6 +15,7 @@ import {
   type DoodadFormInput,
 } from "@/lib/validations/admin/doodad";
 import { doodadToXml } from "@/lib/doodad-xml";
+import { doodadFormItemIds } from "@/lib/brush-item-ids";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,8 @@ import { CarpetGridField } from "@/components/admin/doodads/carpet-grid-field";
 import { WallSegmentListField } from "@/components/admin/doodads/wall-segment-list-field";
 import { TableSegmentListField } from "@/components/admin/doodads/table-segment-list-field";
 import { TilesetCategoryField } from "@/components/shared/tileset-category-field";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { EntitySpritePreview, type SpritePreviewEntry } from "@/components/shared/entity-sprite-preview";
 
 type DoodadFormProps = {
   brushId?: number;
@@ -69,6 +72,13 @@ export function DoodadForm({ brushId, initialValues }: DoodadFormProps) {
   const watched = useWatch({ control: form.control });
   const previewXml = doodadToXml({ ...defaultDoodadValues, ...watched } as DoodadFormInput);
   const currentType = watched.type ?? "doodad";
+
+  const spritePreviewItems: SpritePreviewEntry[] = [
+    ...(watched.serverLookId ? [{ id: watched.serverLookId, label: "Preview" }] : []),
+    ...doodadFormItemIds(watched as DoodadFormInput)
+      .filter((id) => id !== watched.serverLookId)
+      .map((id) => ({ id, label: `#${id}` })),
+  ];
 
   async function onSubmit(values: DoodadFormInput) {
     setIsSubmitting(true);
@@ -251,16 +261,25 @@ export function DoodadForm({ brushId, initialValues }: DoodadFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EntitySpritePreview items={spritePreviewItems} />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

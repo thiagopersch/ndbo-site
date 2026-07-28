@@ -3,6 +3,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { publicPlayerVisibilityWhere } from "@/lib/public-player-visibility";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -11,7 +12,8 @@ export async function GET(request: Request) {
   const where: Prisma.PlayerWhereInput = {
     online: 1,
     deleted: 0,
-    ...(search ? { name: { contains: search } } : {}),
+    ...publicPlayerVisibilityWhere(),
+    AND: search ? [{ name: { contains: search } }] : undefined,
   };
 
   const [players, total] = await Promise.all([

@@ -7,10 +7,13 @@ import { Pencil } from "lucide-react";
 
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
+import { ACCOUNT_GROUPS, getAccountGroupName } from "@/lib/account-groups";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
+import { AccountBlockedToggle } from "@/components/admin/accounts/account-blocked-toggle";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type AccountRow = {
   id: number;
@@ -23,10 +26,45 @@ type AccountRow = {
   _count: { players: number };
 };
 
+const YES_NO_OPTIONS = [
+  { value: "true", label: "Sim" },
+  { value: "false", label: "Não" },
+];
+
+const filterFields: FilterFieldConfig[] = [
+  {
+    key: "groupId",
+    label: "Grupo",
+    type: "select",
+    options: ACCOUNT_GROUPS.map((group) => ({ value: String(group.id), label: `${group.id} — ${group.name}` })),
+  },
+  {
+    key: "premdaysBucket",
+    label: "Dias premium",
+    type: "select",
+    options: [
+      { value: "1", label: "Igual à 1 dia" },
+      { value: "2-14", label: "2 à 14 dias" },
+      { value: "15-30", label: "15 à 30 dias" },
+      { value: "30+", label: "+30 dias" },
+    ],
+  },
+  {
+    key: "status",
+    label: "Status",
+    type: "select",
+    options: [
+      { value: "premium", label: "Premium" },
+      { value: "free", label: "Free" },
+    ],
+  },
+  { key: "blocked", label: "Bloqueada", type: "select", options: YES_NO_OPTIONS },
+];
+
 export default function AdminAccountsPage() {
   const table = useServerTable();
 
-  const { data, isLoading, isValidating } = useSWR<PaginatedResult<AccountRow>>(
+  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<AccountRow>>(
     `/api/admin/accounts?${table.buildQueryParams().toString()}`,
     fetcher
   );
@@ -35,7 +73,12 @@ export default function AdminAccountsPage() {
     { accessorKey: "id", header: "ID" },
     { accessorKey: "name", header: "Conta" },
     { accessorKey: "email", header: "E-mail" },
-    { accessorKey: "groupId", header: "Grupo" },
+    {
+      accessorKey: "groupId",
+      header: "Grupo",
+      cell: ({ row }) => `${row.original.groupId} — ${getAccountGroupName(row.original.groupId)}`,
+    },
+    { accessorKey: "premdays", header: "Prem days" },
     {
       accessorKey: "blocked",
       header: "Status",
@@ -44,6 +87,11 @@ export default function AdminAccountsPage() {
           {row.original.blocked ? "Bloqueada" : "Ativa"}
         </Badge>
       ),
+    },
+    {
+      id: "blockToggle",
+      header: "Bloquear",
+      cell: ({ row }) => <AccountBlockedToggle account={row.original} onToggled={() => mutate()} />,
     },
     { accessorFn: (row) => row._count.players, id: "players", header: "Personagens" },
     {
@@ -55,6 +103,7 @@ export default function AdminAccountsPage() {
           size="icon-sm"
           nativeButton={false}
           render={<Link href={`/admin/accounts/${row.original.id}`} />}
+          title="Editar"
         >
           <Pencil className="size-4" />
         </Button>
@@ -80,6 +129,11 @@ export default function AdminAccountsPage() {
         searchPlaceholder="Buscar por conta..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}

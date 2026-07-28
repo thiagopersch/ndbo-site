@@ -10,7 +10,7 @@ import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import {
   categoryTypeForKind,
-  CREATABLE_TILESET_CATEGORY_KINDS,
+  TILESET_CATEGORY_KINDS,
   tilesetCategoryFormSchema,
   type TilesetCategoryFormInput,
   type TilesetCategoryKind,
@@ -47,10 +47,10 @@ const KIND_LABELS: Record<TilesetCategoryKind, string> = {
   TERRAIN: "Brush — Terrain (Ground/Wall)",
   DOODAD: "Brush — Doodad",
   RAW: "Item (IDs e intervalos)",
-  TERRAIN_AND_RAW: "Brush — Terrain + Item (legado, só leitura)",
-  DOODAD_AND_RAW: "Brush — Doodad + Item (legado, só leitura)",
-  ITEMS: "Item — items (legado, só leitura)",
-  ITEMS_AND_RAW: "Item — items + raw (legado, só leitura)",
+  TERRAIN_AND_RAW: "Brush — Terrain + Item (misturados na mesma tag)",
+  DOODAD_AND_RAW: "Brush — Doodad + Item (misturados na mesma tag)",
+  ITEMS: "Item — items",
+  ITEMS_AND_RAW: "Item — items + raw",
 };
 
 type CategoryFormDialogProps = {
@@ -93,11 +93,7 @@ export function CategoryFormDialog({ tilesetId, trigger, category, nextOrder = 0
   );
   const tilesetOptions = tilesetsData?.data ?? [];
 
-  const kindOptions: TilesetCategoryKind[] = isEditing
-    ? // Ao editar uma categoria legada híbrida (ex.: importada de um tilesets.xml antigo),
-      // mantém a opção atual na lista mesmo que não seja mais oferecida na criação.
-      Array.from(new Set([category.kind, ...CREATABLE_TILESET_CATEGORY_KINDS]))
-    : [...CREATABLE_TILESET_CATEGORY_KINDS];
+  const kindOptions: TilesetCategoryKind[] = [...TILESET_CATEGORY_KINDS];
 
   async function onSubmit(values: TilesetCategoryFormInput) {
     setIsSubmitting(true);

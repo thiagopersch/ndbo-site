@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { borderToFormInput } from "@/lib/border-mapper";
 import { BorderForm } from "@/components/admin/borders/border-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 
 export const metadata: Metadata = {
   title: "Editar border",
@@ -29,11 +30,14 @@ export default async function EditBorderPage({
           <h1 className="text-2xl font-semibold">Editar border: {border.name}</h1>
           <p className="text-muted-foreground">Preencha os dados e acompanhe o XML gerado ao lado.</p>
         </div>
-        <DuplicateButton
-          endpoint={`/api/admin/borders/${border.id}/duplicate`}
-          editPathBase="/admin/borders"
-          variant="header"
-        />
+        <div className="flex items-center gap-2">
+          <CopyXmlButton endpoint={`/api/admin/borders/${border.id}/export`} />
+          <DuplicateButton
+            endpoint={`/api/admin/borders/${border.id}/duplicate`}
+            editPathBase="/admin/borders"
+            variant="header"
+          />
+        </div>
       </div>
       <BorderForm isEditing initialValues={borderToFormInput(border)} />
     </div>

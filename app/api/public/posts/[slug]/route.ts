@@ -15,5 +15,10 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Post não encontrado." }, { status: 404 });
   }
 
-  return NextResponse.json({ post });
+  const image = await prisma.entityImage.findUnique({
+    where: { entityType_entityId: { entityType: "post", entityId: post.id } },
+    select: { extension: true, updatedAt: true },
+  });
+
+  return NextResponse.json({ post: { ...post, image } });
 }

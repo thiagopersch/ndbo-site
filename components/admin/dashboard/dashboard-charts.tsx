@@ -1,19 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { BarChart3, Donut, PieChart as PieChartIcon, Table as TableIcon, type LucideIcon } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const GRID_STROKE = "var(--border)";
 const AXIS_STROKE = "var(--muted-foreground)";
@@ -25,47 +29,99 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 };
 
+/** Ordem fixa — mesma paleta (`--chart-1..5`) usada nos gráficos de barra do
+ * dashboard, aqui aplicada por fatia num pie/donut (identidade por categoria, sempre
+ * na mesma ordem, nunca escolhida "à mão" por gráfico). */
+const CATEGORICAL_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
+
 type TrendPoint = { label: string; contas: number; players: number };
 type CategoryPoint = { label: string; total: number };
+type Visualization = "bar" | "pie" | "donut" | "table";
 
-export function CreatedTrendChart({ data }: { data: TrendPoint[] }) {
+const VISUALIZATIONS: { value: Visualization; label: string; icon: LucideIcon }[] = [
+  { value: "bar", label: "Gráfico de barras", icon: BarChart3 },
+  { value: "pie", label: "Gráfico de pizza", icon: PieChartIcon },
+  { value: "donut", label: "Gráfico de rosca", icon: Donut },
+  { value: "table", label: "Tabela", icon: TableIcon },
+];
+
+function formatNumber(value: number): string {
+  return value.toLocaleString("pt-BR");
+}
+
+/** Botões de alternância bar/pie/donut/table — presentes em toda box de gráfico do
+ * dashboard, cada box guarda sua própria visualização escolhida. */
+function VisualizationSwitcher({ value, onChange }: { value: Visualization; onChange: (v: Visualization) => void }) {
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-        <XAxis dataKey="label" stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} />
-        <YAxis stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Area
-          type="monotone"
-          dataKey="contas"
-          name="Contas criadas"
-          stroke="var(--chart-1)"
-          fill="var(--chart-1)"
-          fillOpacity={0.25}
-          strokeWidth={2}
-        />
-        <Area
-          type="monotone"
-          dataKey="players"
-          name="Players criados"
-          stroke="var(--chart-3)"
-          fill="var(--chart-3)"
-          fillOpacity={0.25}
-          strokeWidth={2}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div className="flex shrink-0 items-center gap-0.5 rounded-md border p-0.5">
+      {VISUALIZATIONS.map((viz) => {
+        const Icon = viz.icon;
+        return (
+          <Button
+            key={viz.value}
+            type="button"
+            variant={value === viz.value ? "secondary" : "ghost"}
+            size="icon-xs"
+            title={viz.label}
+            onClick={() => onChange(viz.value)}
+          >
+            <Icon className="size-3.5" />
+          </Button>
+        );
+      })}
+    </div>
   );
 }
 
-function CategoryBarChart({ data, color, height = 240 }: { data: CategoryPoint[]; color: string; height?: number }) {
-  if (data.length === 0) {
+function EmptyChartState({ height }: { height: number }) {
+  return (
+    <div className="flex items-center justify-center text-sm text-muted-foreground" style={{ height }}>
+      Sem dados para exibir.
+    </div>
+  );
+}
+
+function CategoryBarChart({
+  data,
+  color,
+  height = 240,
+  layout = "horizontal",
+}: {
+  data: CategoryPoint[];
+  color: string;
+  height?: number;
+  /** "vertical" = barras deitadas (categorias no eixo Y) — melhor pra muitas
+   * categorias com rótulo longo (ex.: os 18 tipos de item). */
+  layout?: "horizontal" | "vertical";
+}) {
+  if (data.length === 0) return <EmptyChartState height={height} />;
+
+  if (layout === "vertical") {
+    // Altura acompanha a quantidade de categorias — com muitas (ex.: 18 tipos de
+    // item) uma altura fixa deixa pouco espaço por barra e o Recharts passa a pular
+    // rótulos pra evitar sobreposição; `interval={0}` força mostrar todos mesmo assim.
+    const rowHeight = 28;
+    const resolvedHeight = Math.max(height, data.length * rowHeight);
+
     return (
-      <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-        Sem dados para exibir.
-      </div>
+      <ResponsiveContainer width="100%" height={resolvedHeight}>
+        <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
+          <XAxis type="number" stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+          <YAxis
+            type="category"
+            dataKey="label"
+            stroke={AXIS_STROKE}
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            width={110}
+            interval={0}
+          />
+          <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)" }} />
+          <Bar dataKey="total" name="Total" fill={color} radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
     );
   }
 
@@ -73,12 +129,180 @@ function CategoryBarChart({ data, color, height = 240 }: { data: CategoryPoint[]
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-        <XAxis dataKey="label" stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} />
+        <XAxis dataKey="label" stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} interval={0} />
         <YAxis stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
         <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)" }} />
         <Bar dataKey="total" name="Total" fill={color} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
+  );
+}
+
+/** Pie/donut — mesmo componente, `donut` só muda o raio interno. Identidade das
+ * fatias nunca depende só da cor: legenda sempre presente + tooltip com o rótulo. */
+function CategoryPieOrDonut({ data, donut }: { data: CategoryPoint[]; donut: boolean }) {
+  if (data.length === 0) return <EmptyChartState height={280} />;
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <PieChart>
+        <Tooltip contentStyle={TOOLTIP_STYLE} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Pie
+          data={data}
+          dataKey="total"
+          nameKey="label"
+          innerRadius={donut ? "55%" : 0}
+          outerRadius="85%"
+          paddingAngle={2}
+          strokeWidth={2}
+          stroke="var(--card)"
+        >
+          {data.map((entry, index) => (
+            <Cell key={entry.label} fill={CATEGORICAL_COLORS[index % CATEGORICAL_COLORS.length]} />
+          ))}
+        </Pie>
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+function CategoryTable({ data }: { data: CategoryPoint[] }) {
+  if (data.length === 0) return <EmptyChartState height={120} />;
+  const total = data.reduce((sum, row) => sum + row.total, 0);
+
+  return (
+    <div className="max-h-[320px] overflow-y-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b text-left text-muted-foreground">
+            <th className="py-1.5 font-medium">Categoria</th>
+            <th className="py-1.5 text-right font-medium">Total</th>
+            <th className="py-1.5 text-right font-medium">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.label} className="border-b last:border-0">
+              <td className="py-1.5">{row.label}</td>
+              <td className="py-1.5 text-right tabular-nums">{formatNumber(row.total)}</td>
+              <td className="py-1.5 text-right tabular-nums text-muted-foreground">
+                {total > 0 ? `${((row.total / total) * 100).toFixed(1)}%` : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Box de gráfico "por categoria" (1 métrica, N categorias) com os 4 botões de
+ * visualização — usada pelos 5 gráficos de distribuição do dashboard. */
+function CategoryChartBox({
+  title,
+  data,
+  color,
+  barLayout = "horizontal",
+  barHeight = 240,
+  className,
+}: {
+  title: string;
+  data: CategoryPoint[];
+  color: string;
+  barLayout?: "horizontal" | "vertical";
+  barHeight?: number;
+  className?: string;
+}) {
+  const [viz, setViz] = useState<Visualization>("bar");
+
+  return (
+    <Card className={className}>
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardTitle>{title}</CardTitle>
+        <VisualizationSwitcher value={viz} onChange={setViz} />
+      </CardHeader>
+      <CardContent>
+        {viz === "bar" && <CategoryBarChart data={data} color={color} layout={barLayout} height={barHeight} />}
+        {viz === "pie" && <CategoryPieOrDonut data={data} donut={false} />}
+        {viz === "donut" && <CategoryPieOrDonut data={data} donut />}
+        {viz === "table" && <CategoryTable data={data} />}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TrendBarChart({ data }: { data: TrendPoint[] }) {
+  if (data.length === 0) return <EmptyChartState height={280} />;
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+        <XAxis dataKey="label" stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} />
+        <YAxis stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ fill: "var(--muted)" }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="contas" name="Contas criadas" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="players" name="Players criados" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function trendTotals(data: TrendPoint[]): CategoryPoint[] {
+  return [
+    { label: "Contas criadas", total: data.reduce((sum, row) => sum + row.contas, 0) },
+    { label: "Players criados", total: data.reduce((sum, row) => sum + row.players, 0) },
+  ];
+}
+
+function TrendTable({ data }: { data: TrendPoint[] }) {
+  if (data.length === 0) return <EmptyChartState height={120} />;
+
+  return (
+    <div className="max-h-[320px] overflow-y-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b text-left text-muted-foreground">
+            <th className="py-1.5 font-medium">Dia</th>
+            <th className="py-1.5 text-right font-medium">Contas criadas</th>
+            <th className="py-1.5 text-right font-medium">Players criados</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row) => (
+            <tr key={row.label} className="border-b last:border-0">
+              <td className="py-1.5">{row.label}</td>
+              <td className="py-1.5 text-right tabular-nums">{formatNumber(row.contas)}</td>
+              <td className="py-1.5 text-right tabular-nums">{formatNumber(row.players)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Box do gráfico de tendência (2 séries ao longo do tempo) — "barras" mostra barras
+ * agrupadas por dia (não a área contínua, que não é uma das 4 opções pedidas); pizza
+ * e rosca mostram a comparação do total acumulado de cada série no período. */
+function TrendChartBox({ data }: { data: TrendPoint[] }) {
+  const [viz, setViz] = useState<Visualization>("bar");
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
+        <CardTitle>Contas e players criados (últimos 30 dias)</CardTitle>
+        <VisualizationSwitcher value={viz} onChange={setViz} />
+      </CardHeader>
+      <CardContent>
+        {viz === "bar" && <TrendBarChart data={data} />}
+        {viz === "pie" && <CategoryPieOrDonut data={trendTotals(data)} donut={false} />}
+        {viz === "donut" && <CategoryPieOrDonut data={trendTotals(data)} donut />}
+        {viz === "table" && <TrendTable data={data} />}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -88,59 +312,35 @@ export function DashboardCharts({
   bansByType,
   monstersByCategory,
   ticketsByStatus,
+  itemsByType,
 }: {
   createdTrend: TrendPoint[];
   accountsByGroup: CategoryPoint[];
   bansByType: CategoryPoint[];
   monstersByCategory: CategoryPoint[];
   ticketsByStatus: CategoryPoint[];
+  itemsByType: CategoryPoint[];
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Contas e players criados (últimos 30 dias)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CreatedTrendChart data={createdTrend} />
-        </CardContent>
-      </Card>
+      <TrendChartBox data={createdTrend} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Contas por nível de acesso</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CategoryBarChart data={accountsByGroup} color="var(--chart-1)" />
-        </CardContent>
-      </Card>
+      <CategoryChartBox title="Contas por nível de acesso" data={accountsByGroup} color="var(--chart-1)" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Banimentos por tipo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CategoryBarChart data={bansByType} color="var(--chart-4)" />
-        </CardContent>
-      </Card>
+      <CategoryChartBox title="Banimentos por tipo" data={bansByType} color="var(--chart-4)" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Monstros por universo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CategoryBarChart data={monstersByCategory} color="var(--chart-2)" />
-        </CardContent>
-      </Card>
+      <CategoryChartBox title="Monstros por universo" data={monstersByCategory} color="var(--chart-2)" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tickets por status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CategoryBarChart data={ticketsByStatus} color="var(--chart-5)" />
-        </CardContent>
-      </Card>
+      <CategoryChartBox title="Tickets por status" data={ticketsByStatus} color="var(--chart-5)" />
+
+      <CategoryChartBox
+        title="Items por tipo (slot & weapon)"
+        data={itemsByType}
+        color="var(--chart-3)"
+        barLayout="vertical"
+        barHeight={420}
+        className="lg:col-span-2"
+      />
     </div>
   );
 }

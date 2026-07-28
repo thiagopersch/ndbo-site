@@ -106,6 +106,15 @@ export default function AdminSpellsPage() {
         label: `#${vocation.id} — ${vocation.name}`,
       })),
     },
+    {
+      key: "hasImage",
+      label: "Possui imagem",
+      type: "select",
+      options: [
+        { value: "true", label: "Sim" },
+        { value: "false", label: "Não" },
+      ],
+    },
   ];
 
   const images = useEntityImages(
@@ -200,6 +209,7 @@ export default function AdminSpellsPage() {
             size="icon-sm"
             nativeButton={false}
             render={<Link href={`/admin/spells/${row.original.id}`} />}
+            title="Editar"
           >
             <Pencil className="size-4" />
           </Button>
@@ -210,7 +220,7 @@ export default function AdminSpellsPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

@@ -4,7 +4,7 @@ import path from "node:path";
  * Tipos de entidade que podem ter imagem custom no portal (independente do sprite do cliente
  * OTServer, que vive só no `.otb`, fora do escopo do items.xml/movements.xml).
  */
-export const ENTITY_IMAGE_TYPES = ["item", "monster", "spell", "vocation"] as const;
+export const ENTITY_IMAGE_TYPES = ["item", "monster", "spell", "vocation", "post"] as const;
 export type EntityImageType = (typeof ENTITY_IMAGE_TYPES)[number];
 
 export function isEntityImageType(value: string): value is EntityImageType {

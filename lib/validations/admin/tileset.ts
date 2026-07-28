@@ -12,10 +12,6 @@ export const TILESET_CATEGORY_KINDS = [
 ] as const;
 export type TilesetCategoryKind = (typeof TILESET_CATEGORY_KINDS)[number];
 
-/** Únicos kinds oferecidos ao criar uma categoria nova pelo admin; os demais só
- * existem para preservar fidelidade de categorias importadas de um tilesets.xml legado. */
-export const CREATABLE_TILESET_CATEGORY_KINDS = ["TERRAIN", "DOODAD", "RAW"] as const;
-
 export const TILESET_CATEGORY_TYPES = ["BRUSH", "ITEM"] as const;
 export type TilesetCategoryType = (typeof TILESET_CATEGORY_TYPES)[number];
 
@@ -61,7 +57,7 @@ export const defaultTilesetValues: TilesetFormInput = {
   order: 0,
   active: true,
   icon: null,
-  rawIdsInBrush: true,
+  rawIdsInBrush: false,
 };
 
 export const tilesetItemEntryFormSchema = z

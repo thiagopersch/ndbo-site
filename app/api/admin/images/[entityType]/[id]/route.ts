@@ -26,6 +26,8 @@ async function entityExists(entityType: EntityImageType, id: number): Promise<bo
       return (await prisma.spell.findUnique({ where: { id }, select: { id: true } })) != null;
     case "vocation":
       return (await prisma.vocation.findUnique({ where: { id }, select: { id: true } })) != null;
+    case "post":
+      return (await prisma.post.findUnique({ where: { id }, select: { id: true } })) != null;
   }
 }
 

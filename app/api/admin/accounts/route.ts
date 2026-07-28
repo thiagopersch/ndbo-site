@@ -11,8 +11,32 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
+  const groupId = url.searchParams.get("groupId");
+  const blocked = url.searchParams.get("blocked");
+  const status = url.searchParams.get("status");
+  const premdaysBucket = url.searchParams.get("premdaysBucket");
 
-  const where: Prisma.AccountWhereInput = search ? { name: { contains: search } } : {};
+  const premdaysFilter: Prisma.IntFilter | undefined =
+    premdaysBucket === "1"
+      ? { equals: 1 }
+      : premdaysBucket === "2-14"
+        ? { gte: 2, lte: 14 }
+        : premdaysBucket === "15-30"
+          ? { gte: 15, lte: 30 }
+          : premdaysBucket === "30+"
+            ? { gt: 30 }
+            : status === "premium"
+              ? { gt: 0 }
+              : status === "free"
+                ? { equals: 0 }
+                : undefined;
+
+  const where: Prisma.AccountWhereInput = {
+    ...(search ? { name: { contains: search } } : {}),
+    ...(groupId ? { groupId: Number(groupId) } : {}),
+    ...(blocked === "true" || blocked === "false" ? { blocked: blocked === "true" } : {}),
+    ...(premdaysFilter ? { premdays: premdaysFilter } : {}),
+  };
 
   const [accounts, total] = await Promise.all([
     prisma.account.findMany({

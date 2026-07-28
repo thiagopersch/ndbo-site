@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
 import { VocationTypeSelect } from "@/components/admin/vocations/vocation-type-select";
 
 type VocationFormProps = {
@@ -455,9 +456,7 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
           <CardTitle>Pré-visualização do XML</CardTitle>
         </CardHeader>
         <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
+          <XmlCodeViewer value={previewXml} />
         </CardContent>
       </Card>
     </div>

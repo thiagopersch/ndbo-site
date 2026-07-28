@@ -12,6 +12,7 @@ import {
   FolderTree,
   Ghost,
   Gift,
+  Home,
   LayoutDashboard,
   Layers,
   Map,
@@ -53,6 +54,12 @@ const dashboardLink: AdminLink = {
   icon: LayoutDashboard,
 };
 
+const backToSiteLink: AdminLink = {
+  label: "Voltar ao site",
+  href: "/",
+  icon: Home,
+};
+
 const adminSections: AdminSection[] = [
   {
     title: "Contas e jogadores",
@@ -89,6 +96,7 @@ const adminSections: AdminSection[] = [
       { label: "Walls", href: "/admin/walls", icon: Shapes },
       { label: "Borders", href: "/admin/borders", icon: Shapes },
       { label: "Grounds", href: "/admin/grounds", icon: Shapes },
+      { label: "Towns", href: "/admin/towns", icon: Map },
     ],
   },
   {
@@ -332,6 +340,8 @@ export function AdminSidebar({
               onNavigate={onNavigate}
             />
           ))}
+          <div className="my-1 h-px w-6 bg-border" />
+          <AdminNavLink link={backToSiteLink} active={false} collapsed onNavigate={onNavigate} />
         </nav>
       </TooltipProvider>
     );
@@ -355,6 +365,10 @@ export function AdminSidebar({
           onNavigate={onNavigate}
         />
       ))}
+
+      <div className="my-1 border-t border-border pt-2">
+        <AdminNavLink link={backToSiteLink} active={false} onNavigate={onNavigate} />
+      </div>
     </nav>
   );
 }

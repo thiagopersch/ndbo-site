@@ -68,7 +68,7 @@ export default function AdminVocationUniversesPage() {
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="ghost" size="icon-sm" title="Editar">
                 <Pencil className="size-4" />
               </Button>
             }
@@ -80,7 +80,7 @@ export default function AdminVocationUniversesPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }

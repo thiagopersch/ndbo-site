@@ -153,7 +153,7 @@ export const defaultDoodadValues: DoodadFormInput = {
   serverLookId: 0,
   draggable: false,
   onBlocking: false,
-  thickness: "",
+  thickness: "10/100",
   onDuplicate: false,
   oneSize: false,
   redoBorders: false,

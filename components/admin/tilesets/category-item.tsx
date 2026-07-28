@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Copy, GripVertical, Pencil } from "lucide-react";
+import { CopyPlus, GripVertical, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import type { TilesetCategoryFormInput } from "@/lib/validations/admin/tileset";
@@ -101,7 +101,7 @@ export function CategoryItem({ category, tilesetId, onSaved, onOpenDetail }: Cat
       />
 
       <Button variant="ghost" size="icon-sm" title="Duplicar categoria" onClick={handleDuplicate}>
-        <Copy className="size-4" />
+        <CopyPlus className="size-4" />
       </Button>
 
       <CategoryDeleteButton category={category} onDeleted={onSaved} />

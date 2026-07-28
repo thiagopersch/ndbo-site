@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,6 +133,11 @@ export function DataTable<TData, TValue>({
     ? currentPageIndex < currentPageCount - 1
     : table.getCanNextPage();
 
+  function handleFirstPage() {
+    if (manualPagination) onPageChange?.(0);
+    else table.setPageIndex(0);
+  }
+
   function handlePreviousPage() {
     if (manualPagination) onPageChange?.(Math.max(0, currentPageIndex - 1));
     else table.previousPage();
@@ -141,6 +146,11 @@ export function DataTable<TData, TValue>({
   function handleNextPage() {
     if (manualPagination) onPageChange?.(Math.min(currentPageCount - 1, currentPageIndex + 1));
     else table.nextPage();
+  }
+
+  function handleLastPage() {
+    if (manualPagination) onPageChange?.(currentPageCount - 1);
+    else table.setPageIndex(table.getPageCount() - 1);
   }
 
   function handlePageSizeChange(value: string | null) {
@@ -264,11 +274,29 @@ export function DataTable<TData, TValue>({
           {manualPagination && totalCount != null ? ` — ${totalCount} registro(s)` : ""}
         </span>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFirstPage}
+            disabled={!canPreviousPage}
+            title="Primeira página"
+          >
+            <ChevronsLeft className="size-4" />
+          </Button>
           <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={!canPreviousPage}>
             <ChevronLeft className="size-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={handleNextPage} disabled={!canNextPage}>
             <ChevronRight className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLastPage}
+            disabled={!canNextPage}
+            title="Última página"
+          >
+            <ChevronsRight className="size-4" />
           </Button>
         </div>
       </div>

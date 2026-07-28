@@ -12,6 +12,7 @@ import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import { defaultGroundValues, groundFormSchema, type GroundFormInput } from "@/lib/validations/admin/ground";
 import { groundToXml } from "@/lib/ground-xml";
+import { BORDER_EDGES, type BorderEdge, type BorderEdgeItemInput } from "@/lib/validations/admin/border";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,9 @@ import {
 import { NumberField } from "@/components/shared/number-field";
 import { ItemsListField } from "@/components/shared/items-list-field";
 import { TilesetCategoryField } from "@/components/shared/tileset-category-field";
+import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { BorderRingPreview } from "@/components/shared/border-ring-preview";
+import { EntitySpritePreview, type SpritePreviewEntry } from "@/components/shared/entity-sprite-preview";
 import { GroundBorderListField } from "@/components/admin/grounds/ground-border-list-field";
 import { GroundFriendListField } from "@/components/admin/grounds/ground-friend-list-field";
 import type { BorderOption } from "@/components/admin/grounds/ground-border-combobox";
@@ -36,7 +40,10 @@ type GroundFormProps = {
   initialValues?: GroundFormInput;
 };
 
-type BorderListItem = { id: number; name: string; group: number | null };
+type BorderListItem = { id: number; name: string; group: number | null; edges?: BorderEdgeItemInput[] };
+
+const OUTER_EDGES = new Set<BorderEdge>(BORDER_EDGES.slice(0, 8));
+const INNER_EDGES = new Set<BorderEdge>(BORDER_EDGES.slice(8));
 
 export function GroundForm({ groundId, initialValues }: GroundFormProps) {
   const router = useRouter();
@@ -61,6 +68,23 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
 
   const watched = useWatch({ control: form.control });
   const previewXml = groundToXml({ ...defaultGroundValues, ...watched } as GroundFormInput);
+
+  const outerBorderRef = (watched.borders ?? []).find((b) => b?.align === "outer");
+  const innerBorderRef = (watched.borders ?? []).find((b) => b?.align === "inner");
+  const outerBorder = bordersData?.data.find((b) => b.id === outerBorderRef?.borderId);
+  const innerBorder = bordersData?.data.find((b) => b.id === innerBorderRef?.borderId);
+
+  const edgeMap: Partial<Record<BorderEdge, number>> = {};
+  for (const entry of outerBorder?.edges ?? []) {
+    if (OUTER_EDGES.has(entry.edge) && entry.itemId > 0) edgeMap[entry.edge] = entry.itemId;
+  }
+  for (const entry of (innerBorder ?? outerBorder)?.edges ?? []) {
+    if (INNER_EDGES.has(entry.edge) && entry.itemId > 0) edgeMap[entry.edge] = entry.itemId;
+  }
+
+  const groundItemPreview: SpritePreviewEntry[] = (watched.items ?? [])
+    .filter((item): item is { id: number; chance: number | null } => Boolean(item?.id) && item.id !== watched.serverLookId)
+    .map((item) => ({ id: item.id, label: `#${item.id}` }));
 
   async function onSubmit(values: GroundFormInput) {
     setIsSubmitting(true);
@@ -181,16 +205,34 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="max-h-[70vh] overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed">
-            <code>{previewXml}</code>
-          </pre>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Pré-visualização das sprites</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <BorderRingPreview
+              center={watched.serverLookId ? { id: watched.serverLookId, label: "Ground" } : null}
+              edges={edgeMap}
+            />
+            {groundItemPreview.length > 0 && (
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Variações do chão</p>
+                <EntitySpritePreview items={groundItemPreview} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

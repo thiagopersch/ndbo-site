@@ -44,6 +44,30 @@ const ITEM_SKILL_LABELS: Record<(typeof ITEM_SKILL_KEYS)[number], string> = {
   fist: "Punho (Fist)",
 };
 
+/** Rótulos dos campos escalares de regen/stat-granting — mesmo grupo mostrado na aba
+ * "Luz & Regen" do form de Item. */
+const SCALAR_ATTRIBUTE_LABELS = {
+  speed: "Speed",
+  healthGain: "Health gain",
+  healthTicks: "Health ticks",
+  manaGain: "Mana gain",
+  manaTicks: "Mana ticks",
+  soulPoints: "Soul points",
+  soulPointsPercent: "Soul points %",
+  maxHitPoints: "Max hit points",
+  maxHitPointsPercent: "Max hit points %",
+  maxManaPoints: "Max mana points",
+  maxManaPointsPercent: "Max mana points %",
+  magicLevelPoints: "Magic level points",
+  magicLevelPointsPercent: "Magic level points %",
+  increaseMagicValue: "Increase magic value",
+  increaseMagicPercent: "Increase magic %",
+  increaseHealingValue: "Increase healing value",
+  increaseHealingPercent: "Increase healing %",
+} as const;
+
+type ScalarAttributeKey = keyof typeof SCALAR_ATTRIBUTE_LABELS;
+
 type ItemRow = {
   id: number;
   name: string;
@@ -59,7 +83,50 @@ type ItemRow = {
   worth: number;
   skills: Partial<Record<(typeof ITEM_SKILL_KEYS)[number], number>>;
   published: boolean;
-};
+  absorbPercent: Record<string, number>;
+  reflectPercent: Record<string, number>;
+  fieldAbsorbPercent: Record<string, number>;
+  elements: Record<string, number>;
+  extraAttributes: { key: string; value: string }[];
+} & Record<ScalarAttributeKey, number>;
+
+/** Junta todos os grupos de atributo (skills, absorb/reflect/field absorb %, elementos,
+ * os escalares de regen/stat-granting e os atributos extras livres) numa única lista
+ * "label: valor", ignorando o que estiver zerado/vazio — usado pela coluna "Atributos". */
+function getItemAttributeEntries(row: ItemRow): { label: string; value: string }[] {
+  const entries: { label: string; value: string }[] = [];
+
+  for (const [key, value] of Object.entries(row.skills ?? {})) {
+    if (!value) continue;
+    entries.push({ label: ITEM_SKILL_LABELS[key as (typeof ITEM_SKILL_KEYS)[number]] ?? key, value: String(value) });
+  }
+
+  const groups: [Record<string, number> | undefined, string][] = [
+    [row.elements, "Elemento"],
+    [row.absorbPercent, "Absorb %"],
+    [row.reflectPercent, "Reflect %"],
+    [row.fieldAbsorbPercent, "Field absorb %"],
+  ];
+  for (const [group, groupLabel] of groups) {
+    for (const [key, value] of Object.entries(group ?? {})) {
+      if (!value) continue;
+      entries.push({ label: `${groupLabel}: ${key}`, value: String(value) });
+    }
+  }
+
+  for (const key of Object.keys(SCALAR_ATTRIBUTE_LABELS) as ScalarAttributeKey[]) {
+    const value = row[key];
+    if (!value) continue;
+    entries.push({ label: SCALAR_ATTRIBUTE_LABELS[key], value: String(value) });
+  }
+
+  for (const attribute of row.extraAttributes ?? []) {
+    if (!attribute.key) continue;
+    entries.push({ label: attribute.key, value: attribute.value });
+  }
+
+  return entries;
+}
 
 // eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page route
 const exportXmlLink = <a href="/api/admin/items/export" />;
@@ -129,6 +196,15 @@ export default function AdminItemsPage() {
     },
     { key: "idMin", label: "ID mínimo", type: "number" },
     { key: "idMax", label: "ID máximo", type: "number" },
+    {
+      key: "hasImage",
+      label: "Possui imagem",
+      type: "select",
+      options: [
+        { value: "true", label: "Sim" },
+        { value: "false", label: "Não" },
+      ],
+    },
   ];
 
   const columns: ColumnDef<ItemRow>[] = [
@@ -191,12 +267,10 @@ export default function AdminItemsPage() {
       ),
     },
     {
-      id: "skills",
-      header: "Skills",
+      id: "attributes",
+      header: "Atributos",
       cell: ({ row }) => {
-        const entries = Object.entries(row.original.skills ?? {}).filter(
-          ([, value]) => value,
-        );
+        const entries = getItemAttributeEntries(row.original);
 
         if (entries.length === 0) return "—";
 
@@ -207,10 +281,9 @@ export default function AdminItemsPage() {
             </TooltipTrigger>
             <TooltipContent>
               <div className="flex flex-col gap-0.5">
-                {entries.map(([key, value]) => (
-                  <div key={key}>
-                    {ITEM_SKILL_LABELS[key as (typeof ITEM_SKILL_KEYS)[number]]}
-                    : {value}
+                {entries.map((entry, index) => (
+                  <div key={`${entry.label}-${index}`}>
+                    {entry.label}: {entry.value}
                   </div>
                 ))}
               </div>
@@ -229,6 +302,7 @@ export default function AdminItemsPage() {
             size="icon-sm"
             nativeButton={false}
             render={<Link href={`/admin/items/${row.original.id}`} />}
+            title="Editar"
           >
             <Pencil className="size-4" />
           </Button>
@@ -244,6 +318,7 @@ export default function AdminItemsPage() {
             size="icon-sm"
             nativeButton={false}
             render={<a href={`/api/admin/items/${row.original.id}/export`} />}
+            title="Exportar XML"
           >
             <Download className="size-4" />
           </Button>
@@ -254,7 +329,7 @@ export default function AdminItemsPage() {
           />
           <ConfirmDialog
             trigger={
-              <Button variant="ghost" size="icon-sm">
+              <Button variant="destructive" size="icon-sm" title="Excluir">
                 <Trash2 className="size-4" />
               </Button>
             }
