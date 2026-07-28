@@ -36,7 +36,7 @@ export async function GET(_request: Request, { params }: Params) {
     where: {
       name: decodedName,
       deleted: 0,
-      account: { groupId: { lt: PUBLIC_LISTING_GROUP_ID_LIMIT } },
+      groupId: { lt: PUBLIC_LISTING_GROUP_ID_LIMIT },
     },
     select: {
       id: true,

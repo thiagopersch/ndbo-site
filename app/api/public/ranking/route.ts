@@ -61,17 +61,15 @@ export async function GET(request: Request) {
         SELECT p.id, p.name, p.vocation, p.experience, p.online,
                COALESCE(ps.value, 0) AS rankValue
         FROM players p
-        JOIN accounts a ON a.id = p.account_id
         LEFT JOIN player_skills ps ON ps.player_id = p.id AND ps.skillid = ${skillId}
-        WHERE p.deleted = 0 AND a.group_id < ${PUBLIC_LISTING_GROUP_ID_LIMIT} AND p.name != ${ACCOUNT_MANAGER_NAME} ${searchClause}
+        WHERE p.deleted = 0 AND p.group_id < ${PUBLIC_LISTING_GROUP_ID_LIMIT} AND p.name != ${ACCOUNT_MANAGER_NAME} ${searchClause}
         ORDER BY rankValue DESC, p.experience DESC
         LIMIT ${pageSize} OFFSET ${skip}
       `,
       prisma.$queryRaw<{ total: bigint }[]>`
         SELECT COUNT(*) AS total
         FROM players p
-        JOIN accounts a ON a.id = p.account_id
-        WHERE p.deleted = 0 AND a.group_id < ${PUBLIC_LISTING_GROUP_ID_LIMIT} AND p.name != ${ACCOUNT_MANAGER_NAME} ${searchClause}
+        WHERE p.deleted = 0 AND p.group_id < ${PUBLIC_LISTING_GROUP_ID_LIMIT} AND p.name != ${ACCOUNT_MANAGER_NAME} ${searchClause}
       `,
     ]);
 
