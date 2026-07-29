@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 const fields: SimpleField<DailyRewardMonthlyInput>[] = [
   { name: "month", label: "Mês (1-12)", type: "number" },
@@ -62,7 +64,18 @@ export default function AdminDailyRewardsPage() {
     return response.ok;
   }
 
+  const filterFields: FilterFieldConfig[] = [
+    { key: "year", label: "Ano", type: "number", placeholder: "Ex.: 2026" },
+    { key: "month", label: "Mês", type: "number", placeholder: "1-12" },
+    { key: "day", label: "Dia", type: "number", placeholder: "1-31" },
+  ];
+
   const columns: ColumnDef<DailyRewardsMonthly>[] = [
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) => <EntityThumb entityType="item" id={row.original.itemId} />,
+    },
     { accessorKey: "year", header: "Ano" },
     { accessorKey: "month", header: "Mês" },
     { accessorKey: "day", header: "Dia" },
@@ -140,6 +153,11 @@ export default function AdminDailyRewardsPage() {
         searchPlaceholder="Buscar por ID do item..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}

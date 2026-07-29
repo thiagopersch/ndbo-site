@@ -97,6 +97,9 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
 
     if (!response.ok) {
       const data = await response.json().catch(() => null);
+      if (response.status === 409) {
+        form.setError("id", { type: "manual", message: data?.error ?? "Já existe uma vocação com esse id." });
+      }
       toast.error(data?.error ?? "Não foi possível salvar a vocação.");
       return;
     }
@@ -218,6 +221,29 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                         <FormLabel className="!mt-0">
                           Publicada (disponível para escolha na criação de
                           personagem no site)
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="publishedGameplay"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-2 sm:col-span-2">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            className="size-4"
+                            checked={field.value}
+                            onChange={(event) =>
+                              field.onChange(event.target.checked)
+                            }
+                          />
+                        </FormControl>
+                        <FormLabel className="!mt-0">
+                          Publicada na sessão de Gameplay
+                          (/gameplay/vocations)
                         </FormLabel>
                       </FormItem>
                     )}

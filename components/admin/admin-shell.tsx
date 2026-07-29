@@ -6,6 +6,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { OnlineBadge } from "@/components/shared/online-badge";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminMobileNav } from "@/components/admin/admin-mobile-nav";
 
@@ -67,9 +68,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <AdminMobileNav />
             <span className="font-bold">Administração</span>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <OnlineBadge />
+            <ThemeToggle />
+          </div>
         </div>
-        <div className="hidden h-14 shrink-0 items-center justify-end border-b px-4 md:flex">
+        <div className="hidden h-14 shrink-0 items-center justify-end gap-2 border-b px-4 md:flex">
+          <OnlineBadge />
           <ThemeToggle />
         </div>
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

@@ -4,6 +4,7 @@ import useSWR from "swr";
 
 import { fetcher } from "@/lib/fetcher";
 import { UncategorizedSection } from "@/components/admin/tilesets/uncategorized-section";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type BrushRef = { id: number; name: string };
 type UncategorizedResponse = { grounds: BrushRef[]; walls: BrushRef[]; doodads: BrushRef[] };
@@ -24,7 +25,13 @@ export default function UncategorizedBrushesPage() {
         </p>
       </div>
 
-      {isLoading && <p className="text-muted-foreground">Carregando...</p>}
+      {isLoading && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 w-full" />
+          ))}
+        </div>
+      )}
 
       {!isLoading && total === 0 && (
         <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">

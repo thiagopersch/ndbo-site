@@ -9,17 +9,12 @@ import dayjs from "dayjs";
 import { fetcher } from "@/lib/fetcher";
 import type { Lottery } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import { lotterySchema, type LotteryInput } from "@/lib/validations/admin/lottery";
+import type { LotteryInput } from "@/lib/validations/admin/lottery";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
-
-const fields: SimpleField<LotteryInput>[] = [
-  { name: "name", label: "Nome do prêmio" },
-  { name: "item", label: "Item (id ou nome)" },
-];
+import { LotteryFormDialog } from "@/components/admin/lottery/lottery-form-dialog";
 
 export default function AdminLotteryPage() {
   const table = useServerTable();
@@ -50,7 +45,7 @@ export default function AdminLotteryPage() {
   }
 
   const columns: ColumnDef<Lottery>[] = [
-    { accessorKey: "name", header: "Nome" },
+    { accessorKey: "name", header: "Jogador" },
     { accessorKey: "item", header: "Item" },
     {
       accessorKey: "createdAt",
@@ -62,10 +57,8 @@ export default function AdminLotteryPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <SimpleFormDialog
+          <LotteryFormDialog
             title="Editar prêmio"
-            schema={lotterySchema}
-            fields={fields}
             defaultValues={{ name: row.original.name, item: row.original.item }}
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
@@ -98,10 +91,8 @@ export default function AdminLotteryPage() {
           <h1 className="text-2xl font-semibold">Loteria</h1>
           <p className="text-muted-foreground">Prêmios sorteáveis da tabela `lottery`.</p>
         </div>
-        <SimpleFormDialog
+        <LotteryFormDialog
           title="Novo prêmio"
-          schema={lotterySchema}
-          fields={fields}
           defaultValues={{ name: "", item: "" }}
           successMessage="Criado com sucesso."
           onSubmit={(values) => createOrUpdate(values)}

@@ -8,6 +8,7 @@ import { fetcher } from "@/lib/fetcher";
 import type { MovementInput } from "@/lib/validations/admin/movement";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type LinkedMovement = { id: number; input: MovementInput };
 
@@ -41,7 +42,12 @@ export function ItemLinkedMovementsPanel({ itemId }: { itemId: number }) {
         leitura — edite a partir da tela de Movements.
       </p>
 
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando...</p>}
+      {isLoading && (
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      )}
 
       {!isLoading && movements.length === 0 && (
         <p className="text-sm text-muted-foreground">Nenhum movement vinculado a este item.</p>

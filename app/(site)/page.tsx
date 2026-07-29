@@ -70,7 +70,7 @@ export default async function HomePage() {
             {topPlayers.map((player, index) => (
               <Link
                 key={player.id}
-                href={`/community/characters?name=${encodeURIComponent(player.name)}`}
+                href={`/community/characters/${encodeURIComponent(player.name)}`}
                 className="flex items-center justify-between hover:underline"
               >
                 <span>

@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type ValidateResponse = {
   tilesetsTotal: number;
@@ -49,7 +50,11 @@ export function IntegrityCheckDialog() {
         </DialogHeader>
 
         {!data ? (
-          <p className="text-sm text-muted-foreground">Carregando...</p>
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-2/3" />
+          </div>
         ) : (
           <div className="flex flex-col gap-3 text-sm">
             <div className="flex items-center gap-2">

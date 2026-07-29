@@ -5,6 +5,7 @@ import { z } from "zod";
  * `app/(site)/gameplay/*`). */
 export const POST_PAGES = [
   { value: "home", label: "Geral (posts/landing)" },
+  { value: "rules", label: "Regras (/rules)" },
   { value: "town", label: "Cidades (cards)" },
   { value: "system", label: "Sistemas (cards)" },
   { value: "event", label: "Eventos (cards)" },

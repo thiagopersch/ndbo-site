@@ -67,6 +67,10 @@ export async function getDashboardStats() {
 
     openTickets,
     ticketsByStatus,
+
+    vocationsByTypeClass,
+    vocationsByTypeUniverse,
+    vocationsByPremium,
   ] = await Promise.all([
     prisma.account.count(),
     prisma.account.count({ where: { createdAt: { gte: since7 } } }),
@@ -118,6 +122,10 @@ export async function getDashboardStats() {
 
     prisma.ticket.count({ where: { status: "open" } }),
     prisma.ticket.groupBy({ by: ["status"], _count: { _all: true } }),
+
+    prisma.vocation.groupBy({ by: ["typeClassId"], _count: { _all: true } }),
+    prisma.vocation.groupBy({ by: ["typeUniverseId"], _count: { _all: true } }),
+    prisma.vocation.groupBy({ by: ["needpremium"], _count: { _all: true } }),
   ]);
 
   const monsterBoostTodayMonster = monsterBoostToday
@@ -204,6 +212,29 @@ export async function getDashboardStats() {
     total: row._count._all,
   }));
 
+  const [typeClasses, typeUniverses] = await Promise.all([
+    prisma.vocationTypeClass.findMany({ select: { id: true, name: true } }),
+    prisma.vocationTypeUniverse.findMany({ select: { id: true, name: true } }),
+  ]);
+  const typeClassNameById = new Map(typeClasses.map((row) => [row.id, row.name]));
+  const typeUniverseNameById = new Map(typeUniverses.map((row) => [row.id, row.name]));
+
+  const vocationsByTypeClassChart = vocationsByTypeClass.map((row) => ({
+    label: row.typeClassId != null ? (typeClassNameById.get(row.typeClassId) ?? "Sem classe") : "Sem classe",
+    total: row._count._all,
+  }));
+  const vocationsByTypeUniverseChart = vocationsByTypeUniverse.map((row) => ({
+    label:
+      row.typeUniverseId != null
+        ? (typeUniverseNameById.get(row.typeUniverseId) ?? "Sem universo")
+        : "Sem universo",
+    total: row._count._all,
+  }));
+  const vocationsByPremiumChart = vocationsByPremium.map((row) => ({
+    label: row.needpremium ? "Premium" : "Free",
+    total: row._count._all,
+  }));
+
   return {
     accounts: {
       total: totalAccounts,
@@ -243,6 +274,11 @@ export async function getDashboardStats() {
     tickets: {
       open: openTickets,
       byStatus: ticketsByStatusChart,
+    },
+    vocations: {
+      byTypeClass: vocationsByTypeClassChart,
+      byTypeUniverse: vocationsByTypeUniverseChart,
+      byPremium: vocationsByPremiumChart,
     },
     createdTrend,
   };

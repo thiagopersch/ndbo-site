@@ -68,8 +68,23 @@ model Account {
 
   players        Player[]
   accountViplist AccountVipList[]
+  donations      Donation[]
 
   @@map("accounts")
+}
+
+/// Lançamento manual de doação pelo admin (sem gateway de pagamento configurado). Tier de
+/// donate = quantidade de linhas por conta (ver lib/donate-tier.ts), não soma de `amount`.
+model Donation {
+  id        Int      @id @default(autoincrement())
+  accountId Int      @map("account_id")
+  amount    Decimal  @db.Decimal(10, 2)
+  note      String?  @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@map("donations")
 }
 
 model Player {
@@ -174,9 +189,25 @@ model Player {
   houseAuctions    HouseAuctions[]
   tasks            PlayerTask[]
   taskPoints       PlayerTaskPoints?
+  resetHistory     PlayerResetHistory[]
+  playerQuests     PlayerQuest[]
+  battlePass       PlayerBattlePass[]
 
   @@unique([name, deleted])
   @@map("players")
+}
+
+model PlayerResetHistory {
+  id          Int      @id @default(autoincrement())
+  playerId    Int      @map("player_id")
+  resetNumber Int      @map("reset_number")
+  level       Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@unique([playerId, resetNumber])
+  @@map("player_reset_history")
 }
 
 model AccountVipList {
@@ -729,6 +760,8 @@ model Post {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  taskDefinitions TaskDefinition[]
+
   @@index([published, publishedAt])
   @@index([page, published])
   @@map("posts")
@@ -759,10 +792,26 @@ model TicketMessage {
   message   String   @db.Text
   createdAt DateTime @default(now()) @map("created_at")
 
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket      Ticket                    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  attachments TicketMessageAttachment[]
 
   @@index([ticketId])
   @@map("ticket_messages")
+}
+
+/// Anexo (imagem/vídeo) de uma mensagem de ticket — arquivo em disco (`lib/ticket-media.ts`),
+/// mesmo padrão de `lib/post-media.ts` (posts).
+model TicketMessageAttachment {
+  id        Int      @id @default(autoincrement())
+  messageId Int      @map("message_id")
+  kind      String   @db.VarChar(10) // "image" | "video"
+  url       String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("ticket_message_attachments")
 }
 
 /// Opções de `type_class` da vocação (ex.: DPS, Tank, Healer), gerenciadas via CRUD próprio
@@ -793,6 +842,9 @@ model Vocation {
   id             Int     @id
   name           String  @db.VarChar(100)
   description    String  @db.VarChar(100)
+  /// Looktype (outfit) associado a esta vocação — opcional, usado pela tela de looktypes para
+  /// listar "onde está vinculado". Não referencia `looktypeNumber`, referencia o id do registro.
+  lookTypeId     Int?    @map("look_type_id")
   needpremium    Boolean @default(false)
   gaincap        Int     @default(0)
   gainhp         Int     @default(0)
@@ -808,7 +860,9 @@ model Vocation {
   fromvoc        Int     @default(0)
 
   /// Só do portal (não existe no XML) — libera a vocação para escolha na criação de personagem no site.
-  published Boolean @default(false)
+  published         Boolean @default(false)
+  /// Só do portal — libera a vocação na listagem pública `/gameplay/vocations` (independente de `published`).
+  publishedGameplay Boolean @default(false) @map("published_gameplay")
 
   typeClassId    Int? @map("type_class_id")
   typeUniverseId Int? @map("type_universe_id")
@@ -854,6 +908,9 @@ model Spell {
   id                      Int     @id @default(autoincrement())
   kind                    String  @db.VarChar(10) // "instant" | "rune" | "conjure"
   name                    String  @db.VarChar(255)
+  /// Sprite vinculada do cadastro de looktypes (/admin/looktypes) — só para a thumbnail do
+  /// portal (ícone da spell no client já vem de outro sistema, fora de escopo deste model).
+  lookTypeId              Int?    @map("look_type_id")
   words                   String  @default("") @db.VarChar(255) // instant/conjure
   runeItemId              Int?    @map("rune_item_id") // rune: atributo "id" (obrigatório p/ rune)
   level                   Int     @default(0)
@@ -1233,6 +1290,113 @@ model PlayerTaskPoints {
   @@map("player_task_points")
 }
 
+/// Categoria compartilhada por Quests e Tasks (`/admin/categories`) — nome + cor exibida como
+/// badge nas duas listagens. `Quest.category`/`TaskDefinition.category` continuam existindo como
+/// `String` (é o que os scripts Lua/engine leem) e são sincronizados a partir do `name` daqui
+/// sempre que `categoryId` é definido pelo formulário — nunca ficam dessincronizados
+/// silenciosamente, e nenhum script server-side precisa mudar.
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  color     String   @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  quests Quest[]
+  tasks  TaskDefinition[]
+
+  @@map("categories")
+}
+
+/// Catálogo de quests administrado pelo portal (`/admin/quests`) — diferente das Tasks, aqui o
+/// portal é a fonte de verdade (não um espelho de arquivo Lua). A lógica de "quando completar"
+/// continua bespoke por quest, escrita em scripts de action/npc que chamam
+/// `QuestLib.completeQuest` (data/lib/quests/quest_lib.lua).
+model Quest {
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(255)
+  description     String    @db.Text
+  category        String    @db.VarChar(30)
+  categoryId      Int?      @map("category_id")
+  categoryRef     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  levelRequired   Int       @default(0) @map("level_required")
+  rewardExp       Int       @default(0) @map("reward_exp")
+  rewardMoney     Int       @default(0) @map("reward_money")
+  /// Mantidos em sincronia com o 1º item de `rewardItems` (só leitura pra scripts Lua legados
+  /// que ainda esperam um único item de recompensa — ver `taskDefinitionInputToRow`-equivalente
+  /// em `lib/validations/admin/quest.ts`).
+  rewardItemId    Int?      @map("reward_item_id")
+  rewardItemCount Int       @default(1) @map("reward_item_count")
+  /// `[{ itemId: number, count: number }]` — fonte de verdade no admin; permite múltiplos itens
+  /// de recompensa por quest.
+  rewardItems     Json      @default("[]") @map("reward_items")
+  /// Imagem web-only (character-profile/admin) — a imagem exibida dentro do jogo continua vindo
+  /// de `modules/game_questlog/imgs/<nome-da-quest>.png` no cliente, sem relação com este campo.
+  imageUrl        String?   @map("image_url") @db.VarChar(255)
+  published       Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  playerQuests PlayerQuest[]
+
+  @@map("quests")
+}
+
+model PlayerQuest {
+  playerId    Int       @map("player_id")
+  questId     Int       @map("quest_id")
+  completed   Boolean   @default(false)
+  rewarded    Boolean   @default(false)
+  completedAt DateTime? @map("completed_at")
+
+  player Player @relation(fields: [playerId], references: [id])
+  quest  Quest  @relation(fields: [questId], references: [id])
+
+  @@id([playerId, questId])
+  @@map("player_quests")
+}
+
+/// Catálogo de tasks administrado pelo portal (`/admin/tasks`) — fonte de verdade para o engine,
+/// que carrega esta tabela em `data/lib/tasks/task_db_loader.lua` (substitui o antigo
+/// `task_config.lua` estático) e recarrega periodicamente via o globalevent `task_save.lua`.
+/// `scripts/import-task-definitions.ts` só existe para a importação única do catálogo legado.
+model TaskDefinition {
+  /// Slug estável (ex.: "task_wolf_hollow") — preservado do sistema legado para não quebrar
+  /// `player_tasks.task_id` já gravados; editável na criação, mas não deve mudar depois.
+  id             String    @id @db.VarChar(50)
+  name           String    @db.VarChar(255)
+  lookType       Int       @default(0) @map("look_type")
+  category       String    @db.VarChar(30)
+  categoryId     Int?      @map("category_id")
+  categoryRef    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  type           String    @default("kill") @db.VarChar(20)
+  difficulty     String    @db.VarChar(20)
+  levelRequired  Int       @default(0) @map("level_required")
+  rankRequired   Int       @default(0) @map("rank_required")
+  killsRequired  Int       @default(0) @map("kills_required")
+  points         Int       @default(0)
+  experience     Int       @default(0)
+  money          Int       @default(0)
+  published      Boolean   @default(true)
+  /// `[{ name: string, kills: number }]`
+  monsters       Json?
+  /// `{ items: [[itemId, count], ...] }`
+  rewards        Json?
+  /// `{ enabled: boolean, ... }`
+  delivery       Json?
+  /// `[{ name, level, size, location, probability }]` — só exibição, não afeta a lógica.
+  monsterDetails Json?     @map("monster_details")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  /// Post vinculado (opcional) — vira hyperlink no nome da task em /community/characters;
+  /// sem post, o nome fica texto simples.
+  postId Int?  @map("post_id")
+  post   Post? @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@map("task_definitions")
+}
+
 /// Item do OTServer (`data/items/items.xml`). O `.otb` (fora de escopo do portal) é quem
 /// define `clientId`/sprite e as flags binárias básicas (blockSolid/stackable/pickupable/...);
 /// `items.xml` só adiciona/sobrescreve atributos de gameplay por cima disso — é esse universo
@@ -1249,6 +1413,9 @@ model Item {
   plural       String @default("") @db.VarChar(255)
   editorSuffix String @default("") @map("editor_suffix") @db.VarChar(100)
   description  String @default("") @db.VarChar(500)
+  /// Sprite vinculada do cadastro de looktypes (/admin/looktypes) — só para a thumbnail do
+  /// portal, não é o sprite real do items.xml/.otb (fora de escopo deste model).
+  lookTypeId   Int?   @map("look_type_id")
 
   // classificação
   type        String @default("") @db.VarChar(20)
@@ -1415,6 +1582,7 @@ model LuaScript {
   category String @default("actions") @db.VarChar(20)
 
   movements Movement[]
+  npcs      Npc[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1449,4 +1617,174 @@ model EntityImage {
 
   @@id([entityType, entityId])
   @@map("entity_images")
+}
+
+/// Registro centralizado de "looktypes" (aparência de item/outfit/monstro/efeito/missile) —
+/// `id` autoincrement (id do registro no portal, não confundir com `looktypeNumber`, o número
+/// real da aparência no cliente OTServer). Imagem pode vir de um arquivo `.obd` (Object Builder,
+/// ver `lib/obd/`), que gera N frames animados em disco, ou de um PNG/GIF estático simples
+/// (`frameCount = 1`). Frames ficam em `public/storage/looktypes/{id}/{frameIndex}.png`
+/// (nunca base64 no banco, mesmo padrão de `EntityImage`).
+model Looktype {
+  id               Int      @id @default(autoincrement())
+  /// Pré-preenchido com o nome do arquivo anexado (sem extensão) no create, editável antes de
+  /// salvar — só identificação no admin, sem uso no jogo.
+  name             String   @db.VarChar(150)
+  /// Escolhido explicitamente no admin (item/outfit/effect/missile) ao anexar o arquivo — não é
+  /// mais só "detectado" do `.obd`, o admin confirma/define o tipo mesmo para PNG/GIF estático.
+  category         String   @db.VarChar(20)
+  /// Número da sprite no Object Builder — só faz sentido para outfit/effect/missile (outfits e
+  /// efeitos usam essa numeração; items referenciam o próprio clientId do items.xml). Null
+  /// quando `category = "item"`.
+  looktypeNumber   Int?     @map("looktype_number")
+  frameCount       Int      @default(1) @map("frame_count")
+  /// Duração (ms) de cada frame, na mesma ordem dos arquivos em disco — 1 elemento quando a
+  /// imagem é estática.
+  frameDurationsMs Json     @map("frame_durations_ms")
+  width            Int      @default(1)
+  height           Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("looktypes")
+}
+
+/// Uma temporada mensal do Battle Pass. O servidor Lua lê a temporada com `isActive = true`
+/// diretamente do banco (mesmo padrão de `TaskDefinition`/`task_db_loader.lua`); a temporada do
+/// mês seguinte é clonada automaticamente (missões + recompensas) à meia-noite do último dia do
+/// mês pelo globalevent do servidor caso o admin não tenha criado uma nova manualmente.
+model BattlePassSeason {
+  id            Int      @id @default(autoincrement())
+  month         Int      @db.TinyInt
+  year          Int      @db.SmallInt
+  maxLevel      Int      @default(100) @map("max_level")
+  xpPerLevel    Int      @default(1000) @map("xp_per_level")
+  goldPassItemId Int     @default(0) @map("gold_pass_item_id")
+  goldPassCost  Int      @default(0) @map("gold_pass_cost")
+  isActive      Boolean  @default(false) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  missions BattlePassMission[]
+  rewards  BattlePassReward[]
+  players  PlayerBattlePass[]
+
+  @@unique([month, year])
+  @@map("battle_pass_seasons")
+}
+
+model BattlePassMission {
+  id          Int      @id @default(autoincrement())
+  seasonId    Int      @map("season_id")
+  season      BattlePassSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  /// "kill" | "quest" | "spell_kill"
+  type        String   @db.VarChar(20)
+  /// kill: { monster: string, amount: number } | quest: { questId: number } | spell_kill:
+  /// { monster: string, spell: string, amount: number }
+  target      Json
+  description String   @db.VarChar(255)
+  xpReward    Int      @default(0) @map("xp_reward")
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([seasonId])
+  @@map("battle_pass_missions")
+}
+
+model BattlePassReward {
+  id       Int    @id @default(autoincrement())
+  seasonId Int    @map("season_id")
+  season   BattlePassSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  level    Int
+  /// "bronze" | "gold"
+  track    String @db.VarChar(10)
+  /// "comum" | "incomum" | "raro" | "super_raro" | "lendario" | "mitico"
+  rarity   String @db.VarChar(20)
+  itemId   Int    @map("item_id")
+  count    Int    @default(1)
+
+  @@unique([seasonId, level, track])
+  @@map("battle_pass_rewards")
+}
+
+/// Progresso do jogador na temporada atual (ou já finalizada, mantido para histórico das
+/// recompensas já resgatadas). `missionProgress`/`claimedBronze`/`claimedGold` em JSON —
+/// mesmo padrão de `TaskDefinition.rewards`.
+model PlayerBattlePass {
+  playerId Int @map("player_id")
+  seasonId Int @map("season_id")
+
+  xp    Int     @default(0)
+  level Int     @default(0)
+  hasGoldPass Boolean @default(false) @map("has_gold_pass")
+
+  /// { [missionId]: progressCount }
+  missionProgress Json @default("{}") @map("mission_progress")
+  /// levels already claimed on the bronze/gold track: [1, 2, 5, ...]
+  claimedBronze   Json @default("[]") @map("claimed_bronze")
+  claimedGold     Json @default("[]") @map("claimed_gold")
+
+  player Player           @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  season BattlePassSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, seasonId])
+  @@map("player_battle_pass")
+}
+
+/// NPC gerenciado pelo portal — fonte de verdade para o XML/script gerados em
+/// data/npc/*.xml (+ data/npc/scripts/*.lua quando `scriptId` setado). Preço de venda é
+/// digitado em crystal coin no admin e convertido para gold coin (1 crystal = 10000 gold,
+/// mesmo padrão da moeda do OTServer) na geração do XML.
+model Npc {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(255)
+  /// looktype vem da tabela `Looktype` (mesmo padrão de Monster/Item)
+  lookTypeId Int      @map("look_type_id")
+  /// "shop" | "quest" | "misc"
+  type       String   @default("misc") @db.VarChar(20)
+  town       String   @default("") @db.VarChar(100)
+  posX       Int      @default(0) @map("pos_x")
+  posY       Int      @default(0) @map("pos_y")
+  posZ       Int      @default(0) @map("pos_z")
+  direction  Int      @default(2)
+  /// [{ itemId: number, name: string, buyPriceCrystal: number, sellPriceCrystal: number }]
+  shopItems  Json?    @map("shop_items")
+  /// Script Lua vinculado (gerado automaticamente ou escrito manualmente) — reaproveita o CRUD
+  /// existente de `LuaScript` (category = "npc").
+  scriptId   Int?     @map("script_id")
+  script     LuaScript? @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("npcs")
+}
+
+/// Catálogo de recompensas possíveis para o item-baú configurado em `chestItemId`
+/// (config do sistema, ver ServerConfig). Ao consumir o item, o servidor sorteia uma
+/// recompensa respeitando o peso (`weight`) dentre as publicadas.
+model ChestReward {
+  id        Int      @id @default(autoincrement())
+  itemId    Int      @map("item_id")
+  count     Int      @default(1)
+  weight    Int      @default(10)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("chest_rewards")
+}
+
+/// Catálogo mestre de itens permitidos no autoloot (não são todos os itens do jogo — só os
+/// publicados aqui aparecem no module do OTC e podem ser adicionados à lista pessoal do
+/// jogador). `itemId` é o id real do OTServer (mesmo universo de `Item.id`).
+model AutolootItem {
+  id        Int      @id @default(autoincrement())
+  itemId    Int      @unique @map("item_id")
+  name      String   @db.VarChar(255)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("autoloot_items")
 }

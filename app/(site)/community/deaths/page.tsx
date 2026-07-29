@@ -24,7 +24,7 @@ const columns: ColumnDef<Death>[] = [
     header: "Jogador",
     cell: ({ row }) => (
       <Link
-        href={`/community/characters?name=${encodeURIComponent(row.original.playerName)}`}
+        href={`/community/characters/${encodeURIComponent(row.original.playerName)}`}
         className="hover:underline"
       >
         {row.original.playerName}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import type { JSONContent } from "@tiptap/react";
 import { toast } from "sonner";
 
 import {
@@ -13,7 +14,6 @@ import {
 } from "@/lib/validations/ticket";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -30,10 +30,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { RichTextEditor } from "@/components/shared/rich-text-editor";
+
+const EMPTY_MESSAGE_CONTENT: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
 
 export function NewTicketForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [messageContent, setMessageContent] = useState<JSONContent>(EMPTY_MESSAGE_CONTENT);
 
   const form = useForm<CreateTicketInput>({
     resolver: zodResolver(createTicketSchema),
@@ -49,14 +54,25 @@ export function NewTicketForm() {
       body: JSON.stringify(values),
     });
 
-    setIsSubmitting(false);
-
     if (!response.ok) {
+      setIsSubmitting(false);
       toast.error("Não foi possível abrir o ticket.");
       return;
     }
 
     const data = await response.json();
+    const [firstMessage] = data.ticket.messages;
+
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      await fetch(`/api/tickets/${data.ticket.id}/messages/${firstMessage.id}/media`, {
+        method: "POST",
+        body: formData,
+      });
+    }
+
+    setIsSubmitting(false);
     toast.success("Ticket aberto com sucesso.");
     router.push(`/support/tickets/${data.ticket.id}`);
   }
@@ -109,16 +125,36 @@ export function NewTicketForm() {
             <FormField
               control={form.control}
               name="message"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
                   <FormLabel>Mensagem</FormLabel>
                   <FormControl>
-                    <Textarea rows={5} {...field} />
+                    <RichTextEditor
+                      postId={null}
+                      content={messageContent}
+                      onChange={(content) => {
+                        setMessageContent(content);
+                        form.setValue("message", JSON.stringify(content), { shouldValidate: true });
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" htmlFor="ticket-attachments">
+                Anexos (imagens ou vídeos, opcional)
+              </label>
+              <input
+                id="ticket-attachments"
+                type="file"
+                multiple
+                accept="image/png,image/gif,image/jpeg,image/webp,video/mp4,video/webm"
+                onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+                className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium"
+              />
+            </div>
             <Button type="submit" disabled={isSubmitting} className="mt-2">
               {isSubmitting ? "Enviando..." : "Abrir ticket"}
             </Button>

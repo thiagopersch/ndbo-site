@@ -7,6 +7,8 @@ import {
   CartesianGrid,
   Cell,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -14,7 +16,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, Donut, PieChart as PieChartIcon, Table as TableIcon, type LucideIcon } from "lucide-react";
+import {
+  BarChart3,
+  Donut,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
+  Table as TableIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,10 +45,11 @@ const CATEGORICAL_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"
 
 type TrendPoint = { label: string; contas: number; players: number };
 type CategoryPoint = { label: string; total: number };
-type Visualization = "bar" | "pie" | "donut" | "table";
+type Visualization = "bar" | "line" | "pie" | "donut" | "table";
 
 const VISUALIZATIONS: { value: Visualization; label: string; icon: LucideIcon }[] = [
   { value: "bar", label: "Gráfico de barras", icon: BarChart3 },
+  { value: "line", label: "Gráfico de linhas", icon: LineChartIcon },
   { value: "pie", label: "Gráfico de pizza", icon: PieChartIcon },
   { value: "donut", label: "Gráfico de rosca", icon: Donut },
   { value: "table", label: "Tabela", icon: TableIcon },
@@ -138,6 +148,22 @@ function CategoryBarChart({
   );
 }
 
+function CategoryLineChart({ data, color, height = 240 }: { data: CategoryPoint[]; color: string; height?: number }) {
+  if (data.length === 0) return <EmptyChartState height={height} />;
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+        <XAxis dataKey="label" stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} interval={0} />
+        <YAxis stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "var(--muted)" }} />
+        <Line type="monotone" dataKey="total" name="Total" stroke={color} strokeWidth={2} dot={{ r: 3 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 /** Pie/donut — mesmo componente, `donut` só muda o raio interno. Identidade das
  * fatias nunca depende só da cor: legenda sempre presente + tooltip com o rótulo. */
 function CategoryPieOrDonut({ data, donut }: { data: CategoryPoint[]; donut: boolean }) {
@@ -224,6 +250,7 @@ function CategoryChartBox({
       </CardHeader>
       <CardContent>
         {viz === "bar" && <CategoryBarChart data={data} color={color} layout={barLayout} height={barHeight} />}
+        {viz === "line" && <CategoryLineChart data={data} color={color} height={barHeight} />}
         {viz === "pie" && <CategoryPieOrDonut data={data} donut={false} />}
         {viz === "donut" && <CategoryPieOrDonut data={data} donut />}
         {viz === "table" && <CategoryTable data={data} />}
@@ -246,6 +273,24 @@ function TrendBarChart({ data }: { data: TrendPoint[] }) {
         <Bar dataKey="contas" name="Contas criadas" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
         <Bar dataKey="players" name="Players criados" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
       </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function TrendLineChart({ data }: { data: TrendPoint[] }) {
+  if (data.length === 0) return <EmptyChartState height={280} />;
+
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+        <XAxis dataKey="label" stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} />
+        <YAxis stroke={AXIS_STROKE} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "var(--muted)" }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Line type="monotone" dataKey="contas" name="Contas criadas" stroke="var(--chart-1)" strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="players" name="Players criados" stroke="var(--chart-3)" strokeWidth={2} dot={false} />
+      </LineChart>
     </ResponsiveContainer>
   );
 }
@@ -298,6 +343,7 @@ function TrendChartBox({ data }: { data: TrendPoint[] }) {
       </CardHeader>
       <CardContent>
         {viz === "bar" && <TrendBarChart data={data} />}
+        {viz === "line" && <TrendLineChart data={data} />}
         {viz === "pie" && <CategoryPieOrDonut data={trendTotals(data)} donut={false} />}
         {viz === "donut" && <CategoryPieOrDonut data={trendTotals(data)} donut />}
         {viz === "table" && <TrendTable data={data} />}
@@ -313,6 +359,9 @@ export function DashboardCharts({
   monstersByCategory,
   ticketsByStatus,
   itemsByType,
+  vocationsByTypeClass,
+  vocationsByTypeUniverse,
+  vocationsByPremium,
 }: {
   createdTrend: TrendPoint[];
   accountsByGroup: CategoryPoint[];
@@ -320,6 +369,9 @@ export function DashboardCharts({
   monstersByCategory: CategoryPoint[];
   ticketsByStatus: CategoryPoint[];
   itemsByType: CategoryPoint[];
+  vocationsByTypeClass: CategoryPoint[];
+  vocationsByTypeUniverse: CategoryPoint[];
+  vocationsByPremium: CategoryPoint[];
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -332,6 +384,12 @@ export function DashboardCharts({
       <CategoryChartBox title="Monstros por universo" data={monstersByCategory} color="var(--chart-2)" />
 
       <CategoryChartBox title="Tickets por status" data={ticketsByStatus} color="var(--chart-5)" />
+
+      <CategoryChartBox title="Vocações por classe" data={vocationsByTypeClass} color="var(--chart-1)" />
+
+      <CategoryChartBox title="Vocações por universo" data={vocationsByTypeUniverse} color="var(--chart-2)" />
+
+      <CategoryChartBox title="Vocações por premium" data={vocationsByPremium} color="var(--chart-4)" />
 
       <CategoryChartBox
         title="Items por tipo (slot & weapon)"

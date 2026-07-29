@@ -2,73 +2,33 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import useSWR from "swr";
-import dayjs from "dayjs";
 import { Search } from "lucide-react";
 
-import { fetcher } from "@/lib/fetcher";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  TibiaEquipmentPanel,
-  type Equipment,
-} from "@/components/shared/tibia-equipment-panel";
-
-type CharacterDetail = {
-  id: number;
-  name: string;
-  level: number;
-  vocationName: string;
-  experience: string;
-  sex: number;
-  online: number;
-  lastlogin: number;
-  resets: number;
-  balance: number;
-  cap: number;
-  soul: number;
-  guild: { id: number; name: string; rank: string } | null;
-  equipment: Equipment;
-};
+import { CharacterProfile } from "@/components/shared/character-profile/character-profile";
 
 export function CharacterSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialName = searchParams.get("name") ?? "";
+  const initialName = searchParams.get("nome") ?? "";
   const [query, setQuery] = useState(initialName);
-
-  const { data, isLoading } = useSWR<{
-    player?: CharacterDetail;
-    error?: string;
-  }>(
-    initialName
-      ? `/api/public/characters/${encodeURIComponent(initialName)}`
-      : null,
-    fetcher,
-  );
+  const [searchedName, setSearchedName] = useState(initialName);
 
   function handleSearch(event: React.FormEvent) {
     event.preventDefault();
-    if (query.trim()) {
-      router.push(
-        `/community/characters?name=${encodeURIComponent(query.trim())}`,
-      );
+    const trimmed = query.trim();
+    if (trimmed) {
+      setSearchedName(trimmed);
+      router.replace(`/community/characters?nome=${encodeURIComponent(trimmed)}`, {
+        scroll: false,
+      });
     }
   }
 
-  const player = data?.player;
-
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-6">
-      <form onSubmit={handleSearch} className="flex gap-2">
+    <div className="flex flex-col gap-8">
+      <form onSubmit={handleSearch} className="mx-auto flex w-full max-w-xl gap-2">
         <Input
           placeholder="Nome do personagem"
           value={query}
@@ -80,55 +40,7 @@ export function CharacterSearch() {
         </Button>
       </form>
 
-      {isLoading && <p className="text-muted-foreground">Buscando...</p>}
-
-      {!isLoading && initialName && !player && (
-        <p className="text-muted-foreground">
-          Nenhum personagem encontrado com esse nome.
-        </p>
-      )}
-
-      {player && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {player.name}
-              <Badge variant={player.online ? "default" : "secondary"}>
-                {player.online ? "Online" : "Offline"}
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              {player.guild
-                ? `${player.guild.name} (${player.guild.rank})`
-                : "Sem guild"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <span className="text-muted-foreground">Level</span>
-              <span>{player.level}</span>
-              <span className="text-muted-foreground">Vocação</span>
-              <span>{player.vocationName}</span>
-              <span className="text-muted-foreground">Experiência</span>
-              <span>{player.experience}</span>
-              <span className="text-muted-foreground">Resets</span>
-              <span>{player.resets}</span>
-              <span className="text-muted-foreground">Último login</span>
-              <span>
-                {player.lastlogin
-                  ? dayjs.unix(player.lastlogin).format("DD/MM/YYYY HH:mm")
-                  : "—"}
-              </span>
-            </div>
-
-            <TibiaEquipmentPanel
-              equipment={player.equipment}
-              cap={player.cap}
-              soul={player.soul}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {searchedName && <CharacterProfile key={searchedName} name={searchedName} />}
     </div>
   );
 }

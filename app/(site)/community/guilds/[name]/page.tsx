@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type GuildMember = {
   id: number;
@@ -32,7 +33,15 @@ export default function GuildDetailPage({ params }: { params: Promise<{ name: st
   );
 
   if (isLoading) {
-    return <p className="mx-auto max-w-4xl px-4 py-12 text-muted-foreground">Carregando...</p>;
+    return (
+      <div className="mx-auto flex max-w-4xl flex-col gap-4 px-4 py-12">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-24 w-full" />
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Skeleton key={index} className="h-12 w-full" />
+        ))}
+      </div>
+    );
   }
 
   if (!data?.guild) {
@@ -57,7 +66,7 @@ export default function GuildDetailPage({ params }: { params: Promise<{ name: st
             {guild.members.map((member) => (
               <div key={member.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
                 <Link
-                  href={`/community/characters?name=${encodeURIComponent(member.name)}`}
+                  href={`/community/characters/${encodeURIComponent(member.name)}`}
                   className="hover:underline"
                 >
                   {member.name}

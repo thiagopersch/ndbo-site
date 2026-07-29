@@ -19,6 +19,7 @@ export async function GET(request: Request) {
   const typeUniverseId = url.searchParams.get("typeUniverseId");
   const needpremium = url.searchParams.get("needpremium");
   const published = url.searchParams.get("published");
+  const publishedGameplay = url.searchParams.get("publishedGameplay");
   const hasImage = await hasImageIdFilter("vocation", url.searchParams.get("hasImage"));
 
   const where: Prisma.VocationWhereInput = {
@@ -37,6 +38,9 @@ export async function GET(request: Request) {
       ? { needpremium: needpremium === "true" }
       : {}),
     ...(published === "true" || published === "false" ? { published: published === "true" } : {}),
+    ...(publishedGameplay === "true" || publishedGameplay === "false"
+      ? { publishedGameplay: publishedGameplay === "true" }
+      : {}),
   };
 
   const [vocations, total] = await Promise.all([

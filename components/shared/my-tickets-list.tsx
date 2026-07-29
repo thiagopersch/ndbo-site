@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import { fetcher } from "@/lib/fetcher";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Ticket = {
   id: number;
@@ -26,7 +27,13 @@ export function MyTicketsList() {
   const { data, isLoading } = useSWR<{ tickets: Ticket[] }>("/api/tickets", fetcher);
 
   if (isLoading) {
-    return <p className="text-muted-foreground">Carregando...</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-20 w-full" />
+        ))}
+      </div>
+    );
   }
 
   if (!data?.tickets.length) {

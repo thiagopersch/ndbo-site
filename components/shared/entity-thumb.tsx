@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { EntityImageInfo } from "@/components/shared/use-entity-images";
 
-const SIZE_CLASSES = { sm: "size-6", md: "size-10", lg: "size-16" } as const;
+const SIZE_CLASSES = { sm: "size-6", "32": "size-8", md: "size-10", lg: "size-16" } as const;
 
 /** Tamanho máximo (px) do preview ampliado no tooltip, mesmo que a imagem original seja
  * grande — evita um preview gigante para uma imagem custom fora do padrão de sprite. */

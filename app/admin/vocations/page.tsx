@@ -93,7 +93,16 @@ export default function AdminVocationsPage() {
     },
     {
       key: "published",
-      label: "Publicada",
+      label: "Publicada (criação de personagem)",
+      type: "select",
+      options: [
+        { value: "true", label: "Sim" },
+        { value: "false", label: "Não" },
+      ],
+    },
+    {
+      key: "publishedGameplay",
+      label: "Publicada (gameplay)",
       type: "select",
       options: [
         { value: "true", label: "Sim" },
@@ -148,11 +157,22 @@ export default function AdminVocationsPage() {
     },
     {
       accessorKey: "published",
-      header: "Publicada",
+      header: "Publicada (criação)",
       cell: ({ row }) => (
         <PublishedToggle
           endpoint={`/api/admin/vocations/${row.original.id}/publish`}
           published={row.original.published}
+          onToggled={() => mutate()}
+        />
+      ),
+    },
+    {
+      accessorKey: "publishedGameplay",
+      header: "Publicada (gameplay)",
+      cell: ({ row }) => (
+        <PublishedToggle
+          endpoint={`/api/admin/vocations/${row.original.id}/publish-gameplay`}
+          published={row.original.publishedGameplay}
           onToggled={() => mutate()}
         />
       ),

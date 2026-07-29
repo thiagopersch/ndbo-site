@@ -5,12 +5,15 @@ import useSWR from "swr";
 import dayjs from "dayjs";
 import { toast } from "sonner";
 
+import type { JSONContent } from "@tiptap/react";
+
 import { fetcher } from "@/lib/fetcher";
 import { TICKET_STATUSES } from "@/lib/validations/ticket";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { RichTextViewer } from "@/components/shared/rich-text-viewer";
 import {
   Card,
   CardContent,
@@ -18,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -26,12 +30,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type TicketAttachment = { id: number; kind: string; url: string };
+
 type TicketMessage = {
   id: number;
   message: string;
   isStaff: boolean;
   accountId: number;
   createdAt: string;
+  attachments: TicketAttachment[];
 };
 
 type Ticket = {
@@ -42,6 +49,25 @@ type Ticket = {
   accountId: number;
   messages: TicketMessage[];
 };
+
+/** Mensagens antigas foram salvas como texto puro; mensagens novas guardam o JSON do
+ * Tiptap serializado (ver `new-ticket-form.tsx`). Detecta qual é qual pelo parse. */
+function parseTiptapMessage(message: string): JSONContent | null {
+  try {
+    const parsed = JSON.parse(message) as JSONContent;
+    return parsed && typeof parsed === "object" && parsed.type === "doc" ? parsed : null;
+  } catch {
+    return null; // não é JSON — mensagem antiga em texto puro, cai no fallback abaixo
+  }
+}
+
+function TicketMessageBody({ message }: { message: string }) {
+  const parsed = parseTiptapMessage(message);
+  if (parsed) {
+    return <RichTextViewer content={parsed} className="text-sm" />;
+  }
+  return <p className="whitespace-pre-wrap">{message}</p>;
+}
 
 const statusLabel: Record<string, string> = {
   open: "Aberto",
@@ -55,6 +81,7 @@ export function TicketThread({ ticketId, isStaff = false }: { ticketId: number; 
     fetcher
   );
   const [reply, setReply] = useState("");
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function sendReply() {
@@ -67,14 +94,26 @@ export function TicketThread({ ticketId, isStaff = false }: { ticketId: number; 
       body: JSON.stringify({ message: reply }),
     });
 
-    setIsSubmitting(false);
-
     if (!response.ok) {
+      setIsSubmitting(false);
       toast.error("Não foi possível enviar a mensagem.");
       return;
     }
 
+    const { message } = await response.json();
+
+    for (const file of replyFiles) {
+      const formData = new FormData();
+      formData.append("file", file);
+      await fetch(`/api/tickets/${ticketId}/messages/${message.id}/media`, {
+        method: "POST",
+        body: formData,
+      });
+    }
+
+    setIsSubmitting(false);
     setReply("");
+    setReplyFiles([]);
     mutate();
   }
 
@@ -95,7 +134,14 @@ export function TicketThread({ ticketId, isStaff = false }: { ticketId: number; 
   }
 
   if (isLoading || !data?.ticket) {
-    return <p className="text-muted-foreground">Carregando...</p>;
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-8 w-72" />
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-20 w-full" />
+        ))}
+      </div>
+    );
   }
 
   const { ticket } = data;
@@ -128,7 +174,7 @@ export function TicketThread({ ticketId, isStaff = false }: { ticketId: number; 
         )}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3">
+        <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto pr-1">
           {ticket.messages.map((message) => (
             <div
               key={message.id}
@@ -141,7 +187,29 @@ export function TicketThread({ ticketId, isStaff = false }: { ticketId: number; 
                 {message.isStaff ? "Suporte" : "Você"} ·{" "}
                 {dayjs(message.createdAt).format("DD/MM/YYYY HH:mm")}
               </p>
-              <p className="whitespace-pre-wrap">{message.message}</p>
+              <TicketMessageBody message={message.message} />
+              {message.attachments.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {message.attachments.map((attachment) =>
+                    attachment.kind === "video" ? (
+                      <video
+                        key={attachment.id}
+                        src={attachment.url}
+                        controls
+                        className="max-h-48 rounded-md border border-border"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element -- anexo enviado pelo usuário, servido estático de public/storage
+                      <img
+                        key={attachment.id}
+                        src={attachment.url}
+                        alt=""
+                        className="max-h-48 rounded-md border border-border object-contain"
+                      />
+                    ),
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -154,6 +222,19 @@ export function TicketThread({ ticketId, isStaff = false }: { ticketId: number; 
               value={reply}
               onChange={(event) => setReply(event.target.value)}
             />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" htmlFor="reply-attachments">
+                Anexos (imagens ou vídeos, opcional)
+              </label>
+              <input
+                id="reply-attachments"
+                type="file"
+                multiple
+                accept="image/png,image/gif,image/jpeg,image/webp,video/mp4,video/webm"
+                onChange={(event) => setReplyFiles(Array.from(event.target.files ?? []))}
+                className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium"
+              />
+            </div>
             <Button onClick={sendReply} disabled={isSubmitting} className="self-end">
               {isSubmitting ? "Enviando..." : "Responder"}
             </Button>

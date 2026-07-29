@@ -3,12 +3,20 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Info } from "lucide-react";
 
 import { fetcher } from "@/lib/fetcher";
+import { formatThousands } from "@/lib/utils";
 import type { PaginatedResult } from "@/lib/pagination";
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/shared/data-table";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type RankingPlayer = {
   id: number;
@@ -17,6 +25,8 @@ type RankingPlayer = {
   experience: string;
   online: number;
   rankValue: number;
+  skill: string;
+  missingPercentage: number | null;
 };
 
 const SKILL_OPTIONS = [
@@ -36,27 +46,58 @@ const filterFields: FilterFieldConfig[] = [
   { key: "skill", label: "Ranquear por", type: "select", options: SKILL_OPTIONS },
 ];
 
-const columns: ColumnDef<RankingPlayer>[] = [
-  {
-    accessorKey: "name",
-    header: "Nome",
-    cell: ({ row }) => (
-      <Link
-        href={`/community/characters?name=${encodeURIComponent(row.original.name)}`}
-        className={
-          row.original.online
-            ? "font-medium text-green-600 hover:underline dark:text-green-400"
-            : "font-medium text-red-600 hover:underline dark:text-red-400"
+function buildColumns(skill: string): ColumnDef<RankingPlayer>[] {
+  const isLevelRanking = skill === "level";
+
+  return [
+    {
+      accessorKey: "name",
+      header: "Nome",
+      cell: ({ row }) => (
+        <Link
+          href={`/community/characters/${encodeURIComponent(row.original.name)}`}
+          className={
+            row.original.online
+              ? "font-medium text-green-600 hover:underline dark:text-green-400"
+              : "font-medium text-red-600 hover:underline dark:text-red-400"
+          }
+        >
+          {row.original.name}
+        </Link>
+      ),
+    },
+    { accessorKey: "rankValue", header: "Level" },
+    { accessorKey: "vocationName", header: "Vocação" },
+    {
+      accessorKey: "experience",
+      header: () =>
+        isLevelRanking ? (
+          "Experiência"
+        ) : (
+          <TooltipProvider>
+            <span className="inline-flex items-center gap-1">
+              Porcentagem faltante
+              <Tooltip>
+                <TooltipTrigger render={<Info className="size-3.5 cursor-help text-muted-foreground" />} />
+                <TooltipContent>
+                  Porcentagem que falta para avançar para o próximo nível dessa skill.
+                </TooltipContent>
+              </Tooltip>
+            </span>
+          </TooltipProvider>
+        ),
+      cell: ({ row }) => {
+        if (isLevelRanking) {
+          return formatThousands(row.original.experience);
         }
-      >
-        {row.original.name}
-      </Link>
-    ),
-  },
-  { accessorKey: "rankValue", header: "Level" },
-  { accessorKey: "vocationName", header: "Vocação" },
-  { accessorKey: "experience", header: "Experiência" },
-];
+        if (row.original.skill === "resets") {
+          return "--";
+        }
+        return `${row.original.missingPercentage ?? 0}%`;
+      },
+    },
+  ];
+}
 
 export default function RankingPage() {
   const table = useServerTable();
@@ -65,6 +106,9 @@ export default function RankingPage() {
     `/api/public/ranking?${table.buildQueryParams().toString()}`,
     fetcher
   );
+
+  const currentSkill = (table.appliedFilters.skill as string) ?? "level";
+  const columns = buildColumns(currentSkill);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12">

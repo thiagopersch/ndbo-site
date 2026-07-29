@@ -9,8 +9,8 @@ export async function GET(request: Request) {
   const { page, pageSize, search } = parsePaginationParams(url);
 
   const where: Prisma.VocationWhereInput = search
-    ? { published: true, name: { contains: search } }
-    : { published: true };
+    ? { publishedGameplay: true, name: { contains: search } }
+    : { publishedGameplay: true };
 
   const [vocations, total] = await Promise.all([
     prisma.vocation.findMany({

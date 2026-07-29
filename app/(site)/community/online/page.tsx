@@ -21,7 +21,7 @@ const columns: ColumnDef<OnlinePlayer>[] = [
     accessorKey: "name",
     header: "Nome",
     cell: ({ row }) => (
-      <Link href={`/community/characters?name=${encodeURIComponent(row.original.name)}`} className="hover:underline">
+      <Link href={`/community/characters/${encodeURIComponent(row.original.name)}`} className="hover:underline">
         {row.original.name}
       </Link>
     ),

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { ACCOUNT_MANAGER_NAME, PUBLIC_LISTING_GROUP_ID_LIMIT } from "@/lib/public-player-visibility";
+import { getRankPosition, getResetAverage } from "@/lib/character-profile";
+import { getDonateTier } from "@/lib/donate-tier";
 
 type Params = { params: Promise<{ name: string }> };
 
@@ -47,11 +49,20 @@ export async function GET(_request: Request, { params }: Params) {
       sex: true,
       online: true,
       lastlogin: true,
+      lastlogout: true,
       rankId: true,
       resets: true,
       balance: true,
       cap: true,
       soul: true,
+      health: true,
+      healthmax: true,
+      mana: true,
+      manamax: true,
+      townId: true,
+      age: true,
+      createdAt: true,
+      accountId: true,
     },
   });
 
@@ -62,25 +73,76 @@ export async function GET(_request: Request, { params }: Params) {
     );
   }
 
-  const [rank, vocation, equippedItems] = await Promise.all([
-    player.rankId
-      ? prisma.guildRank.findUnique({
-          where: { id: player.rankId },
-          include: { guild: { select: { id: true, name: true } } },
+  const [
+    rank,
+    vocation,
+    equippedItems,
+    town,
+    vocationImage,
+    otherPlayers,
+    rankByLevel,
+    rankByResets,
+    donationCount,
+    resetAverage,
+    account,
+  ] = await Promise.all([
+      player.rankId
+        ? prisma.guildRank.findUnique({
+            where: { id: player.rankId },
+            include: { guild: { select: { id: true, name: true } } },
+          })
+        : null,
+      prisma.vocation.findUnique({
+        where: { id: player.vocation },
+        select: { name: true },
+      }),
+      prisma.playerItem.findMany({
+        where: {
+          playerId: player.id,
+          pid: { in: EQUIPMENT_SLOTS.map((slot) => slot.pid) },
+        },
+        select: { pid: true, itemtype: true },
+      }),
+      prisma.town.findUnique({ where: { id: player.townId }, select: { name: true } }),
+      prisma.entityImage.findUnique({
+        where: { entityType_entityId: { entityType: "vocation", entityId: player.vocation } },
+        select: { extension: true, updatedAt: true },
+      }),
+      prisma.player.findMany({
+        where: {
+          accountId: player.accountId,
+          deleted: 0,
+          id: { not: player.id },
+        },
+        orderBy: [{ resets: "desc" }, { level: "desc" }],
+        select: { id: true, name: true, level: true, resets: true, vocation: true, online: true },
+      }),
+      getRankPosition("level", player.level, player.experience),
+      getRankPosition("resets", player.resets, player.experience),
+      prisma.donation.count({ where: { accountId: player.accountId } }),
+      getResetAverage(player.id),
+      prisma.account.findUnique({ where: { id: player.accountId }, select: { groupId: true } }),
+    ]);
+
+  const donateTier = getDonateTier(donationCount);
+
+  const otherPlayerVocationIds = Array.from(new Set(otherPlayers.map((p) => p.vocation)));
+  const [otherPlayerVocations, otherPlayerVocationImages] = await Promise.all([
+    otherPlayerVocationIds.length
+      ? prisma.vocation.findMany({
+          where: { id: { in: otherPlayerVocationIds } },
+          select: { id: true, name: true },
         })
-      : null,
-    prisma.vocation.findUnique({
-      where: { id: player.vocation },
-      select: { name: true },
-    }),
-    prisma.playerItem.findMany({
-      where: {
-        playerId: player.id,
-        pid: { in: EQUIPMENT_SLOTS.map((slot) => slot.pid) },
-      },
-      select: { pid: true, itemtype: true },
-    }),
+      : Promise.resolve([]),
+    otherPlayerVocationIds.length
+      ? prisma.entityImage.findMany({
+          where: { entityType: "vocation", entityId: { in: otherPlayerVocationIds } },
+          select: { entityId: true, extension: true, updatedAt: true },
+        })
+      : Promise.resolve([]),
   ]);
+  const otherPlayerVocationNameById = new Map(otherPlayerVocations.map((v) => [v.id, v.name]));
+  const otherPlayerVocationImageById = new Map(otherPlayerVocationImages.map((img) => [img.entityId, img]));
 
   const itemIdByPid = new Map(
     equippedItems.map((row) => [row.pid, row.itemtype]),
@@ -136,15 +198,42 @@ export async function GET(_request: Request, { params }: Params) {
     }),
   );
 
+  const CRYSTAL_COIN_GP_VALUE = 10_000; // 1 crystal = 100 platinum = 10.000 gold; `balance` está em gp.
+
   return NextResponse.json({
     player: {
       ...player,
       vocationName: vocation?.name ?? "Desconhecida",
+      vocationImage: vocationImage
+        ? { extension: vocationImage.extension, updatedAt: vocationImage.updatedAt }
+        : null,
       experience: player.experience.toString(),
+      townName: town?.name ?? "Desconhecido",
+      rankPositionLevel: rankByLevel,
+      rankPositionResets: rankByResets,
+      balanceCrystalCoins: Math.floor(player.balance / CRYSTAL_COIN_GP_VALUE),
+      donationCount,
+      donateTier: { key: donateTier.key, name: donateTier.name, bonusPct: donateTier.bonusPct },
+      infiniteBless: donateTier.bonusPct > 0,
+      resetAverage,
+      accountGroupId: account?.groupId ?? 0,
       guild: rank
         ? { id: rank.guild.id, name: rank.guild.name, rank: rank.name }
         : null,
       equipment,
+      otherCharacters: otherPlayers.map((p) => ({
+        id: p.id,
+        name: p.name,
+        level: p.level,
+        resets: p.resets,
+        online: p.online,
+        vocation: p.vocation,
+        vocationName: otherPlayerVocationNameById.get(p.vocation) ?? "Desconhecida",
+        vocationImage: (() => {
+          const img = otherPlayerVocationImageById.get(p.vocation);
+          return img ? { extension: img.extension, updatedAt: img.updatedAt } : null;
+        })(),
+      })),
     },
   });
 }

@@ -14,9 +14,16 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
   const searchAsNumber = Number(search);
+  const year = url.searchParams.get("year");
+  const month = url.searchParams.get("month");
+  const day = url.searchParams.get("day");
 
-  const where: Prisma.DailyRewardsMonthlyWhereInput =
-    search && Number.isFinite(searchAsNumber) ? { itemId: searchAsNumber } : {};
+  const where: Prisma.DailyRewardsMonthlyWhereInput = {
+    ...(search && Number.isFinite(searchAsNumber) ? { itemId: searchAsNumber } : {}),
+    ...(year ? { year: Number(year) } : {}),
+    ...(month ? { month: Number(month) } : {}),
+    ...(day ? { day: Number(day) } : {}),
+  };
 
   const [rewards, total] = await Promise.all([
     prisma.dailyRewardsMonthly.findMany({

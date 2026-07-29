@@ -15,10 +15,12 @@ import {
   Home,
   LayoutDashboard,
   Layers,
+  ListChecks,
   Map,
   Newspaper,
   Package,
   ScrollText,
+  Settings,
   Shapes,
   ShieldBan,
   Sparkles,
@@ -118,6 +120,7 @@ const adminSections: AdminSection[] = [
       { label: "Items", href: "/admin/items", icon: Package },
       { label: "Movements", href: "/admin/movements", icon: Footprints },
       { label: "Scripts Lua", href: "/admin/lua-scripts", icon: Terminal },
+      { label: "Looktypes", href: "/admin/looktypes", icon: Shapes },
     ],
   },
   {
@@ -135,6 +138,10 @@ const adminSections: AdminSection[] = [
         href: "/admin/daily-rewards",
         icon: Gift,
       },
+      { label: "Doações", href: "/admin/donations", icon: Coins },
+      { label: "Quests", href: "/admin/quests", icon: ScrollText },
+      { label: "Tasks", href: "/admin/tasks", icon: ListChecks },
+      { label: "Categorias", href: "/admin/categories", icon: FolderTree },
     ],
   },
   {
@@ -152,6 +159,7 @@ const adminSections: AdminSection[] = [
     icon: ScrollText,
     links: [
       { label: "Auditoria", href: "/admin/audit-logs", icon: ScrollText },
+      { label: "Configurações", href: "/admin/settings", icon: Settings },
     ],
   },
 ];
