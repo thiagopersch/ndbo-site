@@ -39,6 +39,7 @@ import { FormattedNumberField } from "@/components/shared/formatted-number-field
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { MonsterThumb } from "@/components/shared/monster-thumb";
+import { MonsterThumbByName } from "@/components/admin/tasks/monster-thumb-by-name";
 import { MonthYearFields } from "@/components/shared/month-year-fields";
 
 type NamedRow = { id: number; name: string };
@@ -114,14 +115,25 @@ export function BattlePassSeasonFormDialog({
             <Tabs defaultValue="identification">
               <TabsList>
                 <TabsTrigger value="identification">Identificação</TabsTrigger>
+                <TabsTrigger value="missions">Missões</TabsTrigger>
                 <TabsTrigger value="rewards">Recompensas</TabsTrigger>
               </TabsList>
 
               <TabsContent value="identification" className="flex flex-col gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <MonthYearFields control={form.control} yearName="year" monthName="month" />
-                  <FormattedNumberField control={form.control} name="maxLevel" label="Level máximo" />
-                  <FormattedNumberField control={form.control} name="xpPerLevel" label="XP por level" />
+                  <FormattedNumberField
+                    control={form.control}
+                    name="maxLevel"
+                    label="Level máximo"
+                    tooltip="Nível mais alto que o passe pode alcançar — ao chegar nele, o jogador para de acumular XP nessa temporada."
+                  />
+                  <FormattedNumberField
+                    control={form.control}
+                    name="xpPerLevel"
+                    label="XP por level"
+                    tooltip="Quantidade de XP necessária para subir cada nível do passe."
+                  />
                   <FormattedNumberField control={form.control} name="goldPassCost" label="Custo do passe Gold" />
                 </div>
 
@@ -156,7 +168,9 @@ export function BattlePassSeasonFormDialog({
                     );
                   }}
                 />
+              </TabsContent>
 
+              <TabsContent value="missions">
                 <div className="flex flex-col gap-2 rounded-md border border-border p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Missões</span>
@@ -239,24 +253,29 @@ export function BattlePassSeasonFormDialog({
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Monstro</FormLabel>
-                                  <EntitySearchCombobox<MonsterRow>
-                                    endpoint="/api/admin/monsters"
-                                    value={null}
-                                    placeholder={field.value || "Buscar monstro..."}
-                                    formatOption={(monster) => monster.name}
-                                    renderOption={(monster) => (
-                                      <span className="flex items-center gap-2">
-                                        <MonsterThumb
-                                          id={monster.id}
-                                          name={monster.name}
-                                          lookTypeId={monster.lookTypeId}
-                                          size="32"
-                                        />
-                                        {monster.name}
-                                      </span>
-                                    )}
-                                    onSelect={(monster) => field.onChange(monster?.name ?? "")}
-                                  />
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                      <EntitySearchCombobox<MonsterRow>
+                                        endpoint="/api/admin/monsters"
+                                        value={null}
+                                        placeholder={field.value || "Buscar monstro..."}
+                                        formatOption={(monster) => monster.name}
+                                        renderOption={(monster) => (
+                                          <span className="flex items-center gap-2">
+                                            <MonsterThumb
+                                              id={monster.id}
+                                              name={monster.name}
+                                              lookTypeId={monster.lookTypeId}
+                                              size="32"
+                                            />
+                                            {monster.name}
+                                          </span>
+                                        )}
+                                        onSelect={(monster) => field.onChange(monster?.name ?? "")}
+                                      />
+                                    </div>
+                                    {field.value && <MonsterThumbByName name={field.value} />}
+                                  </div>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -322,10 +341,20 @@ export function BattlePassSeasonFormDialog({
                               control={form.control}
                               name={`missions.${index}.target.amount`}
                               label={BATTLE_PASS_MISSION_AMOUNT_LABELS[type] || "Quantidade"}
+                              tooltip={
+                                type === "kill_monster"
+                                  ? "Quantidade de monstros que precisam ser mortos para completar essa missão."
+                                  : undefined
+                              }
                             />
                           )}
 
-                          <FormattedNumberField control={form.control} name={`missions.${index}.xpReward`} label="XP" />
+                          <FormattedNumberField
+                            control={form.control}
+                            name={`missions.${index}.xpReward`}
+                            label="XP"
+                            tooltip="Quantidade de XP do passe concedida ao completar essa missão."
+                          />
                         </div>
 
                         <Button
@@ -466,7 +495,18 @@ export function BattlePassSeasonFormDialog({
               </TabsContent>
             </Tabs>
 
-            <DialogFooter>
+            <DialogFooter className="gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={() => {
+                  if (!seasonId) form.reset(defaultValues);
+                  setOpen(false);
+                }}
+              >
+                Cancelar
+              </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Salvando..." : "Salvar"}
               </Button>

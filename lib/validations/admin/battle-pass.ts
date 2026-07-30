@@ -28,7 +28,7 @@ export const BATTLE_PASS_MISSION_TYPE_LABELS: Record<BattlePassMissionType, stri
 
 /** Rótulo do campo "Quantidade" — o significado muda conforme o Tipo da missão. */
 export const BATTLE_PASS_MISSION_AMOUNT_LABELS: Record<BattlePassMissionType, string> = {
-  kill_monster: "Monstros a matar",
+  kill_monster: "Quantidade",
   dungeon_any_vocation: "Dungeons a finalizar",
   dungeon_specific_vocation: "Dungeons a finalizar",
   damage: "Dano a causar",
