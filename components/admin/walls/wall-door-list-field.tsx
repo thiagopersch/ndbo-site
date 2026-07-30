@@ -3,10 +3,9 @@
 import { useFieldArray, type Control, type FieldArrayPath, type FieldPath } from "react-hook-form";
 import { Plus } from "lucide-react";
 
-import { emptyWallDoor, type WallFormInput } from "@/lib/validations/admin/wall";
+import { COMMON_WALL_DOOR_TYPES, emptyWallDoor, type WallFormInput } from "@/lib/validations/admin/wall";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { NumberField } from "@/components/shared/number-field";
+import { ItemSearchField } from "@/components/shared/item-search-field";
 import { FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import {
   Select,
@@ -43,60 +42,7 @@ export function WallDoorListField({ control, name }: WallDoorListFieldProps) {
           title={`Porta/janela #${index + 1}`}
           onRemove={() => remove(index)}
         >
-          <div className="flex flex-wrap items-end gap-2">
-            <NumberField
-              control={control}
-              name={`${name}.${index}.id` as FieldPath<WallFormInput>}
-              label="Item ID"
-            />
-
-            <FormField
-              control={control}
-              name={`${name}.${index}.type` as FieldPath<WallFormInput>}
-              render={({ field: textField }) => (
-                <FormItem>
-                  <FormLabel>Tipo</FormLabel>
-                  <FormControl>
-                    <Input
-                      list="wall-door-types"
-                      className="w-40"
-                      value={String(textField.value ?? "")}
-                      onChange={textField.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={control}
-              name={`${name}.${index}.open` as FieldPath<WallFormInput>}
-              render={({ field: openField }) => (
-                <FormItem>
-                  <FormLabel>Estado</FormLabel>
-                  <Select
-                    value={openField.value == null ? "unset" : String(openField.value)}
-                    onValueChange={(value) =>
-                      openField.onChange(value === "unset" ? null : value === "true")
-                    }
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-52">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {OPEN_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
-
+          <div className="flex flex-col gap-2">
             <FormField
               control={control}
               name={`${name}.${index}.locked` as FieldPath<WallFormInput>}
@@ -114,6 +60,70 @@ export function WallDoorListField({ control, name }: WallDoorListFieldProps) {
                 </FormItem>
               )}
             />
+
+            <div className="flex flex-wrap items-end gap-2">
+              <ItemSearchField
+                control={control}
+                name={`${name}.${index}.id` as FieldPath<WallFormInput>}
+                label="Item"
+              />
+
+              <FormField
+                control={control}
+                name={`${name}.${index}.type` as FieldPath<WallFormInput>}
+                render={({ field: selectField }) => (
+                  <FormItem>
+                    <FormLabel>Tipo</FormLabel>
+                    <Select
+                      value={String(selectField.value ?? "")}
+                      onValueChange={(value) => selectField.onChange(value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {COMMON_WALL_DOOR_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name={`${name}.${index}.open` as FieldPath<WallFormInput>}
+                render={({ field: openField }) => (
+                  <FormItem>
+                    <FormLabel>Estado</FormLabel>
+                    <Select
+                      value={openField.value == null ? "unset" : String(openField.value)}
+                      onValueChange={(value) =>
+                        openField.onChange(value === "unset" ? null : value === "true")
+                      }
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-52">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {OPEN_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         </CollapsibleFieldCard>
       ))}

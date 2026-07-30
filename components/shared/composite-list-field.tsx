@@ -39,11 +39,13 @@ export function CompositeListField<T extends FieldValues>({
           title={`Composite #${index + 1}`}
           onRemove={() => remove(index)}
         >
-          <NumberField
-            control={control}
-            name={`${name}.${index}.chance` as FieldPath<T>}
-            label="Chance"
-          />
+          <div className="w-24">
+            <NumberField
+              control={control}
+              name={`${name}.${index}.chance` as FieldPath<T>}
+              label="Chance"
+            />
+          </div>
           <TileListField control={control} name={`${name}.${index}.tiles`} />
         </CollapsibleFieldCard>
       ))}

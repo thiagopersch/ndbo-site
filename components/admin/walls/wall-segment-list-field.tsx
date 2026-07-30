@@ -3,14 +3,10 @@
 import { useFieldArray, type Control, type FieldArrayPath, type FieldPath } from "react-hook-form";
 import { Plus } from "lucide-react";
 
-import {
-  COMMON_WALL_DOOR_TYPES,
-  emptyWallSegment,
-  type WallFormInput,
-} from "@/lib/validations/admin/wall";
+import { emptyWallSegment, type WallFormInput } from "@/lib/validations/admin/wall";
 import { WALL_SEGMENT_TYPES } from "@/lib/validations/admin/doodad";
 import { Button } from "@/components/ui/button";
-import { FormControl, FormField, FormItem } from "@/components/ui/form";
+import { FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -35,45 +31,39 @@ export function WallSegmentListField({ control, name }: WallSegmentListFieldProp
 
   return (
     <div className="flex flex-col gap-2">
-      <datalist id="wall-door-types">
-        {COMMON_WALL_DOOR_TYPES.map((type) => (
-          <option key={type} value={type} />
-        ))}
-      </datalist>
-
       {fields.map((field, index) => (
         <CollapsibleFieldCard
           key={field.id}
           title={`Segmento #${index + 1}`}
           onRemove={() => remove(index)}
-          headerExtra={
-            <FormField
-              control={control}
-              name={`${name}.${index}.type` as FieldPath<WallFormInput>}
-              render={({ field: selectField }) => (
-                <FormItem>
-                  <Select
-                    value={String(selectField.value)}
-                    onValueChange={(value) => selectField.onChange(value)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-56">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {WALL_SEGMENT_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
-          }
         >
+          <FormField
+            control={control}
+            name={`${name}.${index}.type` as FieldPath<WallFormInput>}
+            render={({ field: selectField }) => (
+              <FormItem>
+                <FormLabel>Posição</FormLabel>
+                <Select
+                  value={String(selectField.value)}
+                  onValueChange={(value) => selectField.onChange(value)}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-56">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {WALL_SEGMENT_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+
           <ItemsListField control={control} name={`${name}.${index}.items`} />
           <WallDoorListField control={control} name={`${name}.${index}.doors`} />
         </CollapsibleFieldCard>

@@ -9,7 +9,7 @@ import {
   type DoodadFormInput,
 } from "@/lib/validations/admin/doodad";
 import { Button } from "@/components/ui/button";
-import { FormControl, FormField, FormItem } from "@/components/ui/form";
+import { FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -38,34 +38,34 @@ export function TableSegmentListField({ control, name }: TableSegmentListFieldPr
           key={field.id}
           title={`Mesa #${index + 1}`}
           onRemove={() => remove(index)}
-          headerExtra={
-            <FormField
-              control={control}
-              name={`${name}.${index}.align` as FieldPath<DoodadFormInput>}
-              render={({ field: selectField }) => (
-                <FormItem>
-                  <Select
-                    value={String(selectField.value)}
-                    onValueChange={(value) => selectField.onChange(value)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {TABLE_ALIGNS.map((align) => (
-                        <SelectItem key={align} value={align}>
-                          {align}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
-          }
         >
+          <FormField
+            control={control}
+            name={`${name}.${index}.align` as FieldPath<DoodadFormInput>}
+            render={({ field: selectField }) => (
+              <FormItem>
+                <FormLabel>Posição</FormLabel>
+                <Select
+                  value={String(selectField.value)}
+                  onValueChange={(value) => selectField.onChange(value)}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {TABLE_ALIGNS.map((align) => (
+                      <SelectItem key={align} value={align}>
+                        {align}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+
           <ItemsListField control={control} name={`${name}.${index}.items`} />
         </CollapsibleFieldCard>
       ))}

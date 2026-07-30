@@ -176,37 +176,39 @@ export function DoodadForm({ brushId, initialValues }: DoodadFormProps) {
                     )}
                   />
 
-                  {(
-                    [
-                      ["draggable", "Draggable (pintar arrastando)"],
-                      ["onBlocking", "On blocking (permite sobre tile bloqueado)"],
-                      ["onDuplicate", "On duplicate (auto-preenchimento)"],
-                      ["oneSize", "One size (tamanho único)"],
-                      ["redoBorders", "Redo borders (recalcula bordas)"],
-                      ["reborder", "Reborder (refaz bordas ao redor)"],
-                    ] as const
-                  ).map(([name, label]) => (
-                    <FormField
-                      key={name}
-                      control={form.control}
-                      name={name}
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center gap-2">
-                          <FormControl>
-                            <input
-                              type="checkbox"
-                              className="size-4"
-                              checked={Boolean(field.value)}
-                              onChange={(event) => field.onChange(event.target.checked)}
-                            />
-                          </FormControl>
-                          <FormLabel className="!mt-0">{label}</FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                  ))}
-
                   <TilesetCategoryField control={form.control} name="tilesetCategoryId" brushKind="doodad" />
+
+                  <div className="flex flex-wrap gap-x-6 gap-y-2 sm:col-span-2">
+                    {(
+                      [
+                        ["draggable", "Draggable (pintar arrastando)"],
+                        ["onBlocking", "On blocking (permite sobre tile bloqueado)"],
+                        ["onDuplicate", "On duplicate (auto-preenchimento)"],
+                        ["oneSize", "One size (tamanho único)"],
+                        ["redoBorders", "Redo borders (recalcula bordas)"],
+                        ["reborder", "Reborder (refaz bordas ao redor)"],
+                      ] as const
+                    ).map(([name, label]) => (
+                      <FormField
+                        key={name}
+                        control={form.control}
+                        name={name}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center gap-2">
+                            <FormControl>
+                              <input
+                                type="checkbox"
+                                className="size-4"
+                                checked={Boolean(field.value)}
+                                onChange={(event) => field.onChange(event.target.checked)}
+                              />
+                            </FormControl>
+                            <FormLabel className="!mt-0">{label}</FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

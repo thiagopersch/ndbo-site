@@ -9,7 +9,7 @@ import {
   type DoodadFormInput,
 } from "@/lib/validations/admin/doodad";
 import { Button } from "@/components/ui/button";
-import { FormControl, FormField, FormItem } from "@/components/ui/form";
+import { FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -39,34 +39,34 @@ export function WallSegmentListField({ control, name }: WallSegmentListFieldProp
           key={field.id}
           title={`Segmento #${index + 1}`}
           onRemove={() => remove(index)}
-          headerExtra={
-            <FormField
-              control={control}
-              name={`${name}.${index}.type` as FieldPath<DoodadFormInput>}
-              render={({ field: selectField }) => (
-                <FormItem>
-                  <Select
-                    value={String(selectField.value)}
-                    onValueChange={(value) => selectField.onChange(value)}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-56">
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {WALL_SEGMENT_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
-          }
         >
+          <FormField
+            control={control}
+            name={`${name}.${index}.type` as FieldPath<DoodadFormInput>}
+            render={({ field: selectField }) => (
+              <FormItem>
+                <FormLabel>Posição</FormLabel>
+                <Select
+                  value={String(selectField.value)}
+                  onValueChange={(value) => selectField.onChange(value)}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-56">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {WALL_SEGMENT_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+
           <ItemsListField control={control} name={`${name}.${index}.items`} />
           <DoorsListField control={control} name={`${name}.${index}.doors`} />
         </CollapsibleFieldCard>

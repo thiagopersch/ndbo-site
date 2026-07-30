@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 
 import { DOOR_TYPES, emptyWallDoor, type DoodadFormInput } from "@/lib/validations/admin/doodad";
 import { Button } from "@/components/ui/button";
-import { NumberField } from "@/components/shared/number-field";
+import { ItemSearchField } from "@/components/shared/item-search-field";
 import {
   FormControl,
   FormField,
@@ -42,10 +42,10 @@ export function DoorsListField({ control, name }: DoorsListFieldProps) {
           onRemove={() => remove(index)}
         >
           <div className="flex flex-wrap items-end gap-2">
-            <NumberField
+            <ItemSearchField
               control={control}
               name={`${name}.${index}.id` as FieldPath<DoodadFormInput>}
-              label="Item ID"
+              label="Item"
             />
 
             <FormField
