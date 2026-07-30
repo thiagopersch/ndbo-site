@@ -5,6 +5,7 @@ import { useController, type Control, type FieldPath, type FieldValues } from "r
 import { FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { FieldTooltip } from "@/components/shared/field-tooltip";
 
 type ItemRow = { id: number; name: string };
 
@@ -13,6 +14,7 @@ type ItemSearchFieldProps<T extends FieldValues> = {
   name: FieldPath<T>;
   label?: string;
   placeholder?: string;
+  tooltip?: string;
 };
 
 /** Campo de item id com busca por nome/id (cadastro de item) + preview da looktype vinculada
@@ -23,6 +25,7 @@ export function ItemSearchField<T extends FieldValues>({
   name,
   label,
   placeholder = "Buscar item por nome ou id...",
+  tooltip,
 }: ItemSearchFieldProps<T>) {
   const { field } = useController({ control, name });
   const rawValue = field.value as number | null | undefined;
@@ -30,7 +33,12 @@ export function ItemSearchField<T extends FieldValues>({
 
   return (
     <FormItem>
-      {label && <FormLabel>{label}</FormLabel>}
+      {label && (
+        <FormLabel className="flex items-center gap-1.5">
+          {label}
+          {tooltip && <FieldTooltip text={tooltip} />}
+        </FormLabel>
+      )}
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <EntitySearchCombobox<ItemRow>

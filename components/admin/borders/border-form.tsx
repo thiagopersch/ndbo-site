@@ -86,43 +86,7 @@ export function BorderForm({ isEditing = false, initialValues }: BorderFormProps
             <CardHeader>
               <CardTitle>Dados básicos</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <NumberField control={form.control} name="id" label="ID" disabled={isEditing} />
-
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="group"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Group (opcional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        value={field.value ?? ""}
-                        onChange={(event) =>
-                          field.onChange(event.target.value === "" ? null : Number(event.target.value))
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+            <CardContent className="flex flex-col gap-4">
               <FormField
                 control={form.control}
                 name="optional"
@@ -140,6 +104,46 @@ export function BorderForm({ isEditing = false, initialValues }: BorderFormProps
                   </FormItem>
                 )}
               />
+
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <div className="sm:w-[30%]">
+                  <NumberField control={form.control} name="id" label="ID" disabled={isEditing} />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="sm:w-[60%]">
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="group"
+                  render={({ field }) => (
+                    <FormItem className="sm:w-[30%]">
+                      <FormLabel>Group (opcional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value ?? ""}
+                          onChange={(event) =>
+                            field.onChange(event.target.value === "" ? null : Number(event.target.value))
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
 
