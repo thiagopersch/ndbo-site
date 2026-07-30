@@ -3,18 +3,19 @@ import { z } from "zod";
 import { TASK_DIFFICULTIES } from "@/lib/task-difficulty";
 import { TASK_TYPES } from "@/lib/task-type";
 
-/** Gera o identificador (slug) da task a partir do Nome: minúsculas, sem acentos/pontuação,
- * palavras separadas por hífen. Usado para preencher o campo Identificador ao vivo enquanto o
- * admin digita o Nome — ele fica sempre `disabled` no formulário (ver comentário do model
- * `TaskDefinition.id` no schema: não deve mudar depois de criada, quebraria
- * `player_tasks.task_id`). */
+/** Gera o identificador (slug) da task a partir do Nome: sempre com o prefixo `task_`,
+ * minúsculas, sem acentos/pontuação, palavras separadas por underline. Usado para preencher o
+ * campo Identificador ao vivo enquanto o admin digita o Nome — ele fica sempre `disabled` no
+ * formulário (ver comentário do model `TaskDefinition.id` no schema: não deve mudar depois de
+ * criada, quebraria `player_tasks.task_id`). */
 export function nameToTaskSlug(name: string): string {
-  return name
+  const slug = name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `task_${slug}`;
 }
 
 export const taskMonsterSchema = z.object({

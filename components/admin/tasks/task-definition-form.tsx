@@ -29,6 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NumberField } from "@/components/shared/number-field";
 import { FormattedNumberField } from "@/components/shared/formatted-number-field";
+import { formatThousands } from "@/lib/utils";
+import { TASK_DIFFICULTY_COLORS } from "@/lib/task-difficulty";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { MonsterThumb } from "@/components/shared/monster-thumb";
@@ -37,6 +39,9 @@ import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-ima
 import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
 import { CategorySelect } from "@/components/admin/categories/category-select";
 import { MonsterThumbByName } from "@/components/admin/tasks/monster-thumb-by-name";
+
+/** 1 crystal coin = 10000 gold coin — mesma conversão usada em outros CRUDs (ex.: loja de NPC). */
+const GOLD_PER_CRYSTAL = 10000;
 
 type LooktypeRow = {
   id: number;
@@ -102,7 +107,7 @@ export function TaskDefinitionForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4 max-w-4xl">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
         <Tabs defaultValue="identification">
           <TabsList>
             <TabsTrigger value="identification">Identificação</TabsTrigger>
@@ -126,7 +131,7 @@ export function TaskDefinitionForm({
                   </FormControl>
                   <FormLabel className="!mt-0 flex items-center gap-1.5">
                     Publicada
-                    <FieldTooltip text="Somente tasks publicadas são carregadas para o jogo — o servidor lê published = 1 (task_db_loader.lua: TaskConfig_reload)." />
+                    <FieldTooltip text="Só tasks publicadas ficam disponíveis para os jogadores no jogo." />
                   </FormLabel>
                 </FormItem>
               )}
@@ -148,7 +153,7 @@ export function TaskDefinitionForm({
                     </FormControl>
                     <FormLabel className="!mt-0 flex items-center gap-1.5">
                       Exige entrega de item para resgatar a recompensa
-                      <FieldTooltip text="Se ativado, o jogador precisa ter os itens no inventário para reivindicar a recompensa — eles são removidos automaticamente (task_rewards.lua: TaskRewards_removeDeliveryItems)." />
+                      <FieldTooltip text="Se ativado, o jogador precisa ter os itens no inventário para reivindicar a recompensa — eles são removidos automaticamente ao resgatar." />
                     </FormLabel>
                   </FormItem>
                 )}
@@ -187,7 +192,7 @@ export function TaskDefinitionForm({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="grid gap-4 pt-2 sm:grid-cols-2 lg:grid-cols-3">
               <FormField
                 control={form.control}
                 name="name"
@@ -195,7 +200,7 @@ export function TaskDefinitionForm({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       Nome
-                      <FieldTooltip text="Nome exibido para o jogador na lista de tasks e nas mensagens do sistema (task_core.lua)." />
+                      <FieldTooltip text="Nome exibido para o jogador na lista de tasks." />
                     </FormLabel>
                     <FormControl>
                       <Input {...field} />
@@ -211,10 +216,10 @@ export function TaskDefinitionForm({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       Identificador (slug)
-                      <FieldTooltip text="Gerado automaticamente a partir do Nome, separado por hífen. É a chave gravada em player_tasks.task_id — depois de criada a task, não deve mudar, ou o progresso salvo dos jogadores se perde." />
+                      <FieldTooltip text="Gerado automaticamente a partir do Nome. Depois de criada a task, não muda mais — trocar isso faria os jogadores perderem o progresso salvo." />
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="task-wolf-hollow" disabled {...field} />
+                      <Input placeholder="task_wolf_hollow" disabled {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -223,7 +228,7 @@ export function TaskDefinitionForm({
               <CategorySelect
                 control={form.control}
                 name="categoryId"
-                tooltip="Restringe a task à vocação do jogador (task_core.lua: TaskRank_getPlayerCategory). Use 'General' para liberar a task para todas as vocações."
+                tooltip="Restringe a task a uma vocação específica. Use 'General' para liberar a task para todas as vocações."
               />
               <FormField
                 control={form.control}
@@ -232,16 +237,27 @@ export function TaskDefinitionForm({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       Dificuldade
-                      <FieldTooltip text="Define a tabela de pontos de rank usada ao reivindicar a recompensa (task_rank.lua: pointsPerDifficulty). Não é o valor do campo 'Pontos' abaixo — esse é só informativo." />
+                      <FieldTooltip text="Define quantos pontos de rank a task concede ao ser concluída — não é o mesmo valor do campo 'Pontos' abaixo, que é só informativo." />
                     </FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Selecione a dificuldade">
                             {(value: string | null) =>
-                              value
-                                ? TASK_DIFFICULTY_LABELS[value as (typeof TASK_DIFFICULTIES)[number]]
-                                : "Selecione a dificuldade"
+                              value ? (
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className="size-2.5 shrink-0 rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        TASK_DIFFICULTY_COLORS[value as (typeof TASK_DIFFICULTIES)[number]],
+                                    }}
+                                  />
+                                  {TASK_DIFFICULTY_LABELS[value as (typeof TASK_DIFFICULTIES)[number]]}
+                                </span>
+                              ) : (
+                                "Selecione a dificuldade"
+                              )
                             }
                           </SelectValue>
                         </SelectTrigger>
@@ -249,7 +265,13 @@ export function TaskDefinitionForm({
                       <SelectContent>
                         {TASK_DIFFICULTIES.map((difficulty) => (
                           <SelectItem key={difficulty} value={difficulty}>
-                            {TASK_DIFFICULTY_LABELS[difficulty]}
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="size-2.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: TASK_DIFFICULTY_COLORS[difficulty] }}
+                              />
+                              {TASK_DIFFICULTY_LABELS[difficulty]}
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -265,7 +287,7 @@ export function TaskDefinitionForm({
                   <FormItem>
                     <FormLabel className="flex items-center gap-1.5">
                       Tipo
-                      <FieldTooltip text="'Kill' ou 'Entrega'. O servidor só permite 1 task ativa por tipo ao mesmo tempo por jogador (task_core.lua: TaskCore_startTask)." />
+                      <FieldTooltip text="'Kill' (matar monstros) ou 'Entrega' (entregar itens). O jogador só pode ter uma task ativa de cada tipo por vez." />
                     </FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
@@ -292,7 +314,7 @@ export function TaskDefinitionForm({
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   Looktype (ícone)
-                  <FieldTooltip text="Sprite/outfit exibido para representar a task na interface do jogador (client)." />
+                  <FieldTooltip text="Sprite/outfit exibido para representar a task na interface do jogador." />
                 </FormLabel>
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
@@ -330,37 +352,25 @@ export function TaskDefinitionForm({
                 control={form.control}
                 name="levelRequired"
                 label="Level mínimo"
-                tooltip="Nível mínimo do personagem para poder iniciar a task (task_core.lua: TaskCore_startTask)."
+                tooltip="Nível mínimo do personagem para poder iniciar a task."
               />
               <FormattedNumberField
                 control={form.control}
                 name="rankRequired"
                 label="Rank mínimo"
-                tooltip="Pontos de task acumulados exigidos para poder iniciar a task (task_core.lua: config.rankRequired)."
+                tooltip="Pontos de task acumulados exigidos para poder iniciar a task."
               />
               <FormattedNumberField
                 control={form.control}
                 name="killsRequired"
                 label="Kills necessários"
-                tooltip="Total de mortes exigidas, somando qualquer monstro da lista da aba Monstros (task_kill.lua)."
+                tooltip="Total de mortes exigidas, somando qualquer monstro da lista da aba Monstros."
               />
               <FormattedNumberField
                 control={form.control}
                 name="points"
                 label="Pontos"
-                tooltip="Somente exibido na interface do jogador — os pontos realmente concedidos vêm da tabela de rank pela Dificuldade (task_rewards.lua: TaskRewards_grantPoints)."
-              />
-              <FormattedNumberField
-                control={form.control}
-                name="experience"
-                label="Recompensa: XP"
-                tooltip="Experiência concedida diretamente ao reivindicar a recompensa (task_rewards.lua: TaskRewards_grantExperience)."
-              />
-              <FormattedNumberField
-                control={form.control}
-                name="money"
-                label="Recompensa: dinheiro"
-                tooltip="Dinheiro concedido diretamente ao reivindicar a recompensa (task_rewards.lua: TaskRewards_grantMoney)."
+                tooltip="Só aparece na interface do jogador — os pontos realmente concedidos dependem da Dificuldade escolhida acima."
               />
             </div>
 
@@ -388,7 +398,7 @@ export function TaskDefinitionForm({
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-sm font-medium">
                   Monstros da task
-                  <FieldTooltip text="Nome exato do monstro conforme monsters.xml — a morte de qualquer monstro da lista conta para o total de Kills necessários (task_kill.lua)." />
+                  <FieldTooltip text="A morte de qualquer monstro da lista conta para o total de Kills necessários." />
                 </span>
                 <Button
                   type="button"
@@ -472,12 +482,48 @@ export function TaskDefinitionForm({
             )}
           </TabsContent>
 
-          <TabsContent value="rewards">
+          <TabsContent value="rewards" className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormattedNumberField
+                control={form.control}
+                name="experience"
+                label="Recompensa: XP"
+                tooltip="Experiência concedida ao reivindicar a recompensa."
+              />
+              <FormField
+                control={form.control}
+                name="money"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1.5">
+                      Recompensa: Dinheiro (crystal coin)
+                      <FieldTooltip text="Preencha em crystal coin — é convertido automaticamente para gold coin ao salvar." />
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        name={field.name}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        value={formatThousands(Math.round((Number(field.value) || 0) / GOLD_PER_CRYSTAL))}
+                        onChange={(event) => {
+                          const digits = event.target.value.replace(/\D/g, "");
+                          field.onChange(digits === "" ? 0 : Number(digits) * GOLD_PER_CRYSTAL);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <div className="flex flex-col gap-2 rounded-md border border-border p-3">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-sm font-medium">
                   Itens de recompensa
-                  <FieldTooltip text="Entregues em uma backpack ao reivindicar a task (task_rewards.lua: TaskRewards_grantItems)." />
+                  <FieldTooltip text="Entregues em uma backpack ao reivindicar a task." />
                 </span>
                 <Button
                   type="button"
@@ -540,7 +586,7 @@ export function TaskDefinitionForm({
           </TabsContent>
         </Tabs>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <Button type="button" variant="outline" onClick={() => router.push("/admin/tasks")}>
             Cancelar
           </Button>
