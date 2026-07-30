@@ -47,12 +47,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
-import { ItemIdField } from "@/components/shared/item-id-field";
-import { EntityImageUpload } from "@/components/shared/entity-image-upload";
+import { ItemSearchField } from "@/components/shared/item-search-field";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
+import { Textarea } from "@/components/ui/textarea";
 import { SpellVocationField } from "@/components/admin/spells/spell-vocation-field";
 
 type LooktypeRow = {
@@ -177,6 +177,7 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
     fetcher,
   );
   const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === watched.lookTypeId) ?? null;
+  const spellItemId = currentKind === "rune" ? watched.runeItemId : currentKind === "conjure" ? watched.conjureId : null;
 
   async function onSubmit(values: SpellFormInput) {
     setIsSubmitting(true);
@@ -218,7 +219,6 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
               <TabsTrigger value="behavior">Comportamento</TabsTrigger>
               <TabsTrigger value="script">Script</TabsTrigger>
               <TabsTrigger value="vocations">Vocações</TabsTrigger>
-              <TabsTrigger value="image">Imagem</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
@@ -227,6 +227,74 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                   <CardTitle>Dados básicos</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="published"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center gap-2">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            className="size-4"
+                            checked={field.value}
+                            onChange={(event) =>
+                              field.onChange(event.target.checked)
+                            }
+                          />
+                        </FormControl>
+                        <FormLabel className="!mt-0">
+                          Publicada (disponível nas páginas públicas de
+                          gameplay)
+                        </FormLabel>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="group"
+                    render={({ field }) => {
+                      const selected = field.value
+                        ? (field.value as string).split(",").filter(Boolean)
+                        : [];
+
+                      function toggle(option: string) {
+                        if (selected.includes(option)) {
+                          field.onChange(
+                            selected
+                              .filter((value) => value !== option)
+                              .join(","),
+                          );
+                        } else {
+                          field.onChange([...selected, option].join(","));
+                        }
+                      }
+
+                      return (
+                        <FormItem>
+                          <FormLabel>Grupo (group)</FormLabel>
+                          <div className="flex flex-wrap gap-x-4 gap-y-2">
+                            {SPELL_GROUP_OPTIONS.map((option) => (
+                              <label
+                                key={option}
+                                className="flex items-center gap-1.5 text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="size-4"
+                                  checked={selected.includes(option)}
+                                  onChange={() => toggle(option)}
+                                />
+                                {option}
+                              </label>
+                            ))}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+
                   <FormField
                     control={form.control}
                     name="kind"
@@ -319,11 +387,10 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                   />
 
                   {currentKind === "rune" ? (
-                    <ItemIdField
+                    <ItemSearchField
                       control={form.control}
                       name="runeItemId"
-                      label="Item id da rune (id)"
-                      nullable
+                      label="Item da rune (id)"
                     />
                   ) : (
                     <FormField
@@ -366,10 +433,30 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                     name="soul"
                     label="Alma (Soul)"
                   />
-                  <NumberField
+                  <FormField
                     control={form.control}
                     name="exhaustion"
-                    label="Exaustão em ms (Exhaustion)"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Exaustão em segundos (Exhaustion)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            name={field.name}
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            value={field.value ? field.value / 1000 : ""}
+                            onChange={(event) =>
+                              field.onChange(
+                                event.target.value === "" ? 0 : Math.round(Number(event.target.value) * 1000),
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                   <NumberField
                     control={form.control}
@@ -409,80 +496,12 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                     control={form.control}
                     name="description"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="sm:col-span-2">
                         <FormLabel>Descrição</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Textarea {...field} maxLength={255} rows={3} />
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="group"
-                    render={({ field }) => {
-                      const selected = field.value
-                        ? (field.value as string).split(",").filter(Boolean)
-                        : [];
-
-                      function toggle(option: string) {
-                        if (selected.includes(option)) {
-                          field.onChange(
-                            selected
-                              .filter((value) => value !== option)
-                              .join(","),
-                          );
-                        } else {
-                          field.onChange([...selected, option].join(","));
-                        }
-                      }
-
-                      return (
-                        <FormItem className="sm:col-span-2">
-                          <FormLabel>Grupo (group)</FormLabel>
-                          <div className="flex flex-wrap gap-x-4 gap-y-2">
-                            {SPELL_GROUP_OPTIONS.map((option) => (
-                              <label
-                                key={option}
-                                className="flex items-center gap-1.5 text-sm"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="size-4"
-                                  checked={selected.includes(option)}
-                                  onChange={() => toggle(option)}
-                                />
-                                {option}
-                              </label>
-                            ))}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="published"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2 sm:col-span-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4"
-                            checked={field.value}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0">
-                          Publicada (disponível nas páginas públicas de
-                          gameplay)
-                        </FormLabel>
                       </FormItem>
                     )}
                   />
@@ -582,22 +601,20 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
 
                   {currentKind === "conjure" && (
                     <>
-                      <ItemIdField
+                      <ItemSearchField
                         control={form.control}
                         name="conjureId"
                         label="Item conjurado (conjureId)"
-                        nullable
                       />
                       <NullableNumberField
                         control={form.control}
                         name="conjureCount"
                         label="Quantidade (conjureCount)"
                       />
-                      <ItemIdField
+                      <ItemSearchField
                         control={form.control}
                         name="conjureReagentId"
                         label="Reagente (reagentId)"
-                        nullable
                       />
                     </>
                   )}
@@ -612,27 +629,6 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                 </CardHeader>
                 <CardContent>
                   <SpellVocationField control={form.control} name="vocations" />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="image">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Imagem</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <EntityImageUpload
-                      entityType="spell"
-                      id={spellId}
-                      name={watched.name}
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Salve a spell primeiro para poder enviar uma imagem.
-                    </p>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -668,24 +664,9 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
 
         <Card className="h-fit">
           <CardHeader>
-            <CardTitle>Pré-visualização das sprites</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <EntityThumb entityType="spell" id={spellId} name={watched.name} size="lg" />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Salve a spell primeiro para poder enviar/ver a imagem.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="h-fit">
-          <CardHeader>
             <CardTitle>Sprite vinculada</CardTitle>
           </CardHeader>
-          <CardContent className="flex items-center justify-center">
+          <CardContent className="flex flex-col items-center gap-4">
             {selectedLooktype ? (
               <LooktypeAnimatedImage
                 key={selectedLooktype.id}
@@ -697,6 +678,15 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
               />
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma sprite vinculada.</p>
+            )}
+
+            {spellItemId != null && spellItemId > 0 && (
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {currentKind === "rune" ? "Item da rune" : "Item conjurado"}
+                </p>
+                <EntityThumb entityType="item" id={spellItemId} size="lg" />
+              </div>
             )}
           </CardContent>
         </Card>
