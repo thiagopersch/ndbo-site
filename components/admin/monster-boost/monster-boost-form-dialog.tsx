@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
-import { EntityThumb } from "@/components/shared/entity-thumb";
+import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
 
 type MonsterBoostFormDialogProps = {
   trigger: React.ReactNode;
@@ -36,6 +36,8 @@ type MonsterBoostFormDialogProps = {
   defaultValues: MonsterBoostInput;
   /** Id do monstro já resolvido pelo caller (edição) — pré-preenche a thumbnail. */
   initialMonsterId?: number | null;
+  /** Looktype vinculada ao monstro já resolvido (edição) — pré-preenche a sprite ao lado do select. */
+  initialMonsterLookTypeId?: number | null;
   onSubmit: (values: MonsterBoostInput) => Promise<boolean>;
   successMessage: string;
 };
@@ -45,12 +47,14 @@ export function MonsterBoostFormDialog({
   title,
   defaultValues,
   initialMonsterId = null,
+  initialMonsterLookTypeId = null,
   onSubmit,
   successMessage,
 }: MonsterBoostFormDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [monsterId, setMonsterId] = useState<number | null>(initialMonsterId);
+  const [monsterLookTypeId, setMonsterLookTypeId] = useState<number | null>(initialMonsterLookTypeId);
 
   const form = useForm<MonsterBoostInput, unknown, MonsterBoostInput>({
     resolver: zodResolver(monsterBoostSchema),
@@ -61,6 +65,7 @@ export function MonsterBoostFormDialog({
     if (open) {
       form.reset(defaultValues);
       setMonsterId(initialMonsterId);
+      setMonsterLookTypeId(initialMonsterLookTypeId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -94,18 +99,29 @@ export function MonsterBoostFormDialog({
             <FormItem>
               <FormLabel>Monstro (Monster)</FormLabel>
               <div className="flex items-center gap-3">
-                <EntitySearchCombobox<{ id: number; name: string }>
-                  endpoint="/api/admin/monsters"
-                  value={monsterId}
-                  placeholder="Buscar monstro..."
-                  formatOption={(monster) => monster.name}
-                  onSelect={(monster) => {
-                    setMonsterId(monster?.id ?? null);
-                    form.setValue("monster", monster?.name ?? "");
-                  }}
-                />
-                {monsterId != null && (
-                  <EntityThumb entityType="monster" id={monsterId} />
+                <div className="flex-1">
+                  <EntitySearchCombobox<{ id: number; name: string; lookTypeId: number | null }>
+                    endpoint="/api/admin/monsters"
+                    value={monsterId}
+                    placeholder="Buscar monstro..."
+                    formatOption={(monster) => monster.name}
+                    renderOption={(monster) => (
+                      <span className="flex items-center gap-2">
+                        {monster.lookTypeId != null && (
+                          <LooktypeThumbById looktypeId={monster.lookTypeId} size="sm" />
+                        )}
+                        {monster.name}
+                      </span>
+                    )}
+                    onSelect={(monster) => {
+                      setMonsterId(monster?.id ?? null);
+                      setMonsterLookTypeId(monster?.lookTypeId ?? null);
+                      form.setValue("monster", monster?.name ?? "");
+                    }}
+                  />
+                </div>
+                {monsterLookTypeId != null && (
+                  <LooktypeThumbById looktypeId={monsterLookTypeId} size="md" />
                 )}
               </div>
             </FormItem>

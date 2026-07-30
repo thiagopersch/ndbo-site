@@ -11,7 +11,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import type { MonsterFormInput } from "@/lib/validations/admin/monster";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { MONSTER_SKULL_OPTIONS, type MonsterFormInput } from "@/lib/validations/admin/monster";
 
 const BOOL_FLAGS: [keyof MonsterFormInput["flags"], string][] = [
   ["summonable", "Pode ser invocado (Summonable)"],
@@ -41,7 +48,6 @@ const INT_FLAGS: [keyof MonsterFormInput["flags"], string][] = [
 ];
 
 const STRING_FLAGS: [keyof MonsterFormInput["flags"], string][] = [
-  ["skull", "Caveira (Skull)"],
   ["shield", "Escudo (Shield)"],
   ["emblem", "Emblema (Emblem)"],
 ];
@@ -96,6 +102,30 @@ export function MonsterFlagsFields<T extends FieldValues>({
       <div>
         <p className="mb-2 text-sm font-medium">Skull / shield / emblem</p>
         <div className="grid gap-4 sm:grid-cols-3">
+          <FormField
+            control={control}
+            name={"flags.skull" as Path<T>}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Caveira (Skull)</FormLabel>
+                <Select value={String(field.value ?? "0")} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {MONSTER_SKULL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           {STRING_FLAGS.map(([name, label]) => (
             <FormField
               key={name}

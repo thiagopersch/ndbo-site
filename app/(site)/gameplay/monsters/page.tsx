@@ -8,7 +8,7 @@ import type { PaginatedResult } from "@/lib/pagination";
 import type { EntityImageInfo } from "@/components/shared/use-entity-images";
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/shared/data-table";
-import { EntityThumb } from "@/components/shared/entity-thumb";
+import { MonsterThumb } from "@/components/shared/monster-thumb";
 
 type PublicMonster = {
   id: number;
@@ -17,6 +17,7 @@ type PublicMonster = {
   experience: number;
   race: string;
   image: EntityImageInfo | null;
+  lookTypeId: number | null;
 };
 
 const columns: ColumnDef<PublicMonster>[] = [
@@ -24,7 +25,7 @@ const columns: ColumnDef<PublicMonster>[] = [
     accessorKey: "image",
     header: "",
     cell: ({ row }) => (
-      <EntityThumb entityType="monster" id={row.original.id} name={row.original.name} image={row.original.image} />
+      <MonsterThumb id={row.original.id} name={row.original.name} lookTypeId={row.original.lookTypeId} />
     ),
   },
   { accessorKey: "name", header: "Nome" },

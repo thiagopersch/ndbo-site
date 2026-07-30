@@ -40,10 +40,9 @@ import {
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
 import { ItemIdField } from "@/components/shared/item-id-field";
-import { EntityImageUpload } from "@/components/shared/entity-image-upload";
-import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
+import { UniverseBadge } from "@/components/shared/universe-badge";
 import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
 import { MonsterFlagsFields } from "@/components/admin/monsters/monster-flags-fields";
 import { MonsterRecordGridField } from "@/components/admin/monsters/monster-record-grid-field";
@@ -146,7 +145,6 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
               <TabsTrigger value="voices">Vozes</TabsTrigger>
               <TabsTrigger value="loot">Loot</TabsTrigger>
               <TabsTrigger value="summons">Summons / script</TabsTrigger>
-              <TabsTrigger value="image">Imagem</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
@@ -252,10 +250,28 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Universo (category)</FormLabel>
+                        <FormLabel>Pasta de categoria (category)</FormLabel>
                         <FormControl>
                           <Input {...field} placeholder='ex.: "dragon ball"' />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="universeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Universo</FormLabel>
+                        <EntitySearchCombobox<{ id: number; name: string; color: string | null }>
+                          endpoint="/api/admin/universes"
+                          value={field.value}
+                          placeholder="Buscar universo..."
+                          formatOption={(row) => row.name}
+                          renderOption={(row) => <UniverseBadge name={row.name} color={row.color} />}
+                          onSelect={(row) => field.onChange(row?.id ?? null)}
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -308,10 +324,31 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Dados de vida</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <NumberField
+                  <FormField
                     control={form.control}
                     name="healthNow"
-                    label="Vida atual (Health now)"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vida atual (Health now)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            name={field.name}
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            value={(field.value as number | string) ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value === "" ? 0 : Number(event.target.value);
+                              field.onChange(value);
+                              // Pré-preenche a vida máxima com o mesmo valor — o usuário
+                              // ainda pode ajustar `healthMax` manualmente depois.
+                              form.setValue("healthMax", value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                   <NumberField
                     control={form.control}
@@ -326,11 +363,6 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   <CardTitle>Outfit</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <NumberField
-                    control={form.control}
-                    name="lookType"
-                    label="Tipo de aparência (Look type)"
-                  />
                   <ItemIdField
                     control={form.control}
                     name="lookTypeEx"
@@ -613,27 +645,6 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                 </CardContent>
               </Card>
             </TabsContent>
-
-            <TabsContent value="image">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Imagem</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <EntityImageUpload
-                      entityType="monster"
-                      id={monsterId}
-                      name={watched.name}
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Salve o monstro primeiro para poder enviar uma imagem.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -663,21 +674,6 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
         <XmlPreviewCard value={previewXml} />
-
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Pré-visualização das sprites</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <EntityThumb entityType="monster" id={monsterId} name={watched.name} size="lg" />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Salve o monstro primeiro para poder enviar/ver a imagem.
-              </p>
-            )}
-          </CardContent>
-        </Card>
 
         <Card className="h-fit">
           <CardHeader>

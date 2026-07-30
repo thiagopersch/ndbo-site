@@ -95,6 +95,7 @@ export default function AdminMonsterBoostPage() {
               exp: row.original.exp,
             }}
             initialMonsterId={monsterByName.get(row.original.monster)?.id ?? null}
+            initialMonsterLookTypeId={monsterByName.get(row.original.monster)?.lookTypeId ?? null}
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={

@@ -19,6 +19,9 @@ type NumberFieldProps<T extends FieldValues> = {
   step?: string;
   disabled?: boolean;
   tooltip?: string;
+  /** Quando true, campo vazio vira `null` em vez de `0` — para campos numéricos opcionais
+   * (ex.: `subtype` do loot) onde `0` e "sem valor" têm significados diferentes no XML. */
+  nullable?: boolean;
 };
 
 export function NumberField<T extends FieldValues>({
@@ -28,6 +31,7 @@ export function NumberField<T extends FieldValues>({
   step = "1",
   disabled,
   tooltip,
+  nullable = false,
 }: NumberFieldProps<T>) {
   return (
     <FormField
@@ -50,9 +54,13 @@ export function NumberField<T extends FieldValues>({
               ref={field.ref}
               onBlur={field.onBlur}
               value={(field.value as number | string) ?? ""}
-              onChange={(event) =>
-                field.onChange(event.target.value === "" ? 0 : Number(event.target.value))
-              }
+              onChange={(event) => {
+                if (event.target.value === "") {
+                  field.onChange(nullable ? null : 0);
+                  return;
+                }
+                field.onChange(Number(event.target.value));
+              }}
             />
           </FormControl>
           <FormMessage />

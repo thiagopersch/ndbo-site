@@ -13,6 +13,36 @@ export const MONSTER_RACES = [
 export type MonsterRace = (typeof MONSTER_RACES)[number];
 
 export const MONSTER_SKULLS = ["none", "yellow", "green", "white", "red", "black"] as const;
+
+/** Opções do select de Caveira (Skull) — `value` é o número salvo no banco e escrito no XML
+ * (`<flag skull="X" />`), `label` é só a descrição mostrada no formulário. */
+export const MONSTER_SKULL_OPTIONS = [
+  { value: "0", label: "Nenhuma" },
+  { value: "1", label: "Amarelo" },
+  { value: "2", label: "Verde" },
+  { value: "3", label: "Branco" },
+  { value: "4", label: "Vermelho" },
+  { value: "5", label: "Preto" },
+] as const;
+
+/** Nomes legados (registros criados antes da mudança pra select numérico) — convertidos pra
+ * número na leitura (`monsterRowToFormInput`), pra não perder o valor de monstros já salvos. */
+const LEGACY_SKULL_NAME_TO_NUMBER: Record<string, string> = {
+  none: "0",
+  yellow: "1",
+  green: "2",
+  white: "3",
+  red: "4",
+  black: "5",
+};
+
+/** Normaliza `flags.skull` vindo do banco — aceita tanto o nome legado ("red") quanto o
+ * número já no formato novo ("4") — sempre devolve o número como string. */
+export function normalizeSkullValue(value: unknown): string {
+  const raw = String(value ?? "0");
+  if (raw in LEGACY_SKULL_NAME_TO_NUMBER) return LEGACY_SKULL_NAME_TO_NUMBER[raw];
+  return MONSTER_SKULL_OPTIONS.some((option) => option.value === raw) ? raw : "0";
+}
 export const MONSTER_SHIELDS = [
   "none",
   "whiteyellow",
@@ -183,7 +213,6 @@ export const monsterFormSchema = z.object({
   healthNow: z.number().int().min(0),
   healthMax: z.number().int().min(1),
 
-  lookType: z.number().int().nullable(),
   lookTypeEx: z.number().int().nullable(),
   lookHead: z.number().int(),
   lookBody: z.number().int(),
@@ -191,8 +220,11 @@ export const monsterFormSchema = z.object({
   lookFeet: z.number().int(),
   lookAddons: z.number().int(),
   corpse: z.number().int(),
-  /** Sprite vinculada do cadastro de looktypes — só para thumbnail animada do portal. */
+  /** Sprite vinculada do cadastro de looktypes — fonte do `look type="xx"` no XML e da
+   * thumbnail animada (substitui o antigo campo `lookType` livre). */
   lookTypeId: z.number().int().nullable(),
+  /** Universo genérico (CRUD de Sistema, compartilhado com Vocação). */
+  universeId: z.number().int().nullable(),
 
   targetChangeInterval: z.number().int().min(1),
   targetChangeChance: z.number().int().min(0).max(100),
@@ -242,7 +274,7 @@ export const defaultMonsterFlags: MonsterFlagsInput = {
   runonhealth: 0,
   lureable: false,
   walkable: false,
-  skull: "none",
+  skull: "0",
   shield: "none",
   emblem: "none",
   canwalkonenergy: false,
@@ -305,9 +337,9 @@ export const defaultMonsterValues: MonsterFormInput = {
   healthNow: 100,
   healthMax: 100,
 
-  lookType: 1,
   lookTypeEx: null,
   lookTypeId: null,
+  universeId: null,
   lookHead: 0,
   lookBody: 0,
   lookLegs: 0,

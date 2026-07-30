@@ -7,6 +7,7 @@ import {
   defaultMonsterValues,
   lootChanceToPercent,
   monsterFormSchema,
+  normalizeSkullValue,
   type AttributeEntryInput,
   type ElementKey,
   type ImmunityKey,
@@ -185,7 +186,8 @@ export function parseMonsterXml(
     healthNow: num(a(health, "now")) || 1,
     healthMax: num(a(health, "max")) || 1,
 
-    lookType: a(look, "type") != null ? num(a(look, "type")) : null,
+    // `type=` do XML importado não é usado diretamente — o cadastro da looktype (`lookTypeId`)
+    // é quem define `type=` na exportação; o admin vincula a sprite manualmente após importar.
     lookTypeEx: a(look, "typeex") != null ? num(a(look, "typeex")) : null,
     lookHead: num(a(look, "head")),
     lookBody: num(a(look, "body")),
@@ -219,7 +221,7 @@ export function parseMonsterXml(
       runonhealth: num(flag("runonhealth")),
       lureable: bool(flag("lureable")) || flag("lureable") === "1",
       walkable: bool(flag("walkable")) || flag("walkable") === "1",
-      skull: str(flag("skull")) || "none",
+      skull: normalizeSkullValue(str(flag("skull")) || "0"),
       shield: str(flag("shield")) || "none",
       emblem: str(flag("emblem")) || "none",
       canwalkonenergy: bool(flag("canwalkonenergy")) || flag("canwalkonenergy") === "1",

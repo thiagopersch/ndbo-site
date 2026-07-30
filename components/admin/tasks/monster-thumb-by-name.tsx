@@ -4,13 +4,13 @@ import useSWR from "swr";
 
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
-import { EntityThumb } from "@/components/shared/entity-thumb";
+import { MonsterThumb } from "@/components/shared/monster-thumb";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** `TaskDefinition.monsters` guarda só o nome do monstro (JSON), sem id — resolve o id via
- * busca exata pra poder mostrar a imagem (`EntityThumb`, cadastro de monstros) no formulário. */
+ * busca exata pra poder mostrar a sprite (`MonsterThumb`, cadastro de monstros) no formulário. */
 export function MonsterThumbByName({ name }: { name: string }) {
-  const { data, isLoading } = useSWR<PaginatedResult<{ id: number; name: string }>>(
+  const { data, isLoading } = useSWR<PaginatedResult<{ id: number; name: string; lookTypeId: number | null }>>(
     name ? `/api/admin/monsters?search=${encodeURIComponent(name)}&pageSize=5` : null,
     fetcher,
   );
@@ -22,5 +22,5 @@ export function MonsterThumbByName({ name }: { name: string }) {
   const monster = data?.data.find((row) => row.name.toLowerCase() === name.toLowerCase());
   if (!monster) return null;
 
-  return <EntityThumb entityType="monster" id={monster.id} name={monster.name} size="32" />;
+  return <MonsterThumb id={monster.id} name={monster.name} lookTypeId={monster.lookTypeId} size="32" />;
 }

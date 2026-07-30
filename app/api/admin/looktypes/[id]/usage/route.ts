@@ -7,10 +7,8 @@ type Params = { params: Promise<{ id: string }> };
 
 /**
  * Onde essa looktype está realmente usada — computado a partir de FKs reais (não mais uma tag
- * livre escolhida pelo admin). NPCs/Vocações/Items/Spells referenciam o id do registro
- * (`lookTypeId`); monstros ainda usam o número cru da aparência (`Monster.lookType`, mesmo
- * campo do monsters.xml), então casamos pelo `looktypeNumber` — só faz sentido quando a
- * categoria é "outfit" (é a única numeração que NPC/Vocação/Monstro compartilham).
+ * livre escolhida pelo admin). NPCs/Vocações/Items/Spells/Monstros referenciam o id do registro
+ * (`lookTypeId`) — `Monster.lookTypeId` é a mesma FK usada pra gerar `look type="xx"` no XML.
  */
 export async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
@@ -27,12 +25,7 @@ export async function GET(_request: Request, { params }: Params) {
   const [npcs, vocations, monsters, items, spells] = await Promise.all([
     prisma.npc.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
     prisma.vocation.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
-    looktype.category === "outfit" && looktype.looktypeNumber !== null
-      ? prisma.monster.findMany({
-          where: { lookType: looktype.looktypeNumber },
-          select: { id: true, name: true },
-        })
-      : Promise.resolve([]),
+    prisma.monster.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
     prisma.item.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
     prisma.spell.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
   ]);

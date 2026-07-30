@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         healthMax: true,
         experience: true,
         race: true,
+        lookTypeId: true,
       },
       skip: (page - 1) * pageSize,
       take: pageSize,

@@ -38,9 +38,11 @@ import { NumberField } from "@/components/shared/number-field";
 import { FormattedNumberField } from "@/components/shared/formatted-number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { MonsterThumb } from "@/components/shared/monster-thumb";
 import { MonthYearFields } from "@/components/shared/month-year-fields";
 
 type NamedRow = { id: number; name: string };
+type MonsterRow = { id: number; name: string; lookTypeId: number | null };
 
 const VOCATION_RANKS_WITHOUT_NONE = VOCATION_RANKS.filter((rank) => rank > 0);
 
@@ -237,14 +239,19 @@ export function BattlePassSeasonFormDialog({
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Monstro</FormLabel>
-                                  <EntitySearchCombobox<NamedRow>
+                                  <EntitySearchCombobox<MonsterRow>
                                     endpoint="/api/admin/monsters"
                                     value={null}
                                     placeholder={field.value || "Buscar monstro..."}
                                     formatOption={(monster) => monster.name}
                                     renderOption={(monster) => (
                                       <span className="flex items-center gap-2">
-                                        <EntityThumb entityType="monster" id={monster.id} name={monster.name} size="32" />
+                                        <MonsterThumb
+                                          id={monster.id}
+                                          name={monster.name}
+                                          lookTypeId={monster.lookTypeId}
+                                          size="32"
+                                        />
                                         {monster.name}
                                       </span>
                                     )}

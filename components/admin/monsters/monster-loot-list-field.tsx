@@ -143,16 +143,19 @@ function LootItemRow<T extends FieldValues>({
           control={control}
           name={`${basePath}.subtype` as FieldPath<T>}
           label="Subtipo (Subtype)"
+          nullable
         />
         <NumberField
           control={control}
           name={`${basePath}.actionId` as FieldPath<T>}
           label="Action ID"
+          nullable
         />
         <NumberField
           control={control}
           name={`${basePath}.uniqueId` as FieldPath<T>}
           label="Unique ID"
+          nullable
         />
         <FormField
           control={control}

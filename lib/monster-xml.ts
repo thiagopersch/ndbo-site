@@ -120,7 +120,8 @@ export function monsterToXml(
   lines.push(...indent([`<health now="${monster.healthNow}" max="${monster.healthMax}" />`], 1));
 
   const lookAttrs: string[] = [];
-  if (monster.lookType != null) lookAttrs.push(`type="${monster.lookType}"`);
+  // `type=` é o número do próprio cadastro da looktype vinculada (não um campo livre).
+  if (monster.lookTypeId != null) lookAttrs.push(`type="${monster.lookTypeId}"`);
   lookAttrs.push(`head="${monster.lookHead}"`);
   lookAttrs.push(`body="${monster.lookBody}"`);
   lookAttrs.push(`legs="${monster.lookLegs}"`);

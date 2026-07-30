@@ -834,6 +834,7 @@ model Universe {
   color String? @db.VarChar(7)
 
   vocations Vocation[]
+  monsters  Monster[]
 
   @@map("universes")
 }
@@ -1229,16 +1230,21 @@ model Monster {
   lookAddons Int  @default(0) @map("look_addons")
   corpse     Int  @default(0)
 
-  /// Sprite vinculada do cadastro de looktypes (/admin/looktypes) — só para a thumbnail
-  /// animada do portal (admin/monster-boost, dashboard), não referencia `lookType` (outfit
-  /// real do XML/jogo).
+  /// Sprite vinculada do cadastro de looktypes (/admin/looktypes) — fonte do `look type="xx"`
+  /// gerado no XML (o número do próprio cadastro da looktype) e da thumbnail animada exibida
+  /// no admin/portal. Substitui o antigo campo `lookType` livre no formulário.
   lookTypeId Int? @map("look_type_id")
+
+  /// Universo genérico (ex.: Dragon Ball) — reaproveita o mesmo CRUD usado por Vocação.
+  universeId Int? @map("universe_id")
 
   targetChangeInterval Int @default(4000) @map("target_change_interval")
   targetChangeChance   Int @default(10) @map("target_change_chance")
 
   strategyAttack  Int? @map("strategy_attack")
   strategyDefense Int? @map("strategy_defense")
+
+  universe Universe? @relation(fields: [universeId], references: [id])
 
   flags      Json
   attacks    Json

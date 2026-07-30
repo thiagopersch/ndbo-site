@@ -24,6 +24,7 @@ const MONSTER_LIST_SELECT = {
   speed: true,
   healthMax: true,
   published: true,
+  lookTypeId: true,
 } as const;
 
 type MonsterListRow = {
@@ -37,6 +38,7 @@ type MonsterListRow = {
   speed: number;
   healthMax: number;
   published: boolean;
+  lookTypeId: number | null;
 };
 
 function lootMatches(items: MonsterFormInput["loot"], query: string): boolean {
@@ -146,6 +148,7 @@ export async function GET(request: Request) {
         speed: row.speed,
         healthMax: Number(row.healthMax),
         published: row.published,
+        lookTypeId: row.lookTypeId,
       }));
 
     return NextResponse.json(

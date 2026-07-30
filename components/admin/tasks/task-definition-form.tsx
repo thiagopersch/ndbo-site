@@ -31,6 +31,7 @@ import { NumberField } from "@/components/shared/number-field";
 import { FormattedNumberField } from "@/components/shared/formatted-number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { MonsterThumb } from "@/components/shared/monster-thumb";
 import { FieldTooltip } from "@/components/shared/field-tooltip";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
@@ -414,14 +415,19 @@ export function TaskDefinitionForm({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Monstro</FormLabel>
-                            <EntitySearchCombobox<{ id: number; name: string }>
+                            <EntitySearchCombobox<{ id: number; name: string; lookTypeId: number | null }>
                               endpoint="/api/admin/monsters"
                               value={null}
                               placeholder={field.value || "Buscar monstro..."}
                               formatOption={(monster) => monster.name}
                               renderOption={(monster) => (
                                 <span className="flex items-center gap-2">
-                                  <EntityThumb entityType="monster" id={monster.id} name={monster.name} size="32" />
+                                  <MonsterThumb
+                                    id={monster.id}
+                                    name={monster.name}
+                                    lookTypeId={monster.lookTypeId}
+                                    size="32"
+                                  />
                                   {monster.name}
                                 </span>
                               )}

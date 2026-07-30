@@ -19,9 +19,8 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { MonsterXmlImportDialog } from "@/components/admin/monsters/monster-xml-import-dialog";
-import { EntityThumb } from "@/components/shared/entity-thumb";
+import { MonsterThumb } from "@/components/shared/monster-thumb";
 import { PublishedToggle } from "@/components/shared/published-toggle";
-import { useEntityImages } from "@/components/shared/use-entity-images";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type MonsterRow = {
@@ -35,6 +34,7 @@ type MonsterRow = {
   speed: number;
   healthMax: number;
   published: boolean;
+  lookTypeId: number | null;
 };
 
 type FacetsResponse = { categories: string[]; subcategories: string[] };
@@ -53,11 +53,6 @@ export default function AdminMonstersPage() {
   const { data, isLoading, isValidating, mutate } = useSWR<
     PaginatedResult<MonsterRow>
   >(`/api/admin/monsters?${table.buildQueryParams().toString()}`, fetcher);
-
-  const images = useEntityImages(
-    "monster",
-    (data?.data ?? []).map((m) => m.id),
-  );
 
   async function handleDelete(id: number) {
     const response = await fetch(`/api/admin/monsters/${id}`, {
@@ -161,12 +156,7 @@ export default function AdminMonstersPage() {
       id: "image",
       header: "Imagem",
       cell: ({ row }) => (
-        <EntityThumb
-          entityType="monster"
-          id={row.original.id}
-          name={row.original.name}
-          image={images.get(row.original.id) ?? null}
-        />
+        <MonsterThumb id={row.original.id} name={row.original.name} lookTypeId={row.original.lookTypeId} />
       ),
     },
     { accessorKey: "name", header: "Nome" },
