@@ -1791,6 +1791,12 @@ model Chest {
   keyItemId Int      @map("key_item_id")
   /// Até 3 opções de recompensa, uma sorteada por vez (peso igual entre elas).
   rewards   Json
+  /// Período de vigência (início/fim, mês+ano) — permite configurar rotação de prêmios ao
+  /// longo do tempo (ex.: um baú vale de agosto a novembro, outro só em dezembro).
+  startMonth Int     @default(1) @map("start_month")
+  startYear  Int     @default(2000) @map("start_year")
+  endMonth   Int     @default(12) @map("end_month")
+  endYear    Int     @default(2100) @map("end_year")
   published Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

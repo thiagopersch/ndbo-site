@@ -98,6 +98,10 @@ export default function AdminChestsPage() {
               name: row.original.name,
               keyItemId: row.original.keyItemId,
               rewards: row.original.rewards,
+              startMonth: row.original.startMonth,
+              startYear: row.original.startYear,
+              endMonth: row.original.endMonth,
+              endYear: row.original.endYear,
               published: row.original.published,
             }}
             successMessage="Atualizado com sucesso."
@@ -131,7 +135,9 @@ export default function AdminChestsPage() {
           <h1 className="text-2xl font-semibold">Baús</h1>
           <p className="text-muted-foreground">
             Até {MAX_CHESTS} baús exibidos no OTC (1 central + 2 laterais). Cada um exige um
-            item-chave para abrir e sorteia 1 recompensa dentre as configuradas.
+            item-chave para abrir e sorteia 1 recompensa dentre as configuradas. O período de
+            vigência de cada baú permite ter uma rotação de prêmios ao longo do tempo — vários
+            baús podem ser cadastrados com prêmios diferentes, cada um valendo só no seu período.
           </p>
         </div>
         <ChestFormDialog

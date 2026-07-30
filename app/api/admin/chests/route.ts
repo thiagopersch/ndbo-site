@@ -49,6 +49,10 @@ export async function POST(request: Request) {
       name: parsed.data.name,
       keyItemId: parsed.data.keyItemId,
       rewards: parsed.data.rewards,
+      startMonth: parsed.data.startMonth,
+      startYear: parsed.data.startYear,
+      endMonth: parsed.data.endMonth,
+      endYear: parsed.data.endYear,
       published: parsed.data.published,
     },
   });

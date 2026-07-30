@@ -17,14 +17,25 @@ export const chestSchema = z.object({
     .array(chestRewardSlotSchema)
     .min(1, "Adicione ao menos uma recompensa")
     .max(MAX_CHEST_REWARD_SLOTS, `No máximo ${MAX_CHEST_REWARD_SLOTS} recompensas por baú`),
+  /** Período de vigência (mês+ano de início e fim) — permite configurar rotação de prêmios. */
+  startMonth: z.number().int().min(1).max(12),
+  startYear: z.number().int().min(2000),
+  endMonth: z.number().int().min(1).max(12),
+  endYear: z.number().int().min(2000),
   published: z.boolean(),
 });
 
 export type ChestInput = z.infer<typeof chestSchema>;
 
+const now = new Date();
+
 export const defaultChestValues: ChestInput = {
   name: "",
   keyItemId: 0,
   rewards: [],
+  startMonth: now.getMonth() + 1,
+  startYear: now.getFullYear(),
+  endMonth: now.getMonth() + 1,
+  endYear: now.getFullYear(),
   published: true,
 };
