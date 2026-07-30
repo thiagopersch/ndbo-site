@@ -362,6 +362,12 @@ export function DashboardCharts({
   vocationsByTypeClass,
   vocationsByTypeUniverse,
   vocationsByPremium,
+  spellsByVocation,
+  npcsByType,
+  tasksByCategory,
+  tasksByDifficulty,
+  questsByCategory,
+  battlePassMissionsByType,
 }: {
   createdTrend: TrendPoint[];
   accountsByGroup: CategoryPoint[];
@@ -372,6 +378,12 @@ export function DashboardCharts({
   vocationsByTypeClass: CategoryPoint[];
   vocationsByTypeUniverse: CategoryPoint[];
   vocationsByPremium: CategoryPoint[];
+  spellsByVocation: CategoryPoint[];
+  npcsByType: CategoryPoint[];
+  tasksByCategory: CategoryPoint[];
+  tasksByDifficulty: CategoryPoint[];
+  questsByCategory: CategoryPoint[];
+  battlePassMissionsByType: CategoryPoint[];
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -398,6 +410,22 @@ export function DashboardCharts({
         barLayout="vertical"
         barHeight={420}
         className="lg:col-span-2"
+      />
+
+      <CategoryChartBox title="Spells por vocação" data={spellsByVocation} color="var(--chart-1)" />
+
+      <CategoryChartBox title="NPCs por tipo" data={npcsByType} color="var(--chart-2)" />
+
+      <CategoryChartBox title="Tasks por categoria" data={tasksByCategory} color="var(--chart-3)" />
+
+      <CategoryChartBox title="Tasks por dificuldade" data={tasksByDifficulty} color="var(--chart-4)" />
+
+      <CategoryChartBox title="Quests por categoria" data={questsByCategory} color="var(--chart-5)" />
+
+      <CategoryChartBox
+        title="Missões do Battle Pass vigente por tipo"
+        data={battlePassMissionsByType}
+        color="var(--chart-1)"
       />
     </div>
   );

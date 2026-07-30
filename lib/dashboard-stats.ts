@@ -3,6 +3,10 @@ import dayjs from "dayjs";
 import { prisma } from "@/lib/prisma";
 import { BAN_TYPES } from "@/lib/validations/admin/ban";
 import { SLOT_TYPES, WEAPON_TYPES } from "@/lib/validations/admin/item";
+import { TASK_DIFFICULTY_LABELS, type TaskDifficulty } from "@/lib/task-difficulty";
+import { BATTLE_PASS_MISSION_TYPE_LABELS, type BattlePassMissionType } from "@/lib/validations/admin/battle-pass";
+
+const NPC_TYPE_LABELS: Record<string, string> = { shop: "Loja", quest: "Quest", misc: "Outro" };
 
 const TREND_DAYS = 30;
 
@@ -71,6 +75,18 @@ export async function getDashboardStats() {
     vocationsByTypeClass,
     vocationsByTypeUniverse,
     vocationsByPremium,
+
+    spellVocationLinks,
+    spellsWithoutVocation,
+    npcsByType,
+    tasksByCategory,
+    tasksByDifficulty,
+    questsByCategory,
+    activeBattlePassSeason,
+    towns,
+    dailyRewardToday,
+    lastLotteryWinner,
+    activeChests,
   ] = await Promise.all([
     prisma.account.count(),
     prisma.account.count({ where: { createdAt: { gte: since7 } } }),
@@ -126,6 +142,43 @@ export async function getDashboardStats() {
     prisma.vocation.groupBy({ by: ["typeClassId"], _count: { _all: true } }),
     prisma.vocation.groupBy({ by: ["typeUniverseId"], _count: { _all: true } }),
     prisma.vocation.groupBy({ by: ["needpremium"], _count: { _all: true } }),
+
+    prisma.spellVocation.groupBy({ by: ["vocationId"], where: { vocationId: { not: 0 } }, _count: { _all: true } }),
+    prisma.spell.count({ where: { vocations: { none: {} } } }),
+    prisma.npc.groupBy({ by: ["type"], _count: { _all: true } }),
+    prisma.taskDefinition.groupBy({ by: ["category"], _count: { _all: true } }),
+    prisma.taskDefinition.groupBy({ by: ["difficulty"], _count: { _all: true } }),
+    prisma.quest.groupBy({ by: ["category"], _count: { _all: true } }),
+    prisma.battlePassSeason.findFirst({
+      where: { isActive: true },
+      include: { missions: { select: { type: true } } },
+    }),
+    prisma.town.findMany({
+      where: { published: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, templeX: true, templeY: true, templeZ: true },
+    }),
+    prisma.dailyRewardsMonthly.findFirst({
+      where: { day: now.date(), month: now.month() + 1, year: now.year() },
+    }),
+    prisma.lottery.findFirst({ orderBy: { createdAt: "desc" } }),
+    prisma.chest.findMany({
+      where: {
+        published: true,
+        OR: [
+          { startYear: { lt: now.year() } },
+          { startYear: now.year(), startMonth: { lte: now.month() + 1 } },
+        ],
+        AND: [
+          {
+            OR: [
+              { endYear: { gt: now.year() } },
+              { endYear: now.year(), endMonth: { gte: now.month() + 1 } },
+            ],
+          },
+        ],
+      },
+    }),
   ]);
 
   const monsterBoostTodayMonster = monsterBoostToday
@@ -241,6 +294,89 @@ export async function getDashboardStats() {
     total: row._count._all,
   }));
 
+  // Spells por vocação (ignorando vocation 0 — sentinela "qualquer/nenhuma" do jogo, não uma
+  // vocação real) + spells sem nenhuma vocação vinculada, numa barra própria.
+  const spellVocationIds = spellVocationLinks.map((row) => row.vocationId);
+  const spellVocationNames =
+    spellVocationIds.length > 0
+      ? await prisma.vocation.findMany({ where: { id: { in: spellVocationIds } }, select: { id: true, name: true } })
+      : [];
+  const vocationNameById = new Map(spellVocationNames.map((row) => [row.id, row.name]));
+  const spellsByVocationChart = [
+    ...spellVocationLinks.map((row) => ({
+      label: vocationNameById.get(row.vocationId) ?? `Vocação #${row.vocationId}`,
+      total: row._count._all,
+    })),
+    { label: "Sem vocação", total: spellsWithoutVocation },
+  ];
+
+  const npcsByTypeChart = npcsByType.map((row) => ({
+    label: NPC_TYPE_LABELS[row.type] ?? row.type,
+    total: row._count._all,
+  }));
+
+  const tasksByCategoryChart = tasksByCategory.map((row) => ({
+    label: row.category || "Sem categoria",
+    total: row._count._all,
+  }));
+  const tasksByDifficultyChart = tasksByDifficulty.map((row) => ({
+    label: TASK_DIFFICULTY_LABELS[row.difficulty as TaskDifficulty] ?? row.difficulty,
+    total: row._count._all,
+  }));
+  const questsByCategoryChart = questsByCategory.map((row) => ({
+    label: row.category || "Sem categoria",
+    total: row._count._all,
+  }));
+
+  // Último ganhador da loteria: `Lottery.name`/`item` só guardam texto livre (histórico de
+  // sorteios), resolve looktype do player e do item de recompensa pelo nome exato.
+  const lastLotteryWinnerData = lastLotteryWinner
+    ? await (async () => {
+        const [player, item] = await Promise.all([
+          prisma.player.findUnique({
+            where: { name: lastLotteryWinner.name },
+            select: { name: true, looktype: true },
+          }),
+          prisma.item.findFirst({
+            where: { name: lastLotteryWinner.item },
+            select: { id: true, name: true, lookTypeId: true },
+          }),
+        ]);
+        // `Player.looktype` é o outfit real (número cru do jogo) — resolve o cadastro
+        // correspondente pra poder mostrar a sprite animada (mesmo padrão de monsterBoostToday).
+        const playerLooktype = player
+          ? await prisma.looktype.findFirst({
+              where: { looktypeNumber: player.looktype, category: "outfit" },
+              select: { id: true, frameCount: true, frameDurationsMs: true, updatedAt: true },
+            })
+          : null;
+        return { ...lastLotteryWinner, player, item, playerLooktype };
+      })()
+    : null;
+
+  // Baús vigentes no período atual (mês/ano) — resolve looktype de cada item de recompensa
+  // pra montar o card de sprites do dashboard.
+  const activeChestsData = await Promise.all(
+    activeChests.map(async (chest) => {
+      const rewards = chest.rewards as { itemId: number; count: number }[];
+      const itemIds = rewards.map((reward) => reward.itemId);
+      const items =
+        itemIds.length > 0
+          ? await prisma.item.findMany({ where: { id: { in: itemIds } }, select: { id: true, name: true } })
+          : [];
+      const itemById = new Map(items.map((item) => [item.id, item]));
+      return {
+        id: chest.id,
+        name: chest.name,
+        rewards: rewards.map((reward) => ({
+          itemId: reward.itemId,
+          count: reward.count,
+          name: itemById.get(reward.itemId)?.name ?? null,
+        })),
+      };
+    }),
+  );
+
   return {
     accounts: {
       total: totalAccounts,
@@ -288,5 +424,41 @@ export async function getDashboardStats() {
       byPremium: vocationsByPremiumChart,
     },
     createdTrend,
+    spells: {
+      byVocation: spellsByVocationChart,
+    },
+    npcs: {
+      byType: npcsByTypeChart,
+    },
+    tasks: {
+      byCategory: tasksByCategoryChart,
+      byDifficulty: tasksByDifficultyChart,
+    },
+    quests: {
+      byCategory: questsByCategoryChart,
+    },
+    battlePassMissionsByType: (() => {
+      const missions = activeBattlePassSeason?.missions ?? [];
+      const totals = new Map<string, number>();
+      for (const mission of missions) {
+        totals.set(mission.type, (totals.get(mission.type) ?? 0) + 1);
+      }
+      return Array.from(totals, ([type, total]) => ({
+        label: BATTLE_PASS_MISSION_TYPE_LABELS[type as BattlePassMissionType] ?? type,
+        total,
+      }));
+    })(),
+    towns,
+    dailyRewardToday,
+    lastLotteryWinner: lastLotteryWinnerData,
+    activeBattlePass: activeBattlePassSeason
+      ? {
+          id: activeBattlePassSeason.id,
+          month: activeBattlePassSeason.month,
+          year: activeBattlePassSeason.year,
+          missionCount: activeBattlePassSeason.missions.length,
+        }
+      : null,
+    activeChests: activeChestsData,
   };
 }

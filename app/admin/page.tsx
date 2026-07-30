@@ -9,8 +9,10 @@ import { getDashboardStats } from "@/lib/dashboard-stats";
 import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { RecentListCard } from "@/components/admin/dashboard/recent-list-card";
 import { DashboardCharts } from "@/components/admin/dashboard/dashboard-charts";
+import { DonationsChartCard } from "@/components/admin/dashboard/donations-chart-card";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
+import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
 
 export const metadata: Metadata = {
   title: "Painel administrativo",
@@ -112,6 +114,110 @@ export default async function AdminDashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Recompensa diária de hoje
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.dailyRewardToday ? (
+              <div className="flex items-center gap-3">
+                <EntityThumb entityType="item" id={stats.dailyRewardToday.itemId} size="md" />
+                <span className="text-sm">
+                  Item #{stats.dailyRewardToday.itemId} × {stats.dailyRewardToday.count}
+                </span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma recompensa configurada para hoje.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Último ganhador da loteria
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.lastLotteryWinner ? (
+              <div className="flex items-center gap-3">
+                {stats.lastLotteryWinner.playerLooktype && (
+                  <LooktypeAnimatedImage
+                    looktypeId={stats.lastLotteryWinner.playerLooktype.id}
+                    frameCount={stats.lastLotteryWinner.playerLooktype.frameCount}
+                    frameDurationsMs={stats.lastLotteryWinner.playerLooktype.frameDurationsMs as number[]}
+                    updatedAt={stats.lastLotteryWinner.playerLooktype.updatedAt.toISOString()}
+                    size="md"
+                  />
+                )}
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-semibold">{stats.lastLotteryWinner.name}</span>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {stats.lastLotteryWinner.item?.lookTypeId != null && (
+                      <LooktypeThumbById looktypeId={stats.lastLotteryWinner.item.lookTypeId} size="sm" />
+                    )}
+                    {stats.lastLotteryWinner.item?.name ?? "—"}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum sorteio registrado ainda.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Battle Pass vigente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.activeBattlePass ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-lg font-semibold">
+                  {stats.activeBattlePass.month.toString().padStart(2, "0")}/{stats.activeBattlePass.year}
+                </span>
+                <Badge variant="secondary" className="w-fit">
+                  {stats.activeBattlePass.missionCount} missão(ões)
+                </Badge>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma temporada vigente.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Baús vigentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.activeChests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum baú vigente no período atual.</p>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                {stats.activeChests.map((chest) => (
+                  <div key={chest.id} className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-muted-foreground">{chest.name}</span>
+                    <div className="flex gap-1">
+                      {chest.rewards.map((reward, index) => (
+                        <span key={index} className="flex items-center gap-1">
+                          <EntityThumb entityType="item" id={reward.itemId} name={reward.name ?? undefined} size="32" />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DonationsChartCard />
       </div>
 
       <DashboardCharts
@@ -124,6 +230,12 @@ export default async function AdminDashboardPage() {
         vocationsByTypeClass={stats.vocations.byTypeClass}
         vocationsByTypeUniverse={stats.vocations.byTypeUniverse}
         vocationsByPremium={stats.vocations.byPremium}
+        spellsByVocation={stats.spells.byVocation}
+        npcsByType={stats.npcs.byType}
+        tasksByCategory={stats.tasks.byCategory}
+        tasksByDifficulty={stats.tasks.byDifficulty}
+        questsByCategory={stats.quests.byCategory}
+        battlePassMissionsByType={stats.battlePassMissionsByType}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -177,6 +289,16 @@ export default async function AdminDashboardPage() {
             meta: dayjs.unix(ban.added).format("DD/MM/YYYY HH:mm"),
           }))}
           emptyLabel="Nenhum banimento registrado ainda."
+        />
+
+        <RecentListCard
+          title="Cidades cadastradas"
+          items={stats.towns.map((town) => ({
+            key: town.id,
+            primary: town.name,
+            secondary: `x:${town.templeX} y:${town.templeY} z:${town.templeZ}`,
+          }))}
+          emptyLabel="Nenhuma cidade cadastrada ainda."
         />
       </div>
 
