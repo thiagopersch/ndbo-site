@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import type { EntityImageType } from "@/lib/entity-image";
 import type { Looktype } from "@/lib/generated/prisma/client";
-import { LOOKTYPE_CATEGORY_LABELS, type LooktypeCategory } from "@/lib/validations/admin/looktype";
+import { LOOKTYPE_CATEGORY_LABELS, formatLooktypeOption, type LooktypeCategory } from "@/lib/validations/admin/looktype";
 import { Button } from "@/components/ui/button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
@@ -134,9 +134,7 @@ export function EntityImageUpload({ entityType, id, name, currentImage }: Entity
           value={null}
           placeholder="Buscar sprite/looktype por id ou número..."
           formatOption={(lt) =>
-            `#${lt.id} — ${LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}${
-              lt.looktypeNumber !== null ? ` (${lt.looktypeNumber})` : ""
-            }`
+            `${formatLooktypeOption(lt)} — ${LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}`
           }
           onSelect={handleLinkLooktype}
         />

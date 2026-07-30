@@ -10,6 +10,7 @@ import {
   type Control,
   type FieldPath,
 } from "react-hook-form";
+import useSWR from "swr";
 import { toast } from "sonner";
 
 import {
@@ -23,6 +24,9 @@ import {
   type SpellKind,
 } from "@/lib/validations/admin/spell";
 import { spellToXml } from "@/lib/spell-xml";
+import { fetcher } from "@/lib/fetcher";
+import type { PaginatedResult } from "@/lib/pagination";
+import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,9 +50,20 @@ import { NumberField } from "@/components/shared/number-field";
 import { ItemIdField } from "@/components/shared/item-id-field";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
+import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
 import { SpellVocationField } from "@/components/admin/spells/spell-vocation-field";
+
+type LooktypeRow = {
+  id: number;
+  name: string;
+  looktypeNumber: number | null;
+  frameCount: number;
+  frameDurationsMs: number[];
+  updatedAt: string;
+};
 
 type SpellFormProps = {
   spellId?: number;
@@ -158,6 +173,12 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
   } as SpellFormInput);
   const currentKind = (watched.kind ?? "instant") as SpellKind;
 
+  const { data: selectedLooktypeData } = useSWR<PaginatedResult<LooktypeRow>>(
+    watched.lookTypeId ? `/api/admin/looktypes?search=${watched.lookTypeId}&pageSize=5` : null,
+    fetcher,
+  );
+  const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === watched.lookTypeId) ?? null;
+
   async function onSubmit(values: SpellFormInput) {
     setIsSubmitting(true);
 
@@ -244,6 +265,55 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lookTypeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sprite vinculada (cadastro de looktypes)</FormLabel>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <EntitySearchCombobox<LooktypeRow>
+                              endpoint="/api/admin/looktypes"
+                              value={field.value}
+                              placeholder="Buscar looktype..."
+                              formatOption={(lt) => formatLooktypeOption(lt)}
+                              renderOption={(lt) => (
+                                <span className="flex items-center gap-2">
+                                  <LooktypeAnimatedImage
+                                    key={lt.id}
+                                    looktypeId={lt.id}
+                                    frameCount={lt.frameCount}
+                                    frameDurationsMs={lt.frameDurationsMs}
+                                    updatedAt={lt.updatedAt}
+                                    size="sm"
+                                  />
+                                  {formatLooktypeOption(lt)}
+                                </span>
+                              )}
+                              onSelect={(lt) => field.onChange(lt?.id ?? null)}
+                            />
+                          </div>
+                          <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/20">
+                            {selectedLooktype ? (
+                              <LooktypeAnimatedImage
+                                key={selectedLooktype.id}
+                                looktypeId={selectedLooktype.id}
+                                frameCount={selectedLooktype.frameCount}
+                                frameDurationsMs={selectedLooktype.frameDurationsMs}
+                                updatedAt={selectedLooktype.updatedAt}
+                                size="sm"
+                              />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -616,6 +686,26 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
               <p className="text-sm text-muted-foreground">
                 Salve a spell primeiro para poder enviar/ver a imagem.
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Sprite vinculada</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {selectedLooktype ? (
+              <LooktypeAnimatedImage
+                key={selectedLooktype.id}
+                looktypeId={selectedLooktype.id}
+                frameCount={selectedLooktype.frameCount}
+                frameDurationsMs={selectedLooktype.frameDurationsMs}
+                updatedAt={selectedLooktype.updatedAt}
+                size="lg"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma sprite vinculada.</p>
             )}
           </CardContent>
         </Card>

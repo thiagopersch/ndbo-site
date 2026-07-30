@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { taskDefinitionSchema, taskDefinitionInputToRow } from "@/lib/validations/admin/task-definition";
-import { isTaskDifficulty } from "@/lib/task-difficulty";
+import { isTaskDifficulty, TASK_DIFFICULTIES } from "@/lib/task-difficulty";
 
 type TaskMonster = { name: string; kills: number };
 type TaskRewards = { items?: [number, number][] };
@@ -63,22 +63,6 @@ export async function GET(request: Request) {
       : {}),
   };
 
-  const needsInMemoryFilter = Boolean(monsterQuery || itemQuery);
-
-  if (!needsInMemoryFilter) {
-    const [entries, total] = await Promise.all([
-      prisma.taskDefinition.findMany({
-        where,
-        orderBy: { levelRequired: "asc" },
-        include: { categoryRef: true },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      prisma.taskDefinition.count({ where }),
-    ]);
-    return NextResponse.json(buildPaginatedResult(entries, total, page, pageSize));
-  }
-
   const matchingItemIds = itemQuery && !Number.isInteger(Number(itemQuery))
     ? new Set(
         (await prisma.item.findMany({ where: { name: { contains: itemQuery } }, select: { id: true } })).map(
@@ -87,9 +71,13 @@ export async function GET(request: Request) {
       )
     : null;
 
+  // Sempre carrega tudo que bate com `where` e ordena/pagina em memória — as tasks são
+  // agrupadas por Categoria -> Dificuldade na listagem, e `difficulty` é um enum de string sem
+  // ordem alfabética útil (easy/medium/hard/extreme), então não dá pra usar `orderBy` do Prisma
+  // direto. Aceitável no tamanho esperado desse catálogo (centenas de tasks, não milhões — mesmo
+  // raciocínio já usado no filtro por monstro/item abaixo).
   const allMatching = await prisma.taskDefinition.findMany({
     where,
-    orderBy: { levelRequired: "asc" },
     include: { categoryRef: true },
   });
 
@@ -97,6 +85,18 @@ export async function GET(request: Request) {
     if (monsterQuery && !matchesMonsterFilter(row, monsterQuery)) return false;
     if (itemQuery && !matchesItemFilter(row, itemQuery, matchingItemIds)) return false;
     return true;
+  });
+
+  filtered.sort((a, b) => {
+    const categoryCompare = (a.categoryRef?.name ?? a.category).localeCompare(b.categoryRef?.name ?? b.category);
+    if (categoryCompare !== 0) return categoryCompare;
+
+    const difficultyCompare =
+      TASK_DIFFICULTIES.indexOf(a.difficulty as (typeof TASK_DIFFICULTIES)[number]) -
+      TASK_DIFFICULTIES.indexOf(b.difficulty as (typeof TASK_DIFFICULTIES)[number]);
+    if (difficultyCompare !== 0) return difficultyCompare;
+
+    return a.levelRequired - b.levelRequired;
   });
 
   const total = filtered.length;

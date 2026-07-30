@@ -10,6 +10,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { FieldTooltip } from "@/components/shared/field-tooltip";
 
 type NumberFieldProps<T extends FieldValues> = {
   control: Control<T>;
@@ -17,6 +18,7 @@ type NumberFieldProps<T extends FieldValues> = {
   label?: string;
   step?: string;
   disabled?: boolean;
+  tooltip?: string;
 };
 
 export function NumberField<T extends FieldValues>({
@@ -25,6 +27,7 @@ export function NumberField<T extends FieldValues>({
   label,
   step = "1",
   disabled,
+  tooltip,
 }: NumberFieldProps<T>) {
   return (
     <FormField
@@ -32,7 +35,12 @@ export function NumberField<T extends FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem>
-          {label && <FormLabel>{label}</FormLabel>}
+          {label && (
+            <FormLabel className="flex items-center gap-1.5">
+              {label}
+              {tooltip && <FieldTooltip text={tooltip} />}
+            </FormLabel>
+          )}
           <FormControl>
             <Input
               type="number"

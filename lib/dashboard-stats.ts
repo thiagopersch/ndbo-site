@@ -131,7 +131,7 @@ export async function getDashboardStats() {
   const monsterBoostTodayMonster = monsterBoostToday
     ? await prisma.monster.findUnique({
         where: { name: monsterBoostToday.monster },
-        select: { id: true },
+        select: { id: true, lookTypeId: true },
       })
     : null;
   const monsterBoostTodayImage = monsterBoostTodayMonster
@@ -143,6 +143,12 @@ export async function getDashboardStats() {
           },
         },
         select: { extension: true, updatedAt: true },
+      })
+    : null;
+  const monsterBoostTodayLooktype = monsterBoostTodayMonster?.lookTypeId
+    ? await prisma.looktype.findUnique({
+        where: { id: monsterBoostTodayMonster.lookTypeId },
+        select: { id: true, frameCount: true, frameDurationsMs: true, updatedAt: true },
       })
     : null;
 
@@ -269,6 +275,7 @@ export async function getDashboardStats() {
           ...monsterBoostToday,
           monsterId: monsterBoostTodayMonster?.id ?? null,
           image: monsterBoostTodayImage,
+          looktype: monsterBoostTodayLooktype,
         }
       : null,
     tickets: {

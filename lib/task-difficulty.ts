@@ -7,14 +7,14 @@ export const TASK_DIFFICULTY_LABELS: Record<TaskDifficulty, string> = {
   easy: "Fácil",
   medium: "Médio",
   hard: "Difícil",
-  extreme: "Extremo",
+  extreme: "Elite",
 };
 
 export const TASK_DIFFICULTY_COLORS: Record<TaskDifficulty, string> = {
   easy: "#22c55e",
-  medium: "#eab308",
-  hard: "#f97316",
-  extreme: "#ef4444",
+  medium: "#3b82f6",
+  hard: "#ef4444",
+  extreme: "#a855f7",
 };
 
 export function isTaskDifficulty(value: string): value is TaskDifficulty {

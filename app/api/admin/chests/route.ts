@@ -4,7 +4,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
-import { chestRewardSchema } from "@/lib/validations/admin/chest-reward";
+import { chestSchema, MAX_CHESTS } from "@/lib/validations/admin/chest";
 
 export async function GET(request: Request) {
   const { response } = await requireAdminSession();
@@ -13,16 +13,16 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize } = parsePaginationParams(url);
 
-  const [chestRewards, total] = await Promise.all([
-    prisma.chestReward.findMany({
-      orderBy: { id: "desc" },
+  const [chests, total] = await Promise.all([
+    prisma.chest.findMany({
+      orderBy: { id: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.chestReward.count(),
+    prisma.chest.count(),
   ]);
 
-  return NextResponse.json(buildPaginatedResult(chestRewards, total, page, pageSize));
+  return NextResponse.json(buildPaginatedResult(chests, total, page, pageSize));
 }
 
 export async function POST(request: Request) {
@@ -30,21 +30,36 @@ export async function POST(request: Request) {
   if (response) return response;
 
   const body = await request.json();
-  const parsed = chestRewardSchema.safeParse(body);
+  const parsed = chestSchema.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
-  const chestReward = await prisma.chestReward.create({ data: parsed.data });
+  const existingCount = await prisma.chest.count();
+  if (existingCount >= MAX_CHESTS) {
+    return NextResponse.json(
+      { error: `O sistema de baús do OTC exibe no máximo ${MAX_CHESTS} baús (1 central + 2 laterais).` },
+      { status: 422 },
+    );
+  }
+
+  const chest = await prisma.chest.create({
+    data: {
+      name: parsed.data.name,
+      keyItemId: parsed.data.keyItemId,
+      rewards: parsed.data.rewards,
+      published: parsed.data.published,
+    },
+  });
 
   await logAudit({
     accountId: Number(session.user.id),
     action: "create",
-    entity: "chest_reward",
-    entityId: chestReward.id,
-    metadata: parsed.data,
+    entity: "chest",
+    entityId: chest.id,
+    metadata: { name: chest.name },
   });
 
-  return NextResponse.json({ chestReward }, { status: 201 });
+  return NextResponse.json({ chest }, { status: 201 });
 }

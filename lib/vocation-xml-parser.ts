@@ -69,6 +69,7 @@ export function parseVocationsXml(xml: string): ParseVocationsXmlResult {
       fromvoc: num(raw.fromvoc),
       typeClassId: null,
       typeUniverseId: null,
+      maxRank: num(raw.maxrank),
       formula: {
         meleeDamage: num(formula.meleeDamage) || 1,
         distDamage: num(formula.distDamage) || 1,

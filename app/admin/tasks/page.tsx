@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -8,10 +9,6 @@ import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
 import type { Category, TaskDefinition } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import {
-  defaultTaskDefinitionValues,
-  type TaskDefinitionInput,
-} from "@/lib/validations/admin/task-definition";
 import { TASK_DIFFICULTIES, TASK_DIFFICULTY_COLORS, TASK_DIFFICULTY_LABELS } from "@/lib/task-difficulty";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
@@ -26,43 +23,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
-import { TaskDefinitionFormDialog } from "@/components/admin/tasks/task-definition-form-dialog";
 import { MonsterThumbByName } from "@/components/admin/tasks/monster-thumb-by-name";
+import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
 
 type TaskMonster = { name: string; kills: number };
 type TaskRewards = { items?: [number, number][] };
-type TaskDelivery = { enabled?: boolean; itemId?: number; count?: number };
 type TaskRow = TaskDefinition & { categoryRef: Category | null };
-
-function rowToFormInput(row: TaskRow): TaskDefinitionInput {
-  const monsters = (row.monsters as TaskMonster[] | null) ?? [];
-  const rewards = (row.rewards as TaskRewards | null) ?? {};
-  const delivery = (row.delivery as TaskDelivery | null) ?? {};
-
-  return {
-    id: row.id,
-    name: row.name,
-    lookType: row.lookType,
-    categoryId: row.categoryId ?? 0,
-    type: row.type,
-    difficulty: TASK_DIFFICULTIES.includes(row.difficulty as (typeof TASK_DIFFICULTIES)[number])
-      ? (row.difficulty as (typeof TASK_DIFFICULTIES)[number])
-      : "easy",
-    levelRequired: row.levelRequired,
-    rankRequired: row.rankRequired,
-    killsRequired: row.killsRequired,
-    points: row.points,
-    experience: row.experience,
-    money: row.money,
-    published: row.published,
-    monsters,
-    rewardItems: (rewards.items ?? []).map(([itemId, count]) => ({ itemId, count })),
-    deliveryEnabled: delivery.enabled ?? false,
-    deliveryItemId: delivery.itemId ?? 0,
-    deliveryCount: delivery.count ?? 0,
-    postId: row.postId,
-  };
-}
 
 function buildFilterFields(categories: Category[]): FilterFieldConfig[] {
   return [
@@ -106,28 +72,16 @@ export default function AdminTasksPage() {
     mutate();
   }
 
-  async function createOrUpdate(values: TaskDefinitionInput, id?: string): Promise<boolean | "conflict"> {
-    const response = await fetch(id ? `/api/admin/tasks/${id}` : "/api/admin/tasks", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    if (response.ok) {
-      mutate();
-      return true;
-    }
-    if (response.status === 409) return "conflict";
-    return false;
-  }
-
   const columns: ColumnDef<TaskRow>[] = [
     {
-      id: "monster",
-      header: "Monstro",
+      id: "icon",
+      header: "Ícone",
       cell: ({ row }) => {
         const monsters = (row.original.monsters as TaskMonster[] | null) ?? [];
         const first = monsters[0];
-        return first ? <MonsterThumbByName name={first.name} /> : <span className="text-muted-foreground">—</span>;
+        if (first) return <MonsterThumbByName name={first.name} />;
+        if (row.original.lookType > 0) return <LooktypeThumbById looktypeId={row.original.lookType} />;
+        return <span className="text-muted-foreground">—</span>;
       },
     },
     { accessorKey: "id", header: "Slug" },
@@ -217,18 +171,15 @@ export default function AdminTasksPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <TaskDefinitionFormDialog
-            title="Editar task"
-            isEditing
-            defaultValues={rowToFormInput(row.original)}
-            successMessage="Atualizada com sucesso."
-            onSubmit={(values) => createOrUpdate(values, row.original.id)}
-            trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
-                <Pencil className="size-4" />
-              </Button>
-            }
-          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Editar"
+            nativeButton={false}
+            render={<Link href={`/admin/tasks/${row.original.id}`} />}
+          >
+            <Pencil className="size-4" />
+          </Button>
           <ConfirmDialog
             trigger={
               <Button variant="destructive" size="icon-sm" title="Excluir">
@@ -256,18 +207,10 @@ export default function AdminTasksPage() {
             precisar reiniciar ou editar Lua.
           </p>
         </div>
-        <TaskDefinitionFormDialog
-          title="Nova task"
-          defaultValues={defaultTaskDefinitionValues}
-          successMessage="Criada com sucesso."
-          onSubmit={(values) => createOrUpdate(values)}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Nova
-            </Button>
-          }
-        />
+        <Button nativeButton={false} render={<Link href="/admin/tasks/new" />}>
+          <Plus className="size-4" />
+          Nova
+        </Button>
       </div>
 
       <DataTable

@@ -35,7 +35,7 @@ export function EntitySearchCombobox<Row extends { id: number }>({
   formatOption,
   renderOption,
   placeholder = "Buscar...",
-  pageSize = 200,
+  pageSize = 30,
 }: {
   endpoint: string;
   value: number | null;
@@ -64,8 +64,11 @@ export function EntitySearchCombobox<Row extends { id: number }>({
   }
 
   const separator = endpoint.includes("?") ? "&" : "?";
+  // `skipCount=1`: o combobox nunca usa `total`/`pageCount`, só `data` — pula o `COUNT(*)` nas
+  // rotas que suportam o flag (catálogos grandes tipo items/monstros, onde o count com `LIKE`
+  // custa uma varredura completa da tabela a cada tecla digitada).
   const { data } = useSWR<PaginatedResult<Row>>(
-    `${endpoint}${separator}pageSize=${pageSize}&search=${encodeURIComponent(search)}`,
+    `${endpoint}${separator}pageSize=${pageSize}&search=${encodeURIComponent(search)}&skipCount=1`,
     fetcher,
   );
 

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import type { VocationXmlData } from "@/lib/vocation-xml";
+import { VOCATION_RANK_LABELS, VOCATION_RANK_COLORS, type VocationRank } from "@/lib/vocation-rank";
 import type { PaginatedResult } from "@/lib/pagination";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
@@ -145,6 +146,19 @@ export default function AdminVocationsPage() {
       accessorKey: "typeUniverseName",
       header: "Universo",
       cell: ({ row }) => row.original.typeUniverseName || "—",
+    },
+    {
+      accessorKey: "maxRank",
+      header: "Rank",
+      cell: ({ row }) => {
+        const rank = row.original.maxRank as VocationRank;
+        const color = VOCATION_RANK_COLORS[rank];
+        return (
+          <Badge style={{ backgroundColor: color, color: "#000", borderColor: color }}>
+            {VOCATION_RANK_LABELS[rank]}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "needpremium",

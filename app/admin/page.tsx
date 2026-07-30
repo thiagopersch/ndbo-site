@@ -10,6 +10,7 @@ import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { RecentListCard } from "@/components/admin/dashboard/recent-list-card";
 import { DashboardCharts } from "@/components/admin/dashboard/dashboard-charts";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 
 export const metadata: Metadata = {
   title: "Painel administrativo",
@@ -63,22 +64,32 @@ export default async function AdminDashboardPage() {
           <CardContent>
             {stats.monsterBoostToday ? (
               <div className="flex items-center gap-3">
-                {stats.monsterBoostToday.monsterId != null && (
-                  <EntityThumb
-                    entityType="monster"
-                    id={stats.monsterBoostToday.monsterId}
-                    name={stats.monsterBoostToday.monster}
-                    image={
-                      stats.monsterBoostToday.image
-                        ? {
-                            extension: stats.monsterBoostToday.image.extension,
-                            updatedAt:
-                              stats.monsterBoostToday.image.updatedAt.toISOString(),
-                          }
-                        : null
-                    }
+                {stats.monsterBoostToday.looktype ? (
+                  <LooktypeAnimatedImage
+                    looktypeId={stats.monsterBoostToday.looktype.id}
+                    frameCount={stats.monsterBoostToday.looktype.frameCount}
+                    frameDurationsMs={stats.monsterBoostToday.looktype.frameDurationsMs as number[]}
+                    updatedAt={stats.monsterBoostToday.looktype.updatedAt.toISOString()}
                     size="md"
                   />
+                ) : (
+                  stats.monsterBoostToday.monsterId != null && (
+                    <EntityThumb
+                      entityType="monster"
+                      id={stats.monsterBoostToday.monsterId}
+                      name={stats.monsterBoostToday.monster}
+                      image={
+                        stats.monsterBoostToday.image
+                          ? {
+                              extension: stats.monsterBoostToday.image.extension,
+                              updatedAt:
+                                stats.monsterBoostToday.image.updatedAt.toISOString(),
+                            }
+                          : null
+                      }
+                      size="md"
+                    />
+                  )
                 )}
                 <div className="flex flex-col gap-1">
                   <span className="text-lg font-semibold">

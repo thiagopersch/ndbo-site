@@ -41,6 +41,7 @@ export function vocationToXml(vocation: VocationXmlData): string {
     `fromvoc="${fmtInt(vocation.fromvoc)}"`,
     `type_class="${escapeXml(vocation.typeClassName)}"`,
     `type_universe="${escapeXml(vocation.typeUniverseName)}"`,
+    `maxrank="${fmtInt(vocation.maxRank)}"`,
   ];
 
   const formula = vocation.formula;

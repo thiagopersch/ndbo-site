@@ -12,6 +12,7 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
 
 type NpcRow = {
   id: number;
@@ -41,9 +42,18 @@ export default function AdminNpcsPage() {
   }
 
   const columns: ColumnDef<NpcRow>[] = [
+    {
+      id: "image",
+      header: "Imagem",
+      cell: ({ row }) =>
+        row.original.lookTypeId > 0 ? (
+          <LooktypeThumbById looktypeId={row.original.lookTypeId} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
     { accessorKey: "name", header: "Nome" },
     { accessorKey: "type", header: "Tipo" },
-    { accessorKey: "lookTypeId", header: "Looktype" },
     { accessorKey: "town", header: "Cidade" },
     {
       accessorKey: "published",

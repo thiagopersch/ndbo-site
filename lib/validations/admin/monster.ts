@@ -191,6 +191,8 @@ export const monsterFormSchema = z.object({
   lookFeet: z.number().int(),
   lookAddons: z.number().int(),
   corpse: z.number().int(),
+  /** Sprite vinculada do cadastro de looktypes — só para thumbnail animada do portal. */
+  lookTypeId: z.number().int().nullable(),
 
   targetChangeInterval: z.number().int().min(1),
   targetChangeChance: z.number().int().min(0).max(100),
@@ -305,6 +307,7 @@ export const defaultMonsterValues: MonsterFormInput = {
 
   lookType: 1,
   lookTypeEx: null,
+  lookTypeId: null,
   lookHead: 0,
   lookBody: 0,
   lookLegs: 0,

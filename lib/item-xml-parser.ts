@@ -363,7 +363,12 @@ export function parseItemsXml(xml: string): ParseItemsXmlResult {
     return { items: [], errors: ["Nenhum <item> encontrado dentro de <items>."] };
   }
 
-  const items: ItemInput[] = [];
+  // Preserva ordem de inserção mas deixa a última ocorrência de cada id vencer — mesmo
+  // comportamento do carregador C++ (`Items::loadFromXml`), que reatribui o ItemType a cada
+  // `<item>` processado. Um `items.xml` real costuma ter ids repetidos (fromid/toid de uma
+  // categoria sobrepondo um `id` avulso definido em outro lugar do arquivo, por exemplo) — sem
+  // isso, `createMany` no import quebra com "Unique constraint failed" no id duplicado.
+  const itemsById = new Map<number, ItemInput>();
 
   rawItems.forEach((raw, index) => {
     const name = str(raw.name);
@@ -394,10 +399,10 @@ export function parseItemsXml(xml: string): ParseItemsXmlResult {
           continue;
         }
 
-        items.push(result.data);
+        itemsById.set(id, result.data);
       }
     }
   });
 
-  return { items, errors };
+  return { items: [...itemsById.values()], errors };
 }

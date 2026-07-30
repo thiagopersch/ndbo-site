@@ -42,6 +42,9 @@ import { NumberField } from "@/components/shared/number-field";
 import { ItemIdField } from "@/components/shared/item-id-field";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
+import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
+import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
 import { MonsterFlagsFields } from "@/components/admin/monsters/monster-flags-fields";
 import { MonsterRecordGridField } from "@/components/admin/monsters/monster-record-grid-field";
 import { MonsterSpellListField } from "@/components/admin/monsters/monster-spell-list-field";
@@ -51,6 +54,15 @@ import { MonsterSummonListField } from "@/components/admin/monsters/monster-summ
 import { MonsterScriptListField } from "@/components/admin/monsters/monster-script-list-field";
 import { MonsterLootListField } from "@/components/admin/monsters/monster-loot-list-field";
 import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+
+type LooktypeRow = {
+  id: number;
+  name: string;
+  looktypeNumber: number | null;
+  frameCount: number;
+  frameDurationsMs: number[];
+  updatedAt: string;
+};
 
 type MonsterFormProps = {
   monsterId?: number;
@@ -77,6 +89,12 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
   const wordsBySpellId = Object.fromEntries(
     (spellsData?.data ?? []).map((spell) => [spell.id, spell.words]),
   );
+
+  const { data: selectedLooktypeData } = useSWR<PaginatedResult<LooktypeRow>>(
+    watched.lookTypeId ? `/api/admin/looktypes?search=${watched.lookTypeId}&pageSize=5` : null,
+    fetcher,
+  );
+  const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === watched.lookTypeId) ?? null;
 
   const previewXml = monsterToXml(
     { ...defaultMonsterValues, ...watched } as MonsterFormInput,
@@ -349,6 +367,55 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                     name="corpse"
                     label="Item de corpo (Corpse)"
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="lookTypeId"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2 lg:col-span-4">
+                        <FormLabel>Sprite vinculada (cadastro de looktypes)</FormLabel>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <EntitySearchCombobox<LooktypeRow>
+                              endpoint="/api/admin/looktypes"
+                              value={field.value}
+                              placeholder="Buscar looktype..."
+                              formatOption={(lt) => formatLooktypeOption(lt)}
+                              renderOption={(lt) => (
+                                <span className="flex items-center gap-2">
+                                  <LooktypeAnimatedImage
+                                    key={lt.id}
+                                    looktypeId={lt.id}
+                                    frameCount={lt.frameCount}
+                                    frameDurationsMs={lt.frameDurationsMs}
+                                    updatedAt={lt.updatedAt}
+                                    size="sm"
+                                  />
+                                  {formatLooktypeOption(lt)}
+                                </span>
+                              )}
+                              onSelect={(lt) => field.onChange(lt?.id ?? null)}
+                            />
+                          </div>
+                          <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/20">
+                            {selectedLooktype ? (
+                              <LooktypeAnimatedImage
+                                key={selectedLooktype.id}
+                                looktypeId={selectedLooktype.id}
+                                frameCount={selectedLooktype.frameCount}
+                                frameDurationsMs={selectedLooktype.frameDurationsMs}
+                                updatedAt={selectedLooktype.updatedAt}
+                                size="sm"
+                              />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
               </Card>
 
@@ -615,6 +682,26 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
               <p className="text-sm text-muted-foreground">
                 Salve o monstro primeiro para poder enviar/ver a imagem.
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Sprite vinculada</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {selectedLooktype ? (
+              <LooktypeAnimatedImage
+                key={selectedLooktype.id}
+                looktypeId={selectedLooktype.id}
+                frameCount={selectedLooktype.frameCount}
+                frameDurationsMs={selectedLooktype.frameDurationsMs}
+                updatedAt={selectedLooktype.updatedAt}
+                size="lg"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma sprite vinculada.</p>
             )}
           </CardContent>
         </Card>

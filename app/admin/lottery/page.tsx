@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LotteryFormDialog } from "@/components/admin/lottery/lottery-form-dialog";
+import { ItemThumbByName } from "@/components/shared/item-thumb-by-name";
 
 export default function AdminLotteryPage() {
   const table = useServerTable();
@@ -46,7 +47,16 @@ export default function AdminLotteryPage() {
 
   const columns: ColumnDef<Lottery>[] = [
     { accessorKey: "name", header: "Jogador" },
-    { accessorKey: "item", header: "Item" },
+    {
+      accessorKey: "item",
+      header: "Item",
+      cell: ({ row }) => (
+        <span className="flex items-center gap-2">
+          <ItemThumbByName name={row.original.item} size="32" />
+          {row.original.item}
+        </span>
+      ),
+    },
     {
       accessorKey: "createdAt",
       header: "Criado em",

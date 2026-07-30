@@ -46,3 +46,10 @@ export const defaultLooktypeValues: LooktypeInput = {
 export function fileNameToLooktypeName(fileName: string): string {
   return fileName.replace(/\.[^./\\]+$/, "");
 }
+
+/** Label padrão "id — nome (número)" usado em todo select/combobox que escolhe uma looktype do
+ * cadastro (NPCs, Tasks, "Vincular sprite do cadastro" em item/monstro/spell/vocação/post) —
+ * mesmo formato em todo lugar, pro admin reconhecer a sprite pelo nome, não só pelo id cru. */
+export function formatLooktypeOption(lt: { id: number; name: string; looktypeNumber: number | null }): string {
+  return `#${lt.id} — ${lt.name}${lt.looktypeNumber !== null ? ` (nº ${lt.looktypeNumber})` : ""}`;
+}

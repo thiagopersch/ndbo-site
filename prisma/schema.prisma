@@ -867,6 +867,12 @@ model Vocation {
   typeClassId    Int? @map("type_class_id")
   typeUniverseId Int? @map("type_universe_id")
 
+  /// Rank máximo de upgrade por estrelas que essa vocação pode alcançar (0=None, 1=Bronze,
+  /// 2=Silver, 3=Gold, 4=Diamond) — espelha `VocationRankConfig.Vocations[id].maxRank` em
+  /// vocation_ranks_config.lua (server/data/lib). O script lê esse valor exportado no XML em vez
+  /// do hardcode `addVocation(...)` por vocação.
+  maxRank Int @default(0) @map("max_rank")
+
   // <formula ... />
   formulaMeleeDamage      Float @default(1) @map("formula_melee_damage")
   formulaDistDamage       Float @default(1) @map("formula_dist_damage")
@@ -1221,6 +1227,11 @@ model Monster {
   lookAddons Int  @default(0) @map("look_addons")
   corpse     Int  @default(0)
 
+  /// Sprite vinculada do cadastro de looktypes (/admin/looktypes) — só para a thumbnail
+  /// animada do portal (admin/monster-boost, dashboard), não referencia `lookType` (outfit
+  /// real do XML/jogo).
+  lookTypeId Int? @map("look_type_id")
+
   targetChangeInterval Int @default(4000) @map("target_change_interval")
   targetChangeChance   Int @default(10) @map("target_change_chance")
 
@@ -1246,6 +1257,7 @@ model Monster {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([category, subcategory])
+  @@index([name(length: 191)])
   @@map("monsters")
 }
 
@@ -1513,6 +1525,7 @@ model Item {
 
   @@index([type])
   @@index([weaponType])
+  @@index([name(length: 191)])
   @@map("items")
 }
 
@@ -1761,19 +1774,20 @@ model Npc {
   @@map("npcs")
 }
 
-/// Catálogo de recompensas possíveis para o item-baú configurado em `chestItemId`
-/// (config do sistema, ver ServerConfig). Ao consumir o item, o servidor sorteia uma
-/// recompensa respeitando o peso (`weight`) dentre as publicadas.
-model ChestReward {
+/// Sistema de baús do OTC (module game_chest): até 3 baús configuráveis, exibidos como 1 central
+/// + 2 laterais. Cada baú exige consumir `keyItemId` (o jogador precisa possuir o item) e, ao
+/// abrir, sorteia aleatoriamente 1 dentre até 3 itens em `rewards` (JSON: `[{itemId, count}]`).
+model Chest {
   id        Int      @id @default(autoincrement())
-  itemId    Int      @map("item_id")
-  count     Int      @default(1)
-  weight    Int      @default(10)
+  name      String   @db.VarChar(100)
+  keyItemId Int      @map("key_item_id")
+  /// Até 3 opções de recompensa, uma sorteada por vez (peso igual entre elas).
+  rewards   Json
   published Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@map("chest_rewards")
+  @@map("chests")
 }
 
 /// Catálogo mestre de itens permitidos no autoloot (não são todos os itens do jogo — só os

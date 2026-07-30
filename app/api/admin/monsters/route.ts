@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parsePaginationParams, shouldSkipCount } from "@/lib/pagination";
 import {
   monsterFormSchema,
   type MonsterFormInput,
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
   if (url.searchParams.get("all") === "true") {
     const monsters = await prisma.monster.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, lookTypeId: true },
     });
     return NextResponse.json({ data: monsters });
   }
@@ -153,6 +153,8 @@ export async function GET(request: Request) {
     );
   }
 
+  const skipCount = shouldSkipCount(url);
+
   const [monsters, total] = await Promise.all([
     prisma.monster.findMany({
       where,
@@ -161,7 +163,7 @@ export async function GET(request: Request) {
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.monster.count({ where }),
+    skipCount ? Promise.resolve(-1) : prisma.monster.count({ where }),
   ]);
 
   return NextResponse.json(
@@ -170,7 +172,7 @@ export async function GET(request: Request) {
         ...monster,
         healthMax: Number(monster.healthMax),
       })),
-      total,
+      skipCount ? monsters.length : total,
       page,
       pageSize,
     ),

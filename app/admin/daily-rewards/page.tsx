@@ -8,26 +8,14 @@ import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
 import type { DailyRewardsMonthly } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import {
-  dailyRewardMonthlySchema,
-  type DailyRewardMonthlyInput,
-} from "@/lib/validations/admin/daily-reward";
+import type { DailyRewardMonthlyInput } from "@/lib/validations/admin/daily-reward";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
-
-const fields: SimpleField<DailyRewardMonthlyInput>[] = [
-  { name: "month", label: "Mês (1-12)", type: "number" },
-  { name: "year", label: "Ano", type: "number" },
-  { name: "day", label: "Dia (1-31)", type: "number" },
-  { name: "itemId", label: "ID do item" },
-  { name: "count", label: "Quantidade", type: "number" },
-  { name: "clientId", label: "Client ID", type: "number" },
-];
+import { DailyRewardFormDialog } from "@/components/admin/daily-rewards/daily-reward-form-dialog";
 
 export default function AdminDailyRewardsPage() {
   const table = useServerTable();
@@ -86,10 +74,8 @@ export default function AdminDailyRewardsPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <SimpleFormDialog
+          <DailyRewardFormDialog
             title="Editar recompensa"
-            schema={dailyRewardMonthlySchema}
-            fields={fields}
             defaultValues={{
               month: row.original.month,
               year: row.original.year,
@@ -129,10 +115,8 @@ export default function AdminDailyRewardsPage() {
           <h1 className="text-2xl font-semibold">Recompensas diárias</h1>
           <p className="text-muted-foreground">Tabela `daily_rewards_monthly` (por mês/ano/dia).</p>
         </div>
-        <SimpleFormDialog
+        <DailyRewardFormDialog
           title="Nova recompensa"
-          schema={dailyRewardMonthlySchema}
-          fields={fields}
           defaultValues={{ month: 1, year: new Date().getFullYear(), day: 1, itemId: 0, count: 1, clientId: 0 }}
           successMessage="Criado com sucesso."
           onSubmit={save}

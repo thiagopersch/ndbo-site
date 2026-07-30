@@ -20,10 +20,13 @@ import {
   type VocationInput,
 } from "@/lib/validations/admin/vocation";
 import { vocationToXml } from "@/lib/vocation-xml";
+import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
+import { VOCATION_RANKS, VOCATION_RANK_LABELS, VOCATION_RANK_COLORS, type VocationRank } from "@/lib/vocation-rank";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -33,9 +36,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
-import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
+import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { VocationTypeSelect } from "@/components/admin/vocations/vocation-type-select";
+
+type LooktypeRow = {
+  id: number;
+  name: string;
+  looktypeNumber: number | null;
+  frameCount: number;
+  frameDurationsMs: number[];
+  updatedAt: string;
+};
 
 type VocationFormProps = {
   vocationId?: number;
@@ -69,6 +82,12 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
   const typeUniverseName =
     universesData?.data.find((item) => item.id === watched.typeUniverseId)
       ?.name ?? "";
+
+  const { data: selectedLooktypeData } = useSWR<PaginatedResult<LooktypeRow>>(
+    watched.lookTypeId ? `/api/admin/looktypes?search=${watched.lookTypeId}&pageSize=5` : null,
+    fetcher,
+  );
+  const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === watched.lookTypeId) ?? null;
 
   const previewXml = vocationToXml({
     ...defaultVocationValues,
@@ -121,7 +140,6 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
               <TabsTrigger value="basic">Dados básicos</TabsTrigger>
               <TabsTrigger value="formula">Fórmula de habilidades</TabsTrigger>
               <TabsTrigger value="skill">Skills/Habilidades</TabsTrigger>
-              <TabsTrigger value="image">Imagem</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
@@ -179,6 +197,85 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                     label="Universo (type_universe)"
                     placeholder="Selecione o universo"
                     options={universesData?.data ?? []}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lookTypeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sprite (looktype)</FormLabel>
+                        <EntitySearchCombobox<LooktypeRow>
+                          endpoint="/api/admin/looktypes"
+                          value={field.value}
+                          placeholder="Buscar looktype..."
+                          formatOption={(lt) => formatLooktypeOption(lt)}
+                          renderOption={(lt) => (
+                            <span className="flex items-center gap-2">
+                              <LooktypeAnimatedImage
+                                key={lt.id}
+                                looktypeId={lt.id}
+                                frameCount={lt.frameCount}
+                                frameDurationsMs={lt.frameDurationsMs}
+                                updatedAt={lt.updatedAt}
+                                size="sm"
+                              />
+                              {formatLooktypeOption(lt)}
+                            </span>
+                          )}
+                          onSelect={(lt) => field.onChange(lt?.id ?? null)}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="maxRank"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Rank máximo (upgrade por estrelas)</FormLabel>
+                        <Select
+                          value={String(field.value)}
+                          onValueChange={(value) => field.onChange(Number(value))}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione o rank">
+                                {(value: string | null) => {
+                                  const rank = value !== null ? (Number(value) as VocationRank) : null;
+                                  if (rank === null) return "Selecione o rank";
+                                  return (
+                                    <span className="flex items-center gap-2">
+                                      <span
+                                        className="size-2.5 shrink-0 rounded-full"
+                                        style={{ backgroundColor: VOCATION_RANK_COLORS[rank] }}
+                                      />
+                                      {VOCATION_RANK_LABELS[rank]}
+                                    </span>
+                                  );
+                                }}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {VOCATION_RANKS.map((rank) => (
+                              <SelectItem key={rank} value={String(rank)}>
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className="size-2.5 shrink-0 rounded-full"
+                                    style={{ backgroundColor: VOCATION_RANK_COLORS[rank] }}
+                                  />
+                                  {VOCATION_RANK_LABELS[rank]}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
 
                   <FormField
@@ -429,27 +526,6 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                 </CardContent>
               </Card>
             </TabsContent>
-
-            <TabsContent value="image">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Imagem</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <EntityImageUpload
-                      entityType="vocation"
-                      id={vocationId}
-                      name={watched.name}
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Salve a vocação primeiro para poder enviar uma imagem.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -477,14 +553,36 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
         </form>
       </Form>
 
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader>
-          <CardTitle>Pré-visualização do XML</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <XmlCodeViewer value={previewXml} />
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6 lg:h-fit">
+        <Card>
+          <CardHeader>
+            <CardTitle>Pré-visualização do XML</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <XmlCodeViewer value={previewXml} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sprite vinculada</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            {selectedLooktype ? (
+              <LooktypeAnimatedImage
+                key={selectedLooktype.id}
+                looktypeId={selectedLooktype.id}
+                frameCount={selectedLooktype.frameCount}
+                frameDurationsMs={selectedLooktype.frameDurationsMs}
+                updatedAt={selectedLooktype.updatedAt}
+                size="lg"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma sprite vinculada.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

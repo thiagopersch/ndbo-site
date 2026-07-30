@@ -4,8 +4,8 @@ import { useState } from "react";
 import useSWR from "swr";
 import { ImageOff } from "lucide-react";
 
-import { fetcher } from "@/lib/fetcher";
 import { entityImageUrl, type EntityImageType } from "@/lib/entity-image";
+import { fetchEntityImageBatched } from "@/lib/entity-image-batch";
 import {
   Tooltip,
   TooltipContent,
@@ -33,15 +33,13 @@ type EntityThumbProps = {
   image?: EntityImageInfo | null;
 };
 
+/** Chave estável por entidade (não pela URL) — várias instâncias de `EntityThumb` para o mesmo
+ * id dedupem pelo cache do SWR, e o fetch de rede em si é coalescido entre ids diferentes por
+ * `fetchEntityImageBatched` (uma request pra N thumbs que montam juntas, em vez de N requests). */
 function useOwnLookup(entityType: EntityImageType, id: number, skip: boolean) {
-  const key =
-    skip || !Number.isFinite(id) || id <= 0
-      ? null
-      : `/api/admin/images/${entityType}?ids=${id}`;
-  const { data } = useSWR<{
-    images: { entityId: number; extension: string; updatedAt: string }[];
-  }>(key, fetcher);
-  return data?.images.find((image) => image.entityId === id) ?? null;
+  const key = skip || !Number.isFinite(id) || id <= 0 ? null : (["entity-image", entityType, id] as const);
+  const { data } = useSWR(key, ([, type, entityId]) => fetchEntityImageBatched(type, entityId));
+  return data ?? null;
 }
 
 export function EntityThumb({
@@ -62,7 +60,7 @@ export function EntityThumb({
 
   const sizeClass = SIZE_CLASSES[size];
   const label = name ? `#${id} — ${name}` : `#${id}`;
-  const tooltipLabel = name ?? `#${id}`;
+  const tooltipLabel = name ? `${name} (#${id})` : `#${id}`;
 
   const imageUrl = info
     ? entityImageUrl(entityType, id, info.extension, new Date(info.updatedAt))

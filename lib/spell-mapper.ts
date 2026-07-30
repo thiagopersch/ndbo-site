@@ -7,6 +7,7 @@ export function spellFormToScalarData(input: SpellFormInput): Prisma.SpellUnchec
   return {
     kind: input.kind,
     name: input.name,
+    lookTypeId: input.lookTypeId,
     words: input.words,
     runeItemId: input.runeItemId,
     level: input.level,
@@ -48,6 +49,7 @@ export function spellToFormInput(spell: Spell & { vocations: SpellVocation[] }):
     ...defaultSpellValues,
     kind: spell.kind as SpellFormInput["kind"],
     name: spell.name,
+    lookTypeId: spell.lookTypeId,
     words: spell.words,
     runeItemId: spell.runeItemId,
     level: spell.level,

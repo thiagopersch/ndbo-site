@@ -31,6 +31,8 @@ export type SpellVocationInput = z.infer<typeof spellVocationSchema>;
 const baseSpellFormSchema = z.object({
   kind: z.enum(SPELL_KINDS),
   name: z.string().min(1, "Informe o nome").max(255),
+  /** Sprite vinculada do cadastro de looktypes — só para thumbnail animada do portal. */
+  lookTypeId: z.number().int().nullable(),
   words: z.string().max(255),
   runeItemId: z.number().int().nullable(),
   level: z.number().int(),
@@ -86,6 +88,7 @@ export const spellFormSchema = baseSpellFormSchema
 export const defaultSpellValues: SpellFormInput = {
   kind: "instant",
   name: "",
+  lookTypeId: null,
   words: "",
   runeItemId: null,
   level: 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
@@ -10,31 +10,25 @@ import { questSchema, type QuestInput } from "@/lib/validations/admin/quest";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { CategorySelect } from "@/components/admin/categories/category-select";
+import { QuestImageUpload } from "@/components/admin/quests/quest-image-upload";
 
-type QuestFormDialogProps = {
-  trigger: React.ReactNode;
-  title: string;
+type QuestFormProps = {
+  questId?: number;
+  imageUrl?: string | null;
   defaultValues: QuestInput;
   onSubmit: (values: QuestInput) => Promise<boolean>;
   successMessage: string;
 };
 
-export function QuestFormDialog({ trigger, title, defaultValues, onSubmit, successMessage }: QuestFormDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function QuestForm({ questId, imageUrl, defaultValues, onSubmit, successMessage }: QuestFormProps) {
+  const router = useRouter();
+  const isEditing = questId != null;
 
   const form = useForm<QuestInput, unknown, QuestInput>({
     resolver: zodResolver(questSchema),
@@ -43,15 +37,8 @@ export function QuestFormDialog({ trigger, title, defaultValues, onSubmit, succe
 
   const rewardItems = useFieldArray({ control: form.control, name: "rewardItems" });
 
-  useEffect(() => {
-    if (open) form.reset(defaultValues);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
   async function handleSubmit(values: QuestInput) {
-    setIsSubmitting(true);
     const ok = await onSubmit(values);
-    setIsSubmitting(false);
 
     if (!ok) {
       toast.error("Não foi possível salvar.");
@@ -59,19 +46,40 @@ export function QuestFormDialog({ trigger, title, defaultValues, onSubmit, succe
     }
 
     toast.success(successMessage);
-    setOpen(false);
+    router.push("/admin/quests");
+    router.refresh();
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger as React.ReactElement} />
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
+        <Tabs defaultValue="identification">
+          <TabsList>
+            <TabsTrigger value="identification">Identificação</TabsTrigger>
+            <TabsTrigger value="rewards">Recompensas</TabsTrigger>
+            <TabsTrigger value="image">Imagem</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="identification" className="flex flex-col gap-4">
+            <FormField
+              control={form.control}
+              name="published"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center gap-2">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      className="size-4"
+                      checked={field.value}
+                      onChange={(event) => field.onChange(event.target.checked)}
+                    />
+                  </FormControl>
+                  <FormLabel className="!mt-0">Publicada (visível para os jogadores)</FormLabel>
+                </FormItem>
+              )}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="name"
@@ -104,25 +112,9 @@ export function QuestFormDialog({ trigger, title, defaultValues, onSubmit, succe
                 </FormItem>
               )}
             />
+          </TabsContent>
 
-            <FormField
-              control={form.control}
-              name="published"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center gap-2">
-                  <FormControl>
-                    <input
-                      type="checkbox"
-                      className="size-4"
-                      checked={field.value}
-                      onChange={(event) => field.onChange(event.target.checked)}
-                    />
-                  </FormControl>
-                  <FormLabel className="!mt-0">Publicada (visível para os jogadores)</FormLabel>
-                </FormItem>
-              )}
-            />
-
+          <TabsContent value="rewards">
             <div className="flex flex-col gap-2 rounded-md border border-border p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Itens de recompensa</span>
@@ -179,18 +171,26 @@ export function QuestFormDialog({ trigger, title, defaultValues, onSubmit, succe
                 );
               })}
             </div>
+          </TabsContent>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Salvando..." : "Salvar"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+          <TabsContent value="image">
+            {isEditing ? (
+              <QuestImageUpload questId={questId} imageUrl={imageUrl ?? null} onChange={() => router.refresh()} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Salve a quest primeiro para poder enviar uma imagem.</p>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex items-center gap-4">
+          <Button type="button" variant="outline" onClick={() => router.push("/admin/quests")}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }

@@ -14,10 +14,10 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { EntityThumb } from "@/components/shared/entity-thumb";
+import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
 import { MonsterBoostFormDialog } from "@/components/admin/monster-boost/monster-boost-form-dialog";
 
-type MonsterOption = { id: number; name: string };
+type MonsterOption = { id: number; name: string; lookTypeId: number | null };
 
 export default function AdminMonsterBoostPage() {
   const table = useServerTable();
@@ -32,8 +32,8 @@ export default function AdminMonsterBoostPage() {
     "/api/admin/monsters?all=true",
     fetcher,
   );
-  const monsterIdByName = new Map(
-    (monstersData?.data ?? []).map((m) => [m.name, m.id]),
+  const monsterByName = new Map(
+    (monstersData?.data ?? []).map((m) => [m.name, m]),
   );
 
   async function handleDelete(id: number) {
@@ -69,15 +69,9 @@ export default function AdminMonsterBoostPage() {
       id: "image",
       header: "Imagem",
       cell: ({ row }) => {
-        const monsterId = monsterIdByName.get(row.original.monster);
-        if (monsterId == null) return "—";
-        return (
-          <EntityThumb
-            entityType="monster"
-            id={monsterId}
-            name={row.original.monster}
-          />
-        );
+        const monster = monsterByName.get(row.original.monster);
+        if (!monster?.lookTypeId) return "—";
+        return <LooktypeThumbById looktypeId={monster.lookTypeId} />;
       },
     },
     { accessorKey: "monster", header: "Monstro (Monster)" },
@@ -100,7 +94,7 @@ export default function AdminMonsterBoostPage() {
               loot: row.original.loot,
               exp: row.original.exp,
             }}
-            initialMonsterId={monsterIdByName.get(row.original.monster) ?? null}
+            initialMonsterId={monsterByName.get(row.original.monster)?.id ?? null}
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={

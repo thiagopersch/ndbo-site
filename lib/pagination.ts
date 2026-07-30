@@ -32,6 +32,15 @@ export function parsePaginationParams(url: URL): PaginationQuery {
   });
 }
 
+/** `EntitySearchCombobox` manda esse flag — ele nunca usa `total`/`pageCount`, só `data`, então
+ * as rotas de catálogos grandes (items, monstros) pulam o `COUNT(*)` quando presente. Com
+ * `search` usando `LIKE '%...%'`, o count é uma varredura completa da tabela a cada tecla
+ * digitada; pular ele é o que mais importa pra latência de busca em tabelas com dezenas de
+ * milhares de linhas. */
+export function shouldSkipCount(url: URL): boolean {
+  return url.searchParams.get("skipCount") === "1";
+}
+
 export function buildPaginatedResult<T>(
   data: T[],
   total: number,

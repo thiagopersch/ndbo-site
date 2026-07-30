@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -8,14 +9,13 @@ import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
 import type { Category, Quest } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import { defaultQuestValues, type QuestInput, type QuestRewardItem } from "@/lib/validations/admin/quest";
+import type { QuestRewardItem } from "@/lib/validations/admin/quest";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { QuestImageUpload } from "@/components/admin/quests/quest-image-upload";
-import { QuestFormDialog } from "@/components/admin/quests/quest-form-dialog";
+import { EntityThumb } from "@/components/shared/entity-thumb";
 
 type QuestRow = Quest & { categoryRef: Category | null };
 
@@ -37,40 +37,21 @@ export default function AdminQuestsPage() {
     mutate();
   }
 
-  async function createOrUpdate(values: QuestInput, id?: number) {
-    const response = await fetch(id ? `/api/admin/quests/${id}` : "/api/admin/quests", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    if (response.ok) mutate();
-    return response.ok;
-  }
-
-  function rowToFormInput(row: QuestRow): QuestInput {
-    return {
-      name: row.name,
-      description: row.description,
-      categoryId: row.categoryId ?? 0,
-      levelRequired: row.levelRequired,
-      rewardExp: row.rewardExp,
-      rewardMoney: row.rewardMoney,
-      rewardItems: (row.rewardItems as QuestRewardItem[] | null) ?? [],
-      published: row.published,
-    };
-  }
-
   const columns: ColumnDef<QuestRow>[] = [
     {
       id: "image",
       header: "Imagem",
-      cell: ({ row }) => (
-        <QuestImageUpload
-          questId={row.original.id}
-          imageUrl={row.original.imageUrl}
-          onChange={mutate}
-        />
-      ),
+      cell: ({ row }) =>
+        row.original.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- thumbnail pequena, servida estática de public/storage
+          <img
+            src={row.original.imageUrl}
+            alt=""
+            className="size-10 shrink-0 rounded-sm border border-border object-cover"
+          />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     { accessorKey: "name", header: "Nome" },
     {
@@ -93,6 +74,21 @@ export default function AdminQuestsPage() {
     },
     { accessorKey: "levelRequired", header: "Level mínimo" },
     {
+      id: "rewardItems",
+      header: "Recompensas",
+      cell: ({ row }) => {
+        const items = (row.original.rewardItems as QuestRewardItem[] | null) ?? [];
+        if (items.length === 0) return <span className="text-muted-foreground">—</span>;
+        return (
+          <div className="flex items-center gap-1">
+            {items.map((item) => (
+              <EntityThumb key={item.itemId} entityType="item" id={item.itemId} size="32" />
+            ))}
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "published",
       header: "Status",
       cell: ({ row }) => (
@@ -106,17 +102,15 @@ export default function AdminQuestsPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <QuestFormDialog
-            title="Editar quest"
-            defaultValues={rowToFormInput(row.original)}
-            successMessage="Atualizada com sucesso."
-            onSubmit={(values) => createOrUpdate(values, row.original.id)}
-            trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
-                <Pencil className="size-4" />
-              </Button>
-            }
-          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Editar"
+            nativeButton={false}
+            render={<Link href={`/admin/quests/${row.original.id}`} />}
+          >
+            <Pencil className="size-4" />
+          </Button>
           <ConfirmDialog
             trigger={
               <Button variant="destructive" size="icon-sm" title="Excluir">
@@ -144,18 +138,10 @@ export default function AdminQuestsPage() {
             define nome, descrição, requisitos e recompensas.
           </p>
         </div>
-        <QuestFormDialog
-          title="Nova quest"
-          defaultValues={defaultQuestValues}
-          successMessage="Criada com sucesso."
-          onSubmit={(values) => createOrUpdate(values)}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Nova
-            </Button>
-          }
-        />
+        <Button nativeButton={false} render={<Link href="/admin/quests/new" />}>
+          <Plus className="size-4" />
+          Nova
+        </Button>
       </div>
 
       <DataTable

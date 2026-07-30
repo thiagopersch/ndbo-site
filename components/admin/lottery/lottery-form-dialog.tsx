@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/form";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { ItemThumbByName } from "@/components/shared/item-thumb-by-name";
 
 type LotteryFormDialogProps = {
   trigger: React.ReactNode;
@@ -103,19 +104,24 @@ export function LotteryFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Item premiado</FormLabel>
-                  <EntitySearchCombobox<{ id: number; name: string }>
-                    endpoint="/api/admin/items"
-                    value={null}
-                    placeholder={field.value || "Buscar item por nome ou id..."}
-                    formatOption={(item) => `${item.name} (#${item.id})`}
-                    renderOption={(item) => (
-                      <span className="flex items-center gap-2">
-                        <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
-                        {item.name} (#{item.id})
-                      </span>
-                    )}
-                    onSelect={(item) => field.onChange(item?.name ?? "")}
-                  />
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <EntitySearchCombobox<{ id: number; name: string }>
+                        endpoint="/api/admin/items"
+                        value={null}
+                        placeholder={field.value || "Buscar item por nome ou id..."}
+                        formatOption={(item) => `${item.name} (#${item.id})`}
+                        renderOption={(item) => (
+                          <span className="flex items-center gap-2">
+                            <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
+                            {item.name} (#{item.id})
+                          </span>
+                        )}
+                        onSelect={(item) => field.onChange(item?.name ?? "")}
+                      />
+                    </div>
+                    {field.value && <ItemThumbByName name={field.value} size="32" />}
+                  </div>
                   <FormControl>
                     <input type="hidden" {...field} />
                   </FormControl>

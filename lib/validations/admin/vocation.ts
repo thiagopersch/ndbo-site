@@ -53,6 +53,8 @@ export const vocationSchema = z.object({
   fromvoc: z.number().int(),
   typeClassId: z.number().int().nullable(),
   typeUniverseId: z.number().int().nullable(),
+  lookTypeId: z.number().int().nullable(),
+  maxRank: z.number().int().min(0).max(4),
   formula: vocationFormulaSchema,
   skill: vocationSkillSchema,
 });
@@ -80,6 +82,8 @@ export const defaultVocationValues: VocationInput = {
   fromvoc: 0,
   typeClassId: null,
   typeUniverseId: null,
+  lookTypeId: null,
+  maxRank: 0,
   formula: {
     meleeDamage: 1,
     distDamage: 1,

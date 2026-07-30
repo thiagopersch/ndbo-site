@@ -264,7 +264,7 @@ export async function importItemsBatched(
   if (options.replaceExisting) {
     await prismaClient.item.deleteMany({});
     for (const batch of batches) {
-      await prismaClient.item.createMany({ data: batch.map(itemFormToRow) });
+      await prismaClient.item.createMany({ data: batch.map(itemFormToRow), skipDuplicates: true });
     }
   } else {
     for (const batch of batches) {

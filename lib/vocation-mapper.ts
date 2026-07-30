@@ -23,6 +23,8 @@ export function vocationToInput(vocation: Vocation): VocationInput {
     fromvoc: vocation.fromvoc,
     typeClassId: vocation.typeClassId,
     typeUniverseId: vocation.typeUniverseId,
+    lookTypeId: vocation.lookTypeId,
+    maxRank: vocation.maxRank,
     formula: {
       meleeDamage: vocation.formulaMeleeDamage,
       distDamage: vocation.formulaDistDamage,
@@ -68,6 +70,8 @@ export function vocationInputToPrismaData(input: VocationInput) {
     fromvoc: input.fromvoc,
     typeClassId: input.typeClassId,
     typeUniverseId: input.typeUniverseId,
+    lookTypeId: input.lookTypeId,
+    maxRank: input.maxRank,
     formulaMeleeDamage: input.formula.meleeDamage,
     formulaDistDamage: input.formula.distDamage,
     formulaWandDamage: input.formula.wandDamage,

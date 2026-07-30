@@ -9,10 +9,8 @@ import {
   type FieldPath,
   type FieldValues,
 } from "react-hook-form";
-import useSWR from "swr";
 import { Plus, Trash2 } from "lucide-react";
 
-import { fetcher } from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,19 +20,10 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
-import { ItemIdField } from "@/components/shared/item-id-field";
+import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
+import { EntityThumb } from "@/components/shared/entity-thumb";
+import { useItemName } from "@/components/shared/use-item-name";
 import { emptyMonsterLootItem } from "@/lib/validations/admin/monster";
-
-/** Busca o nome do item pelo id (mesma rota usada pelo form de edição de item) — usada só
- * para auto-preencher o comentário do loot, não para validação. */
-function useItemName(id: number | null | undefined) {
-  const key =
-    typeof id === "number" && Number.isFinite(id) && id > 0
-      ? `/api/admin/items/${id}`
-      : null;
-  const { data } = useSWR<{ item: { name: string } }>(key, fetcher);
-  return data?.item.name ?? null;
-}
 
 export function MonsterLootListField<T extends FieldValues>({
   control,
@@ -100,11 +89,27 @@ function LootItemRow<T extends FieldValues>({
   return (
     <div className="flex flex-col gap-2 rounded-md border p-2">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <ItemIdField
-          control={control}
-          name={`${basePath}.id` as FieldPath<T>}
-          label="Item ID"
-        />
+        <FormItem>
+          <FormLabel>Item</FormLabel>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <EntitySearchCombobox<{ id: number; name: string }>
+                endpoint="/api/admin/items"
+                value={itemId || null}
+                placeholder="Buscar item por nome ou id..."
+                formatOption={(item) => `${item.name} (#${item.id})`}
+                renderOption={(item) => (
+                  <span className="flex items-center gap-2">
+                    <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
+                    {item.name} (#{item.id})
+                  </span>
+                )}
+                onSelect={(item) => idController.field.onChange(item?.id ?? 0)}
+              />
+            </div>
+            {Boolean(itemId) && <EntityThumb entityType="item" id={itemId as number} size="32" />}
+          </div>
+        </FormItem>
         <NumberField
           control={control}
           name={`${basePath}.count` as FieldPath<T>}

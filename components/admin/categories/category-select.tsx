@@ -8,15 +8,18 @@ import type { Category } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FieldTooltip } from "@/components/shared/field-tooltip";
 
 /** Select de categoria (compartilhado por Quests/Tasks, ver `/admin/categories`) — busca a
  * lista inteira de uma vez (poucas categorias esperadas, sem paginação/busca incremental). */
 export function CategorySelect<T extends FieldValues>({
   control,
   name,
+  tooltip,
 }: {
   control: Control<T>;
   name: FieldPath<T>;
+  tooltip?: string;
 }) {
   const { data } = useSWR<PaginatedResult<Category>>("/api/admin/categories?pageSize=200", fetcher);
   const categories = data?.data ?? [];
@@ -27,7 +30,10 @@ export function CategorySelect<T extends FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem>
-          <FormLabel>Categoria</FormLabel>
+          <FormLabel className="flex items-center gap-1.5">
+            Categoria
+            {tooltip && <FieldTooltip text={tooltip} />}
+          </FormLabel>
           <Select
             value={field.value != null ? String(field.value) : null}
             onValueChange={(value) => field.onChange(value ? Number(value) : null)}
@@ -35,9 +41,16 @@ export function CategorySelect<T extends FieldValues>({
             <FormControl>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione a categoria">
-                  {(value: string | null) =>
-                    value ? (categories.find((c) => String(c.id) === value)?.name ?? value) : "Selecione a categoria"
-                  }
+                  {(value: string | null) => {
+                    const category = value ? categories.find((c) => String(c.id) === value) : null;
+                    if (!category) return "Selecione a categoria";
+                    return (
+                      <span className="flex items-center gap-2">
+                        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: category.color }} />
+                        {category.name}
+                      </span>
+                    );
+                  }}
                 </SelectValue>
               </SelectTrigger>
             </FormControl>
