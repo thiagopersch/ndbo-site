@@ -10,7 +10,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
+import { SortableContext, rectSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,7 +26,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+
+/** Máximo de sprites mostradas no tooltip de um intervalo — intervalos podem ter milhares de
+ * ids, então limitamos pra não travar o navegador montando centenas de `EntityThumb`. */
+const RANGE_TOOLTIP_MAX = 100;
+const RANGE_TOOLTIP_COLUMNS = 10;
+
+function ItemRangeTooltip({ fromId, toId }: { fromId: number; toId: number }) {
+  const total = toId - fromId + 1;
+  const ids = Array.from({ length: Math.min(total, RANGE_TOOLTIP_MAX) }, (_, index) => fromId + index);
+  const rows: number[][] = [];
+  for (let index = 0; index < ids.length; index += RANGE_TOOLTIP_COLUMNS) {
+    rows.push(ids.slice(index, index + RANGE_TOOLTIP_COLUMNS));
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {rows.map((row, rowIndex) => (
+        <div key={rowIndex} className="flex gap-1">
+          {row.map((id) => (
+            <EntityThumb key={id} entityType="item" id={id} size="sm" />
+          ))}
+        </div>
+      ))}
+      {total > RANGE_TOOLTIP_MAX && (
+        <span className="text-xs text-muted-foreground">+{total - RANGE_TOOLTIP_MAX} mais</span>
+      )}
+    </div>
+  );
+}
 
 const KIND_LABELS: Record<"ITEM_ID" | "ITEM_RANGE", string> = {
   ITEM_ID: "ID único",
@@ -49,6 +79,9 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
   const [toId, setToId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState("");
+
+  const rangeInvalid =
+    kind === "ITEM_RANGE" && fromId !== "" && toId !== "" && Number(toId) < Number(fromId);
 
   const searchTerm = search.trim();
   const searchId = searchTerm === "" ? NaN : Number(searchTerm);
@@ -144,8 +177,8 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
           <p className="text-sm text-muted-foreground">Nenhuma entrada encontrada para &quot;{searchTerm}&quot;.</p>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={filteredEntries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col gap-2">
+            <SortableContext items={filteredEntries.map((e) => e.id)} strategy={rectSortingStrategy}>
+              <div className="flex flex-wrap gap-2">
                 {filteredEntries.map((entry) => (
                   <EntryRowItem key={entry.id} entry={entry} onDelete={() => handleDelete(entry.id)} />
                 ))}
@@ -189,10 +222,15 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
               <span className="text-xs text-muted-foreground">Até</span>
               <Input type="number" value={toId} onChange={(e) => setToId(e.target.value)} className="w-24" />
             </div>
+            {rangeInvalid && (
+              <p className="w-full text-sm text-destructive">
+                O campo &quot;Até&quot; deve ser maior ou igual ao campo &quot;De&quot;.
+              </p>
+            )}
           </>
         )}
 
-        <Button type="button" onClick={handleAdd} disabled={isSubmitting}>
+        <Button type="button" onClick={handleAdd} disabled={isSubmitting || rangeInvalid} className="w-full">
           <Plus className="size-4" />
           Adicionar
         </Button>
@@ -217,9 +255,20 @@ function EntryRowItem({ entry, onDelete }: { entry: EntryRow; onDelete: () => vo
             ID único — <code>{entry.itemId}</code>
           </>
         ) : (
-          <>
-            Intervalo — <code>{entry.fromId}</code> a <code>{entry.toId}</code>
-          </>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="cursor-help">
+                    Intervalo — <code>{entry.fromId}</code> a <code>{entry.toId}</code>
+                  </span>
+                }
+              />
+              <TooltipContent className="max-w-none">
+                <ItemRangeTooltip fromId={entry.fromId ?? 0} toId={entry.toId ?? 0} />
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
       </span>
       <Button variant="ghost" size="icon-sm" onClick={onDelete} title="Remover entrada">

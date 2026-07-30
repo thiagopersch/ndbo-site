@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { NumberField } from "@/components/shared/number-field";
+import { FieldTooltip } from "@/components/shared/field-tooltip";
 import {
   Form,
   FormControl,
@@ -72,33 +73,24 @@ export function TilesetForm({ tilesetId, initialValues, onSaved }: TilesetFormPr
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-3">
           <FormField
             control={form.control}
-            name="name"
+            name="rawIdsInBrush"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome</FormLabel>
+              <FormItem className="flex flex-row items-center gap-1.5">
                 <FormControl>
-                  <Input {...field} />
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={field.value}
+                    onChange={(event) => field.onChange(event.target.checked)}
+                  />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <NumberField control={form.control} name="order" label="Ordem" />
-
-          <FormField
-            control={form.control}
-            name="icon"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ícone (opcional)</FormLabel>
-                <FormControl>
-                  <Input {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)} />
-                </FormControl>
-                <FormMessage />
+                <FormLabel className="!mt-0">
+                  Ids do raw aparecem no brush misturados na mesma tag
+                </FormLabel>
+                <FieldTooltip text='Se desmarcado, serão gerados nas tags separadamente <terrain></terrain> e <raw></raw> ao exportar.' />
               </FormItem>
             )}
           />
@@ -107,7 +99,7 @@ export function TilesetForm({ tilesetId, initialValues, onSaved }: TilesetFormPr
             control={form.control}
             name="active"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center gap-2 sm:mt-6">
+              <FormItem className="flex flex-row items-center gap-2">
                 <FormControl>
                   <input
                     type="checkbox"
@@ -122,25 +114,37 @@ export function TilesetForm({ tilesetId, initialValues, onSaved }: TilesetFormPr
               </FormItem>
             )}
           />
+        </div>
+
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem className="sm:w-[60%]">
+                <FormLabel>Nome</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="sm:w-[30%]">
+            <NumberField control={form.control} name="order" label="Ordem" />
+          </div>
 
           <FormField
             control={form.control}
-            name="rawIdsInBrush"
+            name="icon"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center gap-2 sm:col-span-2">
+              <FormItem className="sm:w-[30%]">
+                <FormLabel>Ícone (opcional)</FormLabel>
                 <FormControl>
-                  <input
-                    type="checkbox"
-                    className="size-4"
-                    checked={field.value}
-                    onChange={(event) => field.onChange(event.target.checked)}
-                  />
+                  <Input {...field} value={field.value ?? ""} onChange={(e) => field.onChange(e.target.value || null)} />
                 </FormControl>
-                <FormLabel className="!mt-0">
-                  Ids do raw aparecem no brush (misturados na mesma tag, ex.:{" "}
-                  <code>terrain_and_raw</code>). Se desmarcado, saem numa tag{" "}
-                  <code>&lt;raw&gt;</code> separada ao exportar.
-                </FormLabel>
+                <FormMessage />
               </FormItem>
             )}
           />
