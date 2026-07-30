@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
 import { ItemsListField } from "@/components/shared/items-list-field";
+import { ItemSearchField } from "@/components/shared/item-search-field";
 import { TilesetCategoryField } from "@/components/shared/tileset-category-field";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { BorderRingPreview } from "@/components/shared/border-ring-preview";
@@ -60,6 +61,8 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
       value: border.id,
       label: `#${border.id} — ${border.name}`,
     })) ?? [];
+
+  const bordersById = new Map((bordersData?.data ?? []).map((border) => [border.id, border.edges ?? []]));
 
   const form = useForm<GroundFormInput, unknown, GroundFormInput>({
     resolver: zodResolver(groundFormSchema),
@@ -141,11 +144,14 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
                     )}
                   />
 
-                  <NumberField
+                  <ItemSearchField
                     control={form.control}
                     name="serverLookId"
                     label="Item de preview (server_lookid)"
                   />
+
+                  <TilesetCategoryField control={form.control} name="tilesetCategoryId" brushKind="terrain" />
+
                   <NumberField control={form.control} name="zOrder" label="Ordem de sobreposição (z-order)" />
 
                   <FormField
@@ -165,8 +171,6 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
                       </FormItem>
                     )}
                   />
-
-                  <TilesetCategoryField control={form.control} name="tilesetCategoryId" brushKind="terrain" />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -181,7 +185,11 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
                     <span className="mb-2 block text-sm font-medium">Itens do chão</span>
                     <ItemsListField control={form.control} name="items" />
                   </div>
-                  <GroundBorderListField control={form.control} borderOptions={borderOptions} />
+                  <GroundBorderListField
+                    control={form.control}
+                    borderOptions={borderOptions}
+                    bordersById={bordersById}
+                  />
                   <GroundFriendListField control={form.control} />
                 </CardContent>
               </Card>
