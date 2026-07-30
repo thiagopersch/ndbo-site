@@ -42,7 +42,7 @@ import { Input } from "@/components/ui/input";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { EntitySpritePreview, type SpritePreviewEntry } from "@/components/shared/entity-sprite-preview";
 import { MovementVocationField } from "@/components/admin/movements/movement-vocation-field";
 
@@ -475,14 +475,7 @@ export function MovementForm({ movementId, initialValues }: MovementFormProps) {
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Pré-visualização do XML</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card className="h-fit">
           <CardHeader>

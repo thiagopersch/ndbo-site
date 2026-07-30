@@ -16,7 +16,10 @@ function CollapsibleTrigger({
   return (
     <CollapsiblePrimitive.Trigger
       data-slot="collapsible-trigger"
-      className={cn("flex flex-1 items-center gap-1.5 text-left outline-none", className)}
+      className={cn(
+        "flex flex-1 cursor-pointer items-center gap-1.5 text-left outline-none",
+        className
+      )}
       {...props}
     />
   )

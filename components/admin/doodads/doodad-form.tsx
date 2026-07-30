@@ -43,7 +43,7 @@ import { CarpetGridField } from "@/components/admin/doodads/carpet-grid-field";
 import { WallSegmentListField } from "@/components/admin/doodads/wall-segment-list-field";
 import { TableSegmentListField } from "@/components/admin/doodads/table-segment-list-field";
 import { TilesetCategoryField } from "@/components/shared/tileset-category-field";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { EntitySpritePreview, type SpritePreviewEntry } from "@/components/shared/entity-sprite-preview";
 
 type DoodadFormProps = {
@@ -262,14 +262,7 @@ export function DoodadForm({ brushId, initialValues }: DoodadFormProps) {
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Pré-visualização do XML</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card className="h-fit">
           <CardHeader>

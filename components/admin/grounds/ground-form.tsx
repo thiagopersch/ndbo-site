@@ -28,7 +28,7 @@ import {
 import { NumberField } from "@/components/shared/number-field";
 import { ItemsListField } from "@/components/shared/items-list-field";
 import { TilesetCategoryField } from "@/components/shared/tileset-category-field";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { BorderRingPreview } from "@/components/shared/border-ring-preview";
 import { EntitySpritePreview, type SpritePreviewEntry } from "@/components/shared/entity-sprite-preview";
 import { GroundBorderListField } from "@/components/admin/grounds/ground-border-list-field";
@@ -206,14 +206,7 @@ export function GroundForm({ groundId, initialValues }: GroundFormProps) {
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Pré-visualização do XML</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card className="h-fit">
           <CardHeader>

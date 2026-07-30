@@ -1,6 +1,7 @@
 "use client";
 
 import CodeMirror from "@uiw/react-codemirror";
+import { EditorView } from "@codemirror/view";
 import { StreamLanguage } from "@codemirror/language";
 import { xml } from "@codemirror/legacy-modes/mode/xml";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
@@ -23,7 +24,7 @@ export function XmlCodeViewer({ value, maxHeight = "70vh" }: XmlCodeViewerProps)
       <CodeMirror
         value={value}
         theme={vscodeDark}
-        extensions={[xmlLanguage]}
+        extensions={[xmlLanguage, EditorView.lineWrapping]}
         editable={false}
         basicSetup={{
           lineNumbers: true,

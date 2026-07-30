@@ -53,7 +53,7 @@ import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox
 import { ItemIdField } from "@/components/shared/item-id-field";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { EntityThumb } from "@/components/shared/entity-thumb";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { ScrollableTabsList } from "@/components/shared/scrollable-tabs-list";
 import { CollapsibleSectionCard } from "@/components/shared/collapsible-section-card";
 import { ItemLinkedMovementsPanel } from "@/components/admin/items/item-linked-movements-panel";
@@ -1349,14 +1349,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Pré-visualização do XML</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card className="h-fit">
           <CardHeader>

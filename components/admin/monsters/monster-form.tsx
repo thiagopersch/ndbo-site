@@ -53,7 +53,7 @@ import { MonsterVoiceListField } from "@/components/admin/monsters/monster-voice
 import { MonsterSummonListField } from "@/components/admin/monsters/monster-summon-list-field";
 import { MonsterScriptListField } from "@/components/admin/monsters/monster-script-list-field";
 import { MonsterLootListField } from "@/components/admin/monsters/monster-loot-list-field";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 
 type LooktypeRow = {
   id: number;
@@ -662,14 +662,7 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Pré-visualização do XML</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card className="h-fit">
           <CardHeader>

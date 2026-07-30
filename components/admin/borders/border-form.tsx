@@ -28,7 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { BorderRingPreview } from "@/components/shared/border-ring-preview";
 import { BorderEdgeGridField } from "@/components/admin/borders/border-edge-grid-field";
 
@@ -177,14 +177,7 @@ export function BorderForm({ isEditing = false, initialValues }: BorderFormProps
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Pré-visualização do XML</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card className="h-fit">
           <CardHeader>

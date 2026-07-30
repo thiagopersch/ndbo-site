@@ -36,7 +36,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { VocationTypeSelect } from "@/components/admin/vocations/vocation-type-select";
@@ -554,14 +554,7 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6 lg:h-fit">
-        <Card>
-          <CardHeader>
-            <CardTitle>Pré-visualização do XML</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card>
           <CardHeader>

@@ -52,8 +52,7 @@ import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
-import { CopyXmlButton } from "@/components/shared/copy-xml-button";
-import { XmlCodeViewer } from "@/components/shared/xml-code-viewer";
+import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { SpellVocationField } from "@/components/admin/spells/spell-vocation-field";
 
 type LooktypeRow = {
@@ -665,15 +664,7 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
       </Form>
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
-        <Card className="h-fit">
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle>Pré-visualização do XML</CardTitle>
-            <CopyXmlButton getText={() => previewXml} />
-          </CardHeader>
-          <CardContent>
-            <XmlCodeViewer value={previewXml} />
-          </CardContent>
-        </Card>
+        <XmlPreviewCard value={previewXml} />
 
         <Card className="h-fit">
           <CardHeader>

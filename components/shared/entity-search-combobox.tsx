@@ -13,6 +13,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type SearchOption = { value: number; label: string };
 
@@ -67,7 +68,7 @@ export function EntitySearchCombobox<Row extends { id: number }>({
   // `skipCount=1`: o combobox nunca usa `total`/`pageCount`, só `data` — pula o `COUNT(*)` nas
   // rotas que suportam o flag (catálogos grandes tipo items/monstros, onde o count com `LIKE`
   // custa uma varredura completa da tabela a cada tecla digitada).
-  const { data } = useSWR<PaginatedResult<Row>>(
+  const { data, isLoading } = useSWR<PaginatedResult<Row>>(
     `${endpoint}${separator}pageSize=${pageSize}&search=${encodeURIComponent(search)}&skipCount=1`,
     fetcher,
   );
@@ -101,17 +102,27 @@ export function EntitySearchCombobox<Row extends { id: number }>({
     >
       <ComboboxInput placeholder={placeholder} showClear className="w-full" />
       <ComboboxContent>
-        <ComboboxEmpty>Nenhum resultado encontrado.</ComboboxEmpty>
-        <ComboboxList>
-          {(item: SearchOption) => {
-            const row = data?.data.find((entry) => entry.id === item.value);
-            return (
-              <ComboboxItem key={item.value} value={item}>
-                {renderOption && row ? renderOption(row) : item.label}
-              </ComboboxItem>
-            );
-          }}
-        </ComboboxList>
+        {isLoading ? (
+          <div className="flex flex-col gap-2 p-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : (
+          <>
+            <ComboboxEmpty>Nenhum resultado encontrado.</ComboboxEmpty>
+            <ComboboxList>
+              {(item: SearchOption) => {
+                const row = data?.data.find((entry) => entry.id === item.value);
+                return (
+                  <ComboboxItem key={item.value} value={item}>
+                    {renderOption && row ? renderOption(row) : item.label}
+                  </ComboboxItem>
+                );
+              }}
+            </ComboboxList>
+          </>
+        )}
       </ComboboxContent>
     </Combobox>
   );
