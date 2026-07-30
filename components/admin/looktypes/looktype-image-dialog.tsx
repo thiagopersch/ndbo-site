@@ -68,7 +68,10 @@ export function LooktypeImageDialog({ trigger, looktype, onUpdated }: LooktypeIm
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
+      onOpenChange={(next, eventDetails) => {
+        // O seletor de arquivo nativo do SO tira o foco da janela — o base-ui interpreta isso
+        // como "focus-out" e tentaria fechar o dialog no meio do upload. Ignora esse motivo.
+        if (eventDetails?.reason === "focus-out") return;
         setOpen(next);
         if (next) setCurrent(looktype);
       }}
@@ -106,7 +109,7 @@ export function LooktypeImageDialog({ trigger, looktype, onUpdated }: LooktypeIm
             ref={inputRef}
             type="file"
             accept=".obd,image/png,image/gif"
-            className="hidden"
+            className="absolute h-px w-px opacity-0"
             onChange={handleFileChange}
           />
           <p className="text-center text-xs text-muted-foreground">

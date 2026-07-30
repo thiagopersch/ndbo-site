@@ -133,7 +133,10 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
+      onOpenChange={(next, eventDetails) => {
+        // O seletor de arquivo nativo do SO tira o foco da janela — o base-ui interpreta isso
+        // como "focus-out" e tentaria fechar o dialog no meio da seleção. Ignora esse motivo.
+        if (eventDetails?.reason === "focus-out") return;
         setOpen(next);
         if (!next) reset();
       }}
@@ -156,7 +159,7 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
               type="file"
               accept=".obd,image/png,image/gif"
               multiple
-              className="hidden"
+              className="absolute h-px w-px opacity-0"
               onChange={handleFilesSelected}
             />
             <p className="text-xs text-muted-foreground">
