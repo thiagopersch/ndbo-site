@@ -13,20 +13,21 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
   const postId = Number(id);
   if (!Number.isInteger(postId)) notFound();
 
-  const post = await prisma.post.findUnique({ where: { id: postId } });
+  const [post, image] = await Promise.all([
+    prisma.post.findUnique({ where: { id: postId } }),
+    prisma.entityImage.findUnique({
+      where: { entityType_entityId: { entityType: "post", entityId: postId } },
+      select: { extension: true, updatedAt: true },
+    }),
+  ]);
   if (!post) notFound();
-
-  const image = await prisma.entityImage.findUnique({
-    where: { entityType_entityId: { entityType: "post", entityId: post.id } },
-    select: { extension: true, updatedAt: true },
-  });
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Editar post: {post.title || "Sem título"}</h1>
         <p className="text-muted-foreground">
-          As alterações são salvas automaticamente 1 segundo após você sair de um campo.
+          As alterações são salvas automaticamente 5 segundos após você sair de um campo.
         </p>
       </div>
       <PostForm

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -20,8 +21,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
-import { RichTextEditor } from "@/components/shared/rich-text-editor";
-import { RichTextViewer } from "@/components/shared/rich-text-viewer";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/** O editor Tiptap (core + extensões) é o maior custo de JS dessa página — carrega sob demanda
+ * (fora do bundle inicial) em vez de bloquear a primeira renderização do formulário. */
+const RichTextEditor = dynamic(
+  () => import("@/components/shared/rich-text-editor").then((mod) => mod.RichTextEditor),
+  { ssr: false, loading: () => <Skeleton className="h-64 w-full" /> },
+);
+const RichTextViewer = dynamic(
+  () => import("@/components/shared/rich-text-viewer").then((mod) => mod.RichTextViewer),
+  { ssr: false, loading: () => <Skeleton className="h-40 w-full" /> },
+);
 
 type PostFormPost = {
   id: number;
@@ -38,7 +49,9 @@ type PostFormProps = {
   post: PostFormPost;
 };
 
-/** CRUD do Post — grava com autosave: 1s após o usuário sair de qualquer campo (blur), salva
+const AUTOSAVE_DELAY_MS = 5000;
+
+/** CRUD do Post — grava com autosave: 5s após o usuário sair de qualquer campo (blur), salva
  * via PATCH sem fechar/navegar, só para não perder o que foi digitado. O post já existe (é
  * criado como rascunho pela listagem antes de chegar aqui), então media/autosave sempre têm
  * um id válido para usar. */
@@ -96,7 +109,7 @@ export function PostForm({ post }: PostFormProps) {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       void save();
-    }, 1000);
+    }, AUTOSAVE_DELAY_MS);
   }, [save]);
 
   useEffect(() => {
