@@ -26,22 +26,7 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "NPC não encontrado." }, { status: 404 });
   }
 
-  const { scriptContent, shopItems, ...npcFields } = parsed.data;
-
-  let scriptId = existing.scriptId;
-  if (npcFields.type !== "shop") {
-    if (scriptId) {
-      await prisma.luaScript.update({
-        where: { id: scriptId },
-        data: { name: `${npcFields.name}.lua`, content: scriptContent },
-      });
-    } else {
-      const script = await prisma.luaScript.create({
-        data: { name: `${npcFields.name}.lua`, category: "npc", content: scriptContent },
-      });
-      scriptId = script.id;
-    }
-  }
+  const { shopItems, ...npcFields } = parsed.data;
 
   // Nome mudou: os arquivos antigos ficam órfãos no disco, remove antes de gravar os novos.
   if (existing.name !== npcFields.name) {
@@ -52,8 +37,7 @@ export async function PATCH(request: Request, { params }: Params) {
     where: { id: Number(id) },
     data: {
       ...npcFields,
-      shopItems: shopItems as unknown as Prisma.InputJsonValue,
-      scriptId,
+      shopItems: shopItems.filter((item) => item.direction && item.itemId) as unknown as Prisma.InputJsonValue,
     },
   });
 

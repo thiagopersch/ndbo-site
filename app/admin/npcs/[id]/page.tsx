@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { NpcForm } from "@/components/admin/npcs/npc-form";
-import type { NpcInput } from "@/lib/validations/admin/npc";
+import { normalizeShopItems, type NpcInput } from "@/lib/validations/admin/npc";
 
 export const metadata: Metadata = {
   title: "Editar NPC",
@@ -15,7 +15,7 @@ export default async function EditNpcPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const npc = await prisma.npc.findUnique({ where: { id: Number(id) }, include: { script: true } });
+  const npc = await prisma.npc.findUnique({ where: { id: Number(id) } });
 
   if (!npc) {
     notFound();
@@ -30,8 +30,8 @@ export default async function EditNpcPage({
     posY: npc.posY,
     posZ: npc.posZ,
     direction: npc.direction,
-    shopItems: (npc.shopItems as NpcInput["shopItems"]) ?? [],
-    scriptContent: npc.script?.content ?? "",
+    shopItems: normalizeShopItems(npc.shopItems),
+    scriptId: npc.scriptId,
     published: npc.published,
   };
 

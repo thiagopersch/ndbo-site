@@ -42,24 +42,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
-  const { scriptContent, shopItems, ...npcFields } = parsed.data;
-
-  const script =
-    npcFields.type !== "shop"
-      ? await prisma.luaScript.create({
-          data: {
-            name: `${npcFields.name}.lua`,
-            category: "npc",
-            content: scriptContent,
-          },
-        })
-      : null;
+  const { shopItems, ...npcFields } = parsed.data;
 
   const npc = await prisma.npc.create({
     data: {
       ...npcFields,
-      shopItems: shopItems as unknown as Prisma.InputJsonValue,
-      scriptId: script?.id,
+      shopItems: shopItems.filter((item) => item.direction && item.itemId) as unknown as Prisma.InputJsonValue,
     },
   });
 
