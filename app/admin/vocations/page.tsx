@@ -20,6 +20,7 @@ import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useEntityImages } from "@/components/shared/use-entity-images";
 import { PublishedToggle } from "@/components/shared/published-toggle";
+import { UniverseBadge } from "@/components/shared/universe-badge";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type VocationRow = VocationXmlData;
@@ -37,7 +38,7 @@ export default function AdminVocationsPage() {
     fetcher,
   );
   const { data: universesData } = useSWR<PaginatedResult<UniverseOption>>(
-    "/api/admin/vocation-universes?pageSize=100",
+    "/api/admin/universes?pageSize=100",
     fetcher,
   );
 
@@ -145,7 +146,12 @@ export default function AdminVocationsPage() {
     {
       accessorKey: "typeUniverseName",
       header: "Universo",
-      cell: ({ row }) => row.original.typeUniverseName || "—",
+      cell: ({ row }) =>
+        row.original.typeUniverseName ? (
+          <UniverseBadge name={row.original.typeUniverseName} color={row.original.typeUniverseColor} />
+        ) : (
+          "—"
+        ),
     },
     {
       accessorKey: "maxRank",

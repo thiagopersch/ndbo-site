@@ -29,7 +29,7 @@ import {
 export type SimpleField<T extends FieldValues> = {
   name: Path<T>;
   label: string;
-  type?: "text" | "number" | "textarea" | "checkbox";
+  type?: "text" | "number" | "textarea" | "checkbox" | "color";
   disabled?: boolean;
 };
 
@@ -106,6 +106,23 @@ export function SimpleFormDialog<T extends FieldValues>({
                     <FormControl>
                       {fieldDef.type === "textarea" ? (
                         <Textarea rows={4} disabled={fieldDef.disabled} {...field} />
+                      ) : fieldDef.type === "color" ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            className="size-9 shrink-0 cursor-pointer rounded-md border border-input p-0.5"
+                            disabled={fieldDef.disabled}
+                            value={typeof field.value === "string" && field.value ? field.value : "#6b7280"}
+                            onChange={(event) => field.onChange(event.target.value)}
+                          />
+                          <Input
+                            type="text"
+                            placeholder="#rrggbb"
+                            disabled={fieldDef.disabled}
+                            value={field.value ?? ""}
+                            onChange={(event) => field.onChange(event.target.value || null)}
+                          />
+                        </div>
                       ) : fieldDef.type === "checkbox" ? (
                         <input
                           type="checkbox"

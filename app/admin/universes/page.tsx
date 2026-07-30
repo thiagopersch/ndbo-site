@@ -6,31 +6,35 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
-import type { VocationTypeUniverse } from "@/lib/generated/prisma/client";
+import type { Universe } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import { vocationTypeSchema, type VocationTypeInput } from "@/lib/validations/admin/vocation";
+import { universeSchema, type UniverseInput } from "@/lib/validations/admin/universe";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
+import { UniverseBadge } from "@/components/shared/universe-badge";
 
-const fields: SimpleField<VocationTypeInput>[] = [{ name: "name", label: "Nome (ex.: Dragon Ball, Naruto)" }];
+const fields: SimpleField<UniverseInput>[] = [
+  { name: "name", label: "Nome (ex.: Dragon Ball, Naruto)" },
+  { name: "color", label: "Cor", type: "color" },
+];
 
-export default function AdminVocationUniversesPage() {
+export default function AdminUniversesPage() {
   const table = useServerTable();
 
-  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<VocationTypeUniverse>>(
-    `/api/admin/vocation-universes?${table.buildQueryParams().toString()}`,
+  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<Universe>>(
+    `/api/admin/universes?${table.buildQueryParams().toString()}`,
     fetcher
   );
 
   async function handleDelete(id: number) {
-    const response = await fetch(`/api/admin/vocation-universes/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/admin/universes/${id}`, { method: "DELETE" });
 
     if (!response.ok) {
-      toast.error("Não foi possível remover. Verifique se nenhuma vocação a utiliza.");
+      toast.error("Não foi possível remover. Verifique se nenhum registro o utiliza.");
       return;
     }
 
@@ -38,23 +42,24 @@ export default function AdminVocationUniversesPage() {
     mutate();
   }
 
-  async function createOrUpdate(values: VocationTypeInput, id?: number) {
-    const response = await fetch(
-      id ? `/api/admin/vocation-universes/${id}` : "/api/admin/vocation-universes",
-      {
-        method: id ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      }
-    );
+  async function createOrUpdate(values: UniverseInput, id?: number) {
+    const response = await fetch(id ? `/api/admin/universes/${id}` : "/api/admin/universes", {
+      method: id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
 
     if (response.ok) mutate();
     return response.ok;
   }
 
-  const columns: ColumnDef<VocationTypeUniverse>[] = [
+  const columns: ColumnDef<Universe>[] = [
     { accessorKey: "id", header: "ID" },
-    { accessorKey: "name", header: "Nome" },
+    {
+      accessorKey: "name",
+      header: "Nome",
+      cell: ({ row }) => <UniverseBadge name={row.original.name} color={row.original.color} />,
+    },
     {
       id: "actions",
       header: "Ações",
@@ -62,9 +67,9 @@ export default function AdminVocationUniversesPage() {
         <div className="flex items-center gap-1">
           <SimpleFormDialog
             title="Editar universo"
-            schema={vocationTypeSchema}
+            schema={universeSchema}
             fields={fields}
-            defaultValues={{ name: row.original.name }}
+            defaultValues={{ name: row.original.name, color: row.original.color }}
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
@@ -74,8 +79,8 @@ export default function AdminVocationUniversesPage() {
             }
           />
           <DuplicateButton
-            endpoint={`/api/admin/vocation-universes/${row.original.id}/duplicate`}
-            editPathBase="/admin/vocation-universes"
+            endpoint={`/api/admin/universes/${row.original.id}/duplicate`}
+            editPathBase="/admin/universes"
             onDuplicated={() => mutate()}
           />
           <ConfirmDialog
@@ -98,16 +103,17 @@ export default function AdminVocationUniversesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Universos de vocação</h1>
+          <h1 className="text-2xl font-semibold">Universos</h1>
           <p className="text-muted-foreground">
-            Opções de <code>type_universe</code> disponíveis no formulário de vocação.
+            Universos genéricos (ex.: Dragon Ball, Naruto) reutilizáveis por outros CRUDs
+            (Vocações, Monstros, ...). A cor é refletida em badge nas listagens.
           </p>
         </div>
         <SimpleFormDialog
           title="Novo universo"
-          schema={vocationTypeSchema}
+          schema={universeSchema}
           fields={fields}
-          defaultValues={{ name: "" }}
+          defaultValues={{ name: "", color: null }}
           successMessage="Criado com sucesso."
           onSubmit={(values) => createOrUpdate(values)}
           trigger={

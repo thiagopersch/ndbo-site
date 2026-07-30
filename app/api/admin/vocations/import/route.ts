@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   const universeIdByName = new Map<string, number>();
   for (const name of universeNames) {
-    const record = await prisma.vocationTypeUniverse.upsert({
+    const record = await prisma.universe.upsert({
       where: { name },
       update: {},
       create: { name },

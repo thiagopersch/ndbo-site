@@ -14,7 +14,7 @@ export type ParseVocationsXmlResult = {
  * Faz o parse de um `vocations.xml` do OTServer (`<vocations><vocation ...><formula .../>
  * <skill .../></vocation></vocations>`) para o formato usado pelo formulário/persistência.
  * `type_class`/`type_universe` vêm como nome (string) no XML — são resolvidos/criados por
- * nome em `VocationTypeClass`/`VocationTypeUniverse` na importação, não aqui.
+ * nome em `VocationTypeClass`/`Universe` na importação, não aqui.
  */
 export function parseVocationsXml(xml: string): ParseVocationsXmlResult {
   const errors: string[] = [];

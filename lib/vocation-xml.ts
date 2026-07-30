@@ -19,6 +19,7 @@ function escapeXml(value: string) {
 export type VocationXmlData = VocationInput & {
   typeClassName: string;
   typeUniverseName: string;
+  typeUniverseColor?: string | null;
 };
 
 export function vocationToXml(vocation: VocationXmlData): string {

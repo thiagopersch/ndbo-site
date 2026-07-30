@@ -825,15 +825,17 @@ model VocationTypeClass {
   @@map("vocation_type_classes")
 }
 
-/// Opções de `type_universe` da vocação (ex.: Dragon Ball), gerenciadas via CRUD próprio
-/// e exibidas como <select> no formulário de vocação.
-model VocationTypeUniverse {
-  id   Int    @id @default(autoincrement())
-  name String @unique @db.VarChar(100)
+/// Universo genérico (ex.: Dragon Ball, Naruto), gerenciado via CRUD de Sistema e
+/// reutilizável por qualquer CRUD que precise classificar registros por universo
+/// (ex.: Vocação, Monstro) — `color` é refletida em badge nas listagens.
+model Universe {
+  id    Int     @id @default(autoincrement())
+  name  String  @unique @db.VarChar(100)
+  color String? @db.VarChar(7)
 
   vocations Vocation[]
 
-  @@map("vocation_type_universes")
+  @@map("universes")
 }
 
 /// Vocação do OTServer, exportável para o XML `vocations.xml` do servidor de jogo.
@@ -896,8 +898,8 @@ model Vocation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  typeClass    VocationTypeClass?    @relation(fields: [typeClassId], references: [id])
-  typeUniverse VocationTypeUniverse? @relation(fields: [typeUniverseId], references: [id])
+  typeClass    VocationTypeClass? @relation(fields: [typeClassId], references: [id])
+  typeUniverse Universe?          @relation(fields: [typeUniverseId], references: [id])
 
   spellVocations    SpellVocation[]
   movementVocations MovementVocation[]

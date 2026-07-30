@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { fetcher } from "@/lib/fetcher";
 import type {
   VocationTypeClass,
-  VocationTypeUniverse,
+  Universe,
 } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
 import {
@@ -64,8 +64,8 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
     "/api/admin/vocation-classes?pageSize=100",
     fetcher,
   );
-  const { data: universesData } = useSWR<PaginatedResult<VocationTypeUniverse>>(
-    "/api/admin/vocation-universes?pageSize=100",
+  const { data: universesData } = useSWR<PaginatedResult<Universe>>(
+    "/api/admin/universes?pageSize=100",
     fetcher,
   );
 

@@ -86,11 +86,6 @@ const adminSections: AdminSection[] = [
         href: "/admin/vocation-classes",
         icon: Layers,
       },
-      {
-        label: "Universos de vocação",
-        href: "/admin/vocation-universes",
-        icon: SquareStack,
-      },
     ],
   },
   {
@@ -174,6 +169,7 @@ const adminSections: AdminSection[] = [
     links: [
       { label: "Auditoria", href: "/admin/audit-logs", icon: ScrollText },
       { label: "Configurações", href: "/admin/settings", icon: Settings },
+      { label: "Universos", href: "/admin/universes", icon: SquareStack },
     ],
   },
 ];

@@ -60,6 +60,7 @@ export async function GET(request: Request) {
         ...vocationToInput(vocation),
         typeClassName: vocation.typeClass?.name ?? "",
         typeUniverseName: vocation.typeUniverse?.name ?? "",
+        typeUniverseColor: vocation.typeUniverse?.color ?? null,
       })),
       total,
       page,

@@ -220,7 +220,7 @@ export async function getDashboardStats() {
 
   const [typeClasses, typeUniverses] = await Promise.all([
     prisma.vocationTypeClass.findMany({ select: { id: true, name: true } }),
-    prisma.vocationTypeUniverse.findMany({ select: { id: true, name: true } }),
+    prisma.universe.findMany({ select: { id: true, name: true } }),
   ]);
   const typeClassNameById = new Map(typeClasses.map((row) => [row.id, row.name]));
   const typeUniverseNameById = new Map(typeUniverses.map((row) => [row.id, row.name]));

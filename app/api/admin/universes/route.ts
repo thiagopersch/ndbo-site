@@ -5,7 +5,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
-import { vocationTypeSchema } from "@/lib/validations/admin/vocation";
+import { universeSchema } from "@/lib/validations/admin/universe";
 import { hasDuplicateName } from "@/lib/unique-name";
 
 export async function GET(request: Request) {
@@ -15,16 +15,16 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.VocationTypeUniverseWhereInput = search ? { name: { contains: search } } : {};
+  const where: Prisma.UniverseWhereInput = search ? { name: { contains: search } } : {};
 
   const [universes, total] = await Promise.all([
-    prisma.vocationTypeUniverse.findMany({
+    prisma.universe.findMany({
       where,
       orderBy: { name: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.vocationTypeUniverse.count({ where }),
+    prisma.universe.count({ where }),
   ]);
 
   return NextResponse.json(buildPaginatedResult(universes, total, page, pageSize));
@@ -35,23 +35,23 @@ export async function POST(request: Request) {
   if (response) return response;
 
   const body = await request.json();
-  const parsed = vocationTypeSchema.safeParse(body);
+  const parsed = universeSchema.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
-  const existingNames = await prisma.vocationTypeUniverse.findMany({ select: { id: true, name: true } });
+  const existingNames = await prisma.universe.findMany({ select: { id: true, name: true } });
   if (hasDuplicateName(existingNames, parsed.data.name)) {
     return NextResponse.json({ error: "Já existe um universo com esse nome." }, { status: 409 });
   }
 
-  const universe = await prisma.vocationTypeUniverse.create({ data: parsed.data });
+  const universe = await prisma.universe.create({ data: parsed.data });
 
   await logAudit({
     accountId: Number(session.user.id),
     action: "create",
-    entity: "vocation_type_universe",
+    entity: "universe",
     entityId: universe.id,
     metadata: parsed.data,
   });

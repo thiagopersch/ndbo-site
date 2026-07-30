@@ -12,7 +12,7 @@ export async function POST(_request: Request, { params }: Params) {
   if (response) return response;
 
   const { id } = await params;
-  const source = await prisma.vocationTypeUniverse.findUnique({ where: { id: Number(id) } });
+  const source = await prisma.universe.findUnique({ where: { id: Number(id) } });
 
   if (!source) {
     return NextResponse.json({ error: "Universo não encontrado." }, { status: 404 });
@@ -21,18 +21,18 @@ export async function POST(_request: Request, { params }: Params) {
   const name = await uniqueCopyName(
     source.name,
     async (candidate) =>
-      (await prisma.vocationTypeUniverse.findUnique({ where: { name: candidate }, select: { id: true } })) != null,
+      (await prisma.universe.findUnique({ where: { name: candidate }, select: { id: true } })) != null,
   );
 
-  const vocationUniverse = await prisma.vocationTypeUniverse.create({ data: { name } });
+  const universe = await prisma.universe.create({ data: { name, color: source.color } });
 
   await logAudit({
     accountId: Number(session.user.id),
     action: "duplicate",
-    entity: "vocation_type_universe",
-    entityId: vocationUniverse.id,
-    metadata: { sourceId: source.id, name: vocationUniverse.name },
+    entity: "universe",
+    entityId: universe.id,
+    metadata: { sourceId: source.id, name: universe.name },
   });
 
-  return NextResponse.json({ id: vocationUniverse.id, name: vocationUniverse.name }, { status: 201 });
+  return NextResponse.json({ id: universe.id, name: universe.name }, { status: 201 });
 }
