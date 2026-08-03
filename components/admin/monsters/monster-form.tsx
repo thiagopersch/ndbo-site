@@ -12,9 +12,12 @@ import {
   ELEMENT_KEYS,
   IMMUNITY_KEYS,
   MONSTER_RACES,
+  MONSTER_RACE_COLORS,
   defaultMonsterValues,
   monsterFormSchema,
   type MonsterFormInput,
+  type MonsterLootItemInput,
+  type MonsterRace,
 } from "@/lib/validations/admin/monster";
 import { monsterToXml } from "@/lib/monster-xml";
 import { fetcher } from "@/lib/fetcher";
@@ -42,6 +45,7 @@ import { NumberField } from "@/components/shared/number-field";
 import { ItemIdField } from "@/components/shared/item-id-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
+import { EntityThumb } from "@/components/shared/entity-thumb";
 import { UniverseBadge } from "@/components/shared/universe-badge";
 import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
 import { MonsterFlagsFields } from "@/components/admin/monsters/monster-flags-fields";
@@ -51,7 +55,7 @@ import { MonsterSpellLinkField } from "@/components/admin/monsters/monster-spell
 import { MonsterVoiceListField } from "@/components/admin/monsters/monster-voice-list-field";
 import { MonsterSummonListField } from "@/components/admin/monsters/monster-summon-list-field";
 import { MonsterScriptListField } from "@/components/admin/monsters/monster-script-list-field";
-import { MonsterLootListField } from "@/components/admin/monsters/monster-loot-list-field";
+import { MonsterLootListField, flattenLootItemIds } from "@/components/admin/monsters/monster-loot-list-field";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 
 type LooktypeRow = {
@@ -95,9 +99,17 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
   );
   const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === watched.lookTypeId) ?? null;
 
+  const { data: selectedUniverseData } = useSWR<PaginatedResult<{ id: number; name: string }>>(
+    watched.universeId ? `/api/admin/universes?search=${watched.universeId}&pageSize=5` : null,
+    fetcher,
+  );
+  const selectedUniverse = selectedUniverseData?.data.find((u) => u.id === watched.universeId) ?? null;
+
   const previewXml = monsterToXml(
     { ...defaultMonsterValues, ...watched } as MonsterFormInput,
     wordsBySpellId,
+    selectedLooktype?.looktypeNumber ?? null,
+    selectedUniverse?.name ?? null,
   );
 
   async function onSubmit(values: MonsterFormInput) {
@@ -215,13 +227,29 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                         >
                           <FormControl>
                             <SelectTrigger className="w-full">
-                              <SelectValue />
+                              <SelectValue>
+                                {(value: string) => (
+                                  <span className="flex items-center gap-1.5">
+                                    <span
+                                      className="size-2.5 rounded-full"
+                                      style={{ backgroundColor: MONSTER_RACE_COLORS[value as MonsterRace] }}
+                                    />
+                                    {value}
+                                  </span>
+                                )}
+                              </SelectValue>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {MONSTER_RACES.map((race) => (
                               <SelectItem key={race} value={race}>
-                                {race}
+                                <span className="flex items-center gap-1.5">
+                                  <span
+                                    className="size-2.5 rounded-full"
+                                    style={{ backgroundColor: MONSTER_RACE_COLORS[race] }}
+                                  />
+                                  {race}
+                                </span>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -247,19 +275,6 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                   />
                   <FormField
                     control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pasta de categoria (category)</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder='ex.: "dragon ball"' />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
                     name="universeId"
                     render={({ field }) => (
                       <FormItem>
@@ -270,7 +285,12 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                           placeholder="Buscar universo..."
                           formatOption={(row) => row.name}
                           renderOption={(row) => <UniverseBadge name={row.name} color={row.color} />}
-                          onSelect={(row) => field.onChange(row?.id ?? null)}
+                          onSelect={(row) => {
+                            field.onChange(row?.id ?? null);
+                            // `category` (pasta de organização) segue o universo — não é mais
+                            // digitado à mão no formulário, só herdado da seleção do universo.
+                            form.setValue("category", row?.name ?? "");
+                          }}
                         />
                         <FormMessage />
                       </FormItem>
@@ -369,42 +389,12 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                     label="Tipo de aparência extra (Look typeex)"
                     nullable
                   />
-                  <NumberField
-                    control={form.control}
-                    name="lookHead"
-                    label="Cabeça (Head)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="lookBody"
-                    label="Corpo (Body)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="lookLegs"
-                    label="Pernas (Legs)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="lookFeet"
-                    label="Pés (Feet)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="lookAddons"
-                    label="Addons"
-                  />
-                  <ItemIdField
-                    control={form.control}
-                    name="corpse"
-                    label="Item de corpo (Corpse)"
-                  />
 
                   <FormField
                     control={form.control}
                     name="lookTypeId"
                     render={({ field }) => (
-                      <FormItem className="sm:col-span-2 lg:col-span-4">
+                      <FormItem className="sm:col-span-1 lg:col-span-3">
                         <FormLabel>Sprite vinculada (cadastro de looktypes)</FormLabel>
                         <div className="flex items-center gap-3">
                           <div className="flex-1">
@@ -447,6 +437,37 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+
+                  <NumberField
+                    control={form.control}
+                    name="lookHead"
+                    label="Cabeça (Head)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookBody"
+                    label="Corpo (Body)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookLegs"
+                    label="Pernas (Legs)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookFeet"
+                    label="Pés (Feet)"
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="lookAddons"
+                    label="Addons"
+                  />
+                  <ItemIdField
+                    control={form.control}
+                    name="corpse"
+                    label="Item de corpo (Corpse)"
                   />
                 </CardContent>
               </Card>
@@ -692,6 +713,26 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma sprite vinculada.</p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Loot</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const lootItemIds = flattenLootItemIds((watched.loot ?? []) as MonsterLootItemInput[]);
+              return lootItemIds.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum item de loot ainda.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {lootItemIds.map((itemId, index) => (
+                    <EntityThumb key={`${itemId}-${index}`} entityType="item" id={itemId} size="32" />
+                  ))}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>

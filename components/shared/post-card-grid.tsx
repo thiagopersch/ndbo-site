@@ -34,7 +34,7 @@ export function PostCardGrid({ posts, emptyLabel = "Nenhum conteúdo publicado a
           <div
             className="aspect-video w-full bg-muted bg-cover bg-center"
             style={
-              post.image
+              post.image?.extension && post.image.updatedAt
                 ? {
                     backgroundImage: `url(${entityImageUrl("post", post.id, post.image.extension, new Date(post.image.updatedAt))})`,
                   }

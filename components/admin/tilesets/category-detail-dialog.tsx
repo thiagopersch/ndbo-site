@@ -94,7 +94,7 @@ export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} disablePointerDismissal={brushOrderDirty}>
-      <DialogContent className="flex h-[90vh] max-h-[90vh] w-[90vw] max-w-[90vw] flex-col overflow-y-auto">
+      <DialogContent className="flex h-[90vh] max-h-[90vh] w-[90vw] max-w-[90vw] flex-col overflow-y-auto sm:max-w-[90vw]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {category.name}
@@ -160,7 +160,7 @@ export function CategoryDetailDialog({ category, open, onOpenChange, onChanged }
           <CategoryItemEntriesEditor categoryId={category.id} onChanged={onChanged} />
         )}
 
-        <DialogFooter>
+        <DialogFooter className="sm:justify-center">
           <DialogClose render={<Button variant="outline" />}>Fechar</DialogClose>
         </DialogFooter>
       </DialogContent>

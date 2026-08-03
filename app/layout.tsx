@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SessionProvider } from "@/components/shared/session-provider";
+import { SwrProvider } from "@/components/shared/swr-provider";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -40,8 +41,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <SessionProvider>
-            {children}
-            <Toaster />
+            <SwrProvider>
+              {children}
+              <Toaster />
+            </SwrProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>

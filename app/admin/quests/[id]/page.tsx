@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import type { QuestRewardItem } from "@/lib/validations/admin/quest";
 import { EditQuestForm } from "@/components/admin/quests/edit-quest-form";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar quest",
@@ -30,6 +31,7 @@ export default async function EditQuestPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/quests" />
       <div>
         <h1 className="text-2xl font-semibold">Editar quest: {quest.name}</h1>
       </div>

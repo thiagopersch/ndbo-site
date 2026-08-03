@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { monsterRowToFormInput } from "@/lib/monster-mapper";
 import { MonsterForm } from "@/components/admin/monsters/monster-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar monstro",
@@ -27,6 +28,7 @@ export default async function EditMonsterPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/monsters" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Editar monstro: {monster.name}</h1>

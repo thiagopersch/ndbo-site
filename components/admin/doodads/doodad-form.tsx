@@ -36,6 +36,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
+import { ItemSearchField } from "@/components/shared/item-search-field";
 import { ItemsListField } from "@/components/shared/items-list-field";
 import { CompositeListField } from "@/components/shared/composite-list-field";
 import { AlternateListField } from "@/components/shared/alternate-list-field";
@@ -160,7 +161,7 @@ export function DoodadForm({ brushId, initialValues }: DoodadFormProps) {
                     )}
                   />
 
-                  <NumberField control={form.control} name="serverLookId" label="Item de preview (server_lookid)" />
+                  <ItemSearchField control={form.control} name="serverLookId" label="Item de preview (server_lookid)" />
 
                   <FormField
                     control={form.control}

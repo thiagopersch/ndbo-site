@@ -89,32 +89,49 @@ export type RenderedLooktypeFrame = { png: Buffer; durationMs: number };
 
 const DEFAULT_FRAME_DURATION_MS = 100;
 
+function toPngBuffer(thing: ObdThingData, rgba: Buffer): Buffer {
+  const png = new PNG({ width: thing.width * SPRITE_SIZE, height: thing.height * SPRITE_SIZE });
+  rgba.copy(png.data);
+  return PNG.sync.write(png);
+}
+
 /**
  * Renderiza as frames de animação de um `ThingData` já decodificado (ver `obd-parser.ts`):
  * - `outfit`: direção Sul parada (layer 0, sem addon/mount — layers > 0 em outfit são
  *   addon/mount, não fazem parte da animação), iterando `frames` (animação de andar) — pedido
- *   do usuário ("quando for outfit deve ser animado andando para o sul").
- * - `item`/`effect`/`missile`: pattern (0,0,0), empilhando todas as `layers` (quando `layers >
- *   1` a layer 0 costuma ser a base/moldura estática e as seguintes o conteúdo que anima de
- *   fato — ex.: o preenchimento de uma barra), iterando `frames`; duração de cada frame vem do
- *   OBD quando presente (`frameDurations`), senão cai pra 100ms (pedido do usuário para os
- *   tipos sem duração explícita no formato).
+ *   do usuário ("quando for outfit deve ser animado andando para o sul"); duração vem do OBD
+ *   quando presente, senão 100ms.
+ * - `item`/`effect`/`missile`: empilha todas as `layers` (quando `layers > 1` a layer 0 costuma
+ *   ser a base/moldura estática e as seguintes o conteúdo que anima de fato — ex.: o
+ *   preenchimento de uma barra) e percorre TODAS as combinações de `frames`×`patternX`×
+ *   `patternY`×`patternZ` como quadros da animação — muitos itens (ex.: pilhas de moeda) usam
+ *   patterns em vez de frames de verdade pra ter variações visuais, e o pedido do usuário é que
+ *   isso também apareça animado, sempre a 100ms por quadro independente do arquivo ter frames
+ *   de animação "de verdade" ou só patterns.
  */
 export function renderLooktypeFrames(thing: ObdThingData): RenderedLooktypeFrame[] {
-  const patternX = thing.category === "outfit" && thing.patternX > SOUTH_DIRECTION_INDEX ? SOUTH_DIRECTION_INDEX : 0;
-  const layerCount = thing.category === "outfit" ? 1 : thing.layers;
-
   const frames: RenderedLooktypeFrame[] = [];
+
+  if (thing.category === "outfit") {
+    const patternX = thing.patternX > SOUTH_DIRECTION_INDEX ? SOUTH_DIRECTION_INDEX : 0;
+    for (let frame = 0; frame < thing.frames; frame++) {
+      const rgba = composeFrame(thing, { patternX, patternY: 0, patternZ: 0, frame }, 1);
+      const duration = thing.frameDurations[frame];
+      const durationMs = duration ? Math.max(duration.minimum, 1) : DEFAULT_FRAME_DURATION_MS;
+      frames.push({ png: toPngBuffer(thing, rgba), durationMs });
+    }
+    return frames;
+  }
+
   for (let frame = 0; frame < thing.frames; frame++) {
-    const rgba = composeFrame(thing, { patternX, patternY: 0, patternZ: 0, frame }, layerCount);
-
-    const png = new PNG({ width: thing.width * SPRITE_SIZE, height: thing.height * SPRITE_SIZE });
-    rgba.copy(png.data);
-
-    const duration = thing.frameDurations[frame];
-    const durationMs = duration ? Math.max(duration.minimum, 1) : DEFAULT_FRAME_DURATION_MS;
-
-    frames.push({ png: PNG.sync.write(png), durationMs });
+    for (let patternZ = 0; patternZ < thing.patternZ; patternZ++) {
+      for (let patternY = 0; patternY < thing.patternY; patternY++) {
+        for (let patternX = 0; patternX < thing.patternX; patternX++) {
+          const rgba = composeFrame(thing, { patternX, patternY, patternZ, frame }, thing.layers);
+          frames.push({ png: toPngBuffer(thing, rgba), durationMs: DEFAULT_FRAME_DURATION_MS });
+        }
+      }
+    }
   }
 
   return frames;

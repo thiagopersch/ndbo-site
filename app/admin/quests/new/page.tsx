@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { defaultQuestValues, type QuestInput } from "@/lib/validations/admin/quest";
 import { QuestForm } from "@/components/admin/quests/quest-form";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export default function NewQuestPage() {
   async function handleSubmit(values: QuestInput): Promise<boolean> {
@@ -20,6 +21,7 @@ export default function NewQuestPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/quests" />
       <div>
         <h1 className="text-2xl font-semibold">Nova quest</h1>
         <p className="text-muted-foreground">

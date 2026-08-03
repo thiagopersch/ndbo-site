@@ -97,7 +97,7 @@ export type ParseMonsterXmlResult = {
  */
 export function parseMonsterXml(
   xml: string,
-  extra: { category?: string; subcategory?: string } = {}
+  extra: { category?: string; subcategory?: string; universeId?: number | null } = {}
 ): ParseMonsterXmlResult {
   let parsed: XmlNode;
 
@@ -178,6 +178,7 @@ export function parseMonsterXml(
     bestiary: str(a(raw, "bestiary")) || "monster",
     category: extra.category ?? "",
     subcategory: extra.subcategory ?? "",
+    universeId: extra.universeId ?? null,
     race: str(a(raw, "race")) || "blood",
     experience: num(a(raw, "experience")),
     speed: num(a(raw, "speed")) || 200,

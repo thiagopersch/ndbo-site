@@ -1682,6 +1682,8 @@ model BattlePassSeason {
   xpPerLevel    Int      @default(1000) @map("xp_per_level")
   goldPassItemId Int     @default(0) @map("gold_pass_item_id")
   goldPassCost  Int      @default(0) @map("gold_pass_cost")
+  levelPurchaseItemId Int @default(0) @map("level_purchase_item_id")
+  levelPurchaseCost   Int @default(0) @map("level_purchase_cost")
   isActive      Boolean  @default(false) @map("is_active")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
@@ -1775,6 +1777,14 @@ model Npc {
   /// existente de `LuaScript` (category = "npc").
   scriptId   Int?     @map("script_id")
   script     LuaScript? @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  /// Falas ambiente (ex.: "Ajude-me!" a cada X segundos, Y% de chance) — só usadas quando não
+  /// há `scriptId` vinculado (script próprio tem prioridade e não é sobrescrito).
+  /// [{ text: string, intervalMs: number, chance: number }]
+  customMessages Json?  @default("[]") @map("custom_messages")
+  /// Mensagens padrão do XML nativo (message_greet, message_farewell, ...) — { [key]: value },
+  /// só as não-vazias entram no XML/script gerado. Ver `NPC_DEFAULT_MESSAGE_KEYS` em
+  /// `lib/validations/admin/npc.ts` pra lista completa e categoria (geral vs loja).
+  defaultMessages Json? @default("{}") @map("default_messages")
   published  Boolean  @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")

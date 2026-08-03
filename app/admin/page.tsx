@@ -86,6 +86,7 @@ export default async function AdminDashboardPage() {
                               extension: stats.monsterBoostToday.image.extension,
                               updatedAt:
                                 stats.monsterBoostToday.image.updatedAt.toISOString(),
+                              looktype: null,
                             }
                           : null
                       }

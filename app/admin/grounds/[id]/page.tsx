@@ -6,6 +6,7 @@ import { groundToFormInput } from "@/lib/ground-mapper";
 import { GroundForm } from "@/components/admin/grounds/ground-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar ground",
@@ -25,6 +26,7 @@ export default async function EditGroundPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/grounds" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Editar ground: {ground.name}</h1>

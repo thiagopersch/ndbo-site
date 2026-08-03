@@ -107,6 +107,8 @@ export const battlePassSeasonSchema = z.object({
   xpPerLevel: z.number().int().min(1),
   goldPassItemId: z.number().int().min(0),
   goldPassCost: z.number().int().min(0),
+  levelPurchaseItemId: z.number().int().min(0),
+  levelPurchaseCost: z.number().int().min(0),
   missions: z.array(battlePassMissionSchema),
   rewards: z.array(battlePassRewardSchema),
 });
@@ -122,6 +124,8 @@ export const defaultBattlePassSeasonValues: BattlePassSeasonInput = {
   xpPerLevel: 1000,
   goldPassItemId: 0,
   goldPassCost: 0,
+  levelPurchaseItemId: 0,
+  levelPurchaseCost: 0,
   missions: [],
   rewards: [],
 };

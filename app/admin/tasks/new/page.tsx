@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { defaultTaskDefinitionValues, type TaskDefinitionInput } from "@/lib/validations/admin/task-definition";
 import { TaskDefinitionForm } from "@/components/admin/tasks/task-definition-form";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export default function NewTaskDefinitionPage() {
   async function handleSubmit(values: TaskDefinitionInput): Promise<boolean | "conflict"> {
@@ -21,6 +22,7 @@ export default function NewTaskDefinitionPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/tasks" />
       <div>
         <h1 className="text-2xl font-semibold">Nova task</h1>
         <p className="text-muted-foreground">

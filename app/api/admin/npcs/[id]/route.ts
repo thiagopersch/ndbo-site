@@ -26,7 +26,7 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "NPC não encontrado." }, { status: 404 });
   }
 
-  const { shopItems, ...npcFields } = parsed.data;
+  const { shopItems, customMessages, defaultMessages, ...npcFields } = parsed.data;
 
   // Nome mudou: os arquivos antigos ficam órfãos no disco, remove antes de gravar os novos.
   if (existing.name !== npcFields.name) {
@@ -38,6 +38,8 @@ export async function PATCH(request: Request, { params }: Params) {
     data: {
       ...npcFields,
       shopItems: shopItems.filter((item) => item.direction && item.itemId) as unknown as Prisma.InputJsonValue,
+      customMessages: customMessages as unknown as Prisma.InputJsonValue,
+      defaultMessages: defaultMessages as unknown as Prisma.InputJsonValue,
     },
   });
 

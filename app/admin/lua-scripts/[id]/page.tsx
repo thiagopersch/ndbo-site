@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import type { LuaScriptInput } from "@/lib/validations/admin/lua-script";
 import { LuaScriptForm } from "@/components/admin/lua-scripts/lua-script-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar script Lua",
@@ -32,6 +33,7 @@ export default async function EditLuaScriptPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/lua-scripts" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">

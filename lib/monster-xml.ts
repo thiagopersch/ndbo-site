@@ -103,16 +103,24 @@ function lootItemXml(item: MonsterLootItemInput, level: number): string[] {
 
 export function monsterToXml(
   monster: MonsterFormInput,
-  wordsBySpellId: Record<number, string> = {}
+  wordsBySpellId: Record<number, string> = {},
+  /** Número da looktype vinculada (`Looktype.looktypeNumber`) — não confundir com
+   * `monster.lookTypeId`, que é o id do registro no cadastro de looktypes. */
+  looktypeNumber: number | null = null,
+  /** Nome do universo vinculado (`Universe.name`) — exportado ao lado de `bestiary`. */
+  universeName: string | null = null,
 ): string {
   const rootAttrs = [
     `name="${escapeXml(monster.name)}"`,
     `bestiary="${escapeXml(monster.bestiary)}"`,
+  ];
+  if (universeName) rootAttrs.push(`universe="${escapeXml(universeName)}"`);
+  rootAttrs.push(
     `nameDescription="${escapeXml(monster.nameDescription || `a ${monster.name.toLowerCase()}`)}"`,
     `race="${escapeXml(monster.race)}"`,
     `experience="${monster.experience}"`,
     `speed="${monster.speed}"`,
-  ];
+  );
   if (monster.manacost) rootAttrs.push(`manacost="${monster.manacost}"`);
 
   const lines: string[] = [`<?xml version="1.0" encoding="UTF-8"?>`, `<monster ${rootAttrs.join(" ")}>`];
@@ -120,8 +128,8 @@ export function monsterToXml(
   lines.push(...indent([`<health now="${monster.healthNow}" max="${monster.healthMax}" />`], 1));
 
   const lookAttrs: string[] = [];
-  // `type=` é o número do próprio cadastro da looktype vinculada (não um campo livre).
-  if (monster.lookTypeId != null) lookAttrs.push(`type="${monster.lookTypeId}"`);
+  // `type=` é o número do próprio cadastro da looktype vinculada (não o id do registro).
+  if (looktypeNumber != null) lookAttrs.push(`type="${looktypeNumber}"`);
   lookAttrs.push(`head="${monster.lookHead}"`);
   lookAttrs.push(`body="${monster.lookBody}"`);
   lookAttrs.push(`legs="${monster.lookLegs}"`);

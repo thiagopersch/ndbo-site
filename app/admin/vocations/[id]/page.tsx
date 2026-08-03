@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { vocationToInput } from "@/lib/vocation-mapper";
 import { VocationForm } from "@/components/admin/vocations/vocation-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar vocação",
@@ -24,6 +25,7 @@ export default async function EditVocationPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/vocations" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Editar vocação: {vocation.name}</h1>

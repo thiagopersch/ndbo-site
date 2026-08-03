@@ -109,6 +109,8 @@ export default function AdminBattlePassPage() {
               xpPerLevel: row.original.xpPerLevel,
               goldPassItemId: row.original.goldPassItemId,
               goldPassCost: row.original.goldPassCost,
+              levelPurchaseItemId: row.original.levelPurchaseItemId,
+              levelPurchaseCost: row.original.levelPurchaseCost,
               missions: [],
               rewards: [],
             }}

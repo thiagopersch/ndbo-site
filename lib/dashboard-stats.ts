@@ -87,6 +87,9 @@ export async function getDashboardStats() {
     dailyRewardToday,
     lastLotteryWinner,
     activeChests,
+
+    typeClasses,
+    typeUniverses,
   ] = await Promise.all([
     prisma.account.count(),
     prisma.account.count({ where: { createdAt: { gte: since7 } } }),
@@ -179,6 +182,9 @@ export async function getDashboardStats() {
         ],
       },
     }),
+
+    prisma.vocationTypeClass.findMany({ select: { id: true, name: true } }),
+    prisma.universe.findMany({ select: { id: true, name: true } }),
   ]);
 
   const monsterBoostTodayMonster = monsterBoostToday
@@ -187,23 +193,25 @@ export async function getDashboardStats() {
         select: { id: true, lookTypeId: true },
       })
     : null;
-  const monsterBoostTodayImage = monsterBoostTodayMonster
-    ? await prisma.entityImage.findUnique({
-        where: {
-          entityType_entityId: {
-            entityType: "monster",
-            entityId: monsterBoostTodayMonster.id,
+  const [monsterBoostTodayImage, monsterBoostTodayLooktype] = await Promise.all([
+    monsterBoostTodayMonster
+      ? prisma.entityImage.findUnique({
+          where: {
+            entityType_entityId: {
+              entityType: "monster",
+              entityId: monsterBoostTodayMonster.id,
+            },
           },
-        },
-        select: { extension: true, updatedAt: true },
-      })
-    : null;
-  const monsterBoostTodayLooktype = monsterBoostTodayMonster?.lookTypeId
-    ? await prisma.looktype.findUnique({
-        where: { id: monsterBoostTodayMonster.lookTypeId },
-        select: { id: true, frameCount: true, frameDurationsMs: true, updatedAt: true },
-      })
-    : null;
+          select: { extension: true, updatedAt: true },
+        })
+      : Promise.resolve(null),
+    monsterBoostTodayMonster?.lookTypeId
+      ? prisma.looktype.findUnique({
+          where: { id: monsterBoostTodayMonster.lookTypeId },
+          select: { id: true, frameCount: true, frameDurationsMs: true, updatedAt: true },
+        })
+      : Promise.resolve(null),
+  ]);
 
   const accountBuckets = bucketByDay(
     accountsCreatedRecent.map((row) => row.createdAt),
@@ -271,10 +279,6 @@ export async function getDashboardStats() {
     total: row._count._all,
   }));
 
-  const [typeClasses, typeUniverses] = await Promise.all([
-    prisma.vocationTypeClass.findMany({ select: { id: true, name: true } }),
-    prisma.universe.findMany({ select: { id: true, name: true } }),
-  ]);
   const typeClassNameById = new Map(typeClasses.map((row) => [row.id, row.name]));
   const typeUniverseNameById = new Map(typeUniverses.map((row) => [row.id, row.name]));
 

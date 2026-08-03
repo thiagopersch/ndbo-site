@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   if (legacyFile instanceof File) files.push(legacyFile);
 
   const updateExisting = formData.get("replaceExisting") === "true";
-  const category = formData.get("category");
+  const universeIdRaw = formData.get("universeId");
   const subcategory = formData.get("subcategory");
 
   if (files.length === 0) {
@@ -34,9 +34,10 @@ export async function POST(request: Request) {
     );
   }
 
-  if (typeof category !== "string" || !category.trim()) {
+  const universeId = typeof universeIdRaw === "string" ? Number(universeIdRaw) : NaN;
+  if (!Number.isInteger(universeId)) {
     return NextResponse.json(
-      { error: "Informe o universo (categoria) para importar." },
+      { error: "Selecione o universo para importar." },
       { status: 422 },
     );
   }
@@ -48,13 +49,25 @@ export async function POST(request: Request) {
     );
   }
 
+  const universe = await prisma.universe.findUnique({ where: { id: universeId } });
+  if (!universe) {
+    return NextResponse.json(
+      { error: "Universo não encontrado." },
+      { status: 422 },
+    );
+  }
+
   let imported = 0;
   let skipped = 0;
   const errors: string[] = [];
 
   for (const file of files) {
     const xml = await file.text();
-    const { monster, error } = parseMonsterXml(xml, { category, subcategory });
+    const { monster, error } = parseMonsterXml(xml, {
+      category: universe.name,
+      subcategory,
+      universeId: universe.id,
+    });
 
     if (!monster) {
       skipped += 1;

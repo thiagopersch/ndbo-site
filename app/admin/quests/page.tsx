@@ -138,10 +138,6 @@ export default function AdminQuestsPage() {
             define nome, descrição, requisitos e recompensas.
           </p>
         </div>
-        <Button nativeButton={false} render={<Link href="/admin/quests/new" />}>
-          <Plus className="size-4" />
-          Nova
-        </Button>
       </div>
 
       <DataTable
@@ -159,6 +155,12 @@ export default function AdminQuestsPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <Button nativeButton={false} render={<Link href="/admin/quests/new" />}>
+            <Plus className="size-4" />
+            Nova
+          </Button>
+        }
       />
     </div>
   );

@@ -97,7 +97,6 @@ const adminSections: AdminSection[] = [
       { label: "Walls", href: "/admin/walls", icon: Shapes },
       { label: "Borders", href: "/admin/borders", icon: Shapes },
       { label: "Grounds", href: "/admin/grounds", icon: Shapes },
-      { label: "Towns", href: "/admin/towns", icon: Map },
     ],
   },
   {
@@ -170,6 +169,7 @@ const adminSections: AdminSection[] = [
       { label: "Auditoria", href: "/admin/audit-logs", icon: ScrollText },
       { label: "Configurações", href: "/admin/settings", icon: Settings },
       { label: "Universos", href: "/admin/universes", icon: SquareStack },
+      { label: "Towns", href: "/admin/towns", icon: Map },
     ],
   },
 ];

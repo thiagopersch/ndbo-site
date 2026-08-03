@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { TilesetDetail } from "@/components/admin/tilesets/tileset-detail";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar tileset",
@@ -20,6 +21,7 @@ export default async function EditTilesetPage({ params }: { params: Promise<{ id
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/tilesets" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">{tileset.name}</h1>

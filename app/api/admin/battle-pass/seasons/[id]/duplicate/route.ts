@@ -53,6 +53,8 @@ export async function POST(_request: Request, { params }: Params) {
       xpPerLevel: source.xpPerLevel,
       goldPassItemId: source.goldPassItemId,
       goldPassCost: source.goldPassCost,
+      levelPurchaseItemId: source.levelPurchaseItemId,
+      levelPurchaseCost: source.levelPurchaseCost,
       missions: {
         create: source.missions.map((mission) => ({
           type: mission.type,

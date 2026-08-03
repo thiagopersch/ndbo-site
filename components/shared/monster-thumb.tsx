@@ -17,11 +17,13 @@ type MonsterThumbProps = {
    * em vez da imagem estática antiga (`EntityThumb`). */
   lookTypeId?: number | null;
   size?: "sm" | "32" | "md" | "lg";
+  /** Desliga o zoom no hover — ver mesmo motivo em `EntityThumb`. @default true */
+  zoomOnHover?: boolean;
 };
 
 /** Sprite de monstro — anima via looktype vinculada (`lookTypeId`) quando disponível, com
  * fallback pra imagem estática (`EntityThumb`) em monstros ainda sem sprite vinculada. */
-export function MonsterThumb({ id, name, lookTypeId, size = "sm" }: MonsterThumbProps) {
+export function MonsterThumb({ id, name, lookTypeId, size = "sm", zoomOnHover = true }: MonsterThumbProps) {
   const { data, isLoading } = useSWR<PaginatedResult<LooktypeRow>>(
     lookTypeId ? `/api/admin/looktypes?search=${lookTypeId}&pageSize=5` : null,
     fetcher,
@@ -41,9 +43,10 @@ export function MonsterThumb({ id, name, lookTypeId, size = "sm" }: MonsterThumb
         frameDurationsMs={looktype.frameDurationsMs}
         updatedAt={looktype.updatedAt}
         size={size === "32" ? "sm" : size}
+        zoomOnHover={zoomOnHover}
       />
     );
   }
 
-  return <EntityThumb entityType="monster" id={id} name={name} size={size} />;
+  return <EntityThumb entityType="monster" id={id} name={name} size={size} zoomOnHover={zoomOnHover} />;
 }

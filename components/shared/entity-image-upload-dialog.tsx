@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ImageUp } from "lucide-react";
 
 import type { EntityImageType } from "@/lib/entity-image";
@@ -32,8 +33,24 @@ export function EntityImageUploadDialog({
   image,
   onUploaded,
 }: EntityImageUploadDialogProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Dialog onOpenChange={(open) => !open && onUploaded?.()}>
+    <Dialog
+      open={open}
+      // `disablePointerDismissal` bloqueia qualquer fechamento por clique/foco fora do dialog —
+      // o seletor de arquivo nativo do SO tira o foco da janela e o base-ui, dependendo do
+      // timing, pode interpretar isso de formas diferentes (focus-out, outside-press, ou outra
+      // variante interna) como um fechamento, perdendo o upload em andamento. Bloquear a
+      // categoria inteira de fechamento por ponteiro/foco é mais robusto que tentar prever cada
+      // motivo específico (ver também `eventDetails?.reason` abaixo, mantido como reforço).
+      disablePointerDismissal
+      onOpenChange={(next, eventDetails) => {
+        if (eventDetails?.reason === "focus-out" || eventDetails?.reason === "outside-press") return;
+        setOpen(next);
+        if (!next) onUploaded?.();
+      }}
+    >
       <DialogTrigger
         render={
           <Button variant="ghost" size="icon-sm" title="Enviar/trocar imagem">

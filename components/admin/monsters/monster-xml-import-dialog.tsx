@@ -16,6 +16,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
+import { UniverseBadge } from "@/components/shared/universe-badge";
+
+type UniverseRow = { id: number; name: string; color: string | null };
 
 /** Import de um ou mais arquivos XML de monstro de uma vez — diferente de Item/Movement
  * (um XML bundlando várias linhas), cada monstro é seu próprio arquivo
@@ -28,15 +32,15 @@ export function MonsterXmlImportDialog({
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replaceExisting, setReplaceExisting] = useState(false);
-  const [category, setCategory] = useState("");
+  const [universeId, setUniverseId] = useState<number | null>(null);
   const [subcategory, setSubcategory] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleImport() {
     const files = fileInputRef.current?.files;
 
-    if (!category.trim()) {
-      toast.error("Informe o universo (categoria).");
+    if (!universeId) {
+      toast.error("Selecione o universo.");
       return;
     }
 
@@ -55,7 +59,7 @@ export function MonsterXmlImportDialog({
     const formData = new FormData();
     Array.from(files).forEach((file) => formData.append("files", file));
     formData.append("replaceExisting", String(replaceExisting));
-    formData.append("category", category.trim());
+    formData.append("universeId", String(universeId));
     formData.append("subcategory", subcategory.trim());
 
     const response = await fetch("/api/admin/monsters/import", {
@@ -82,7 +86,7 @@ export function MonsterXmlImportDialog({
 
     setOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    setCategory("");
+    setUniverseId(null);
     setSubcategory("");
     onImported();
   }
@@ -111,14 +115,14 @@ export function MonsterXmlImportDialog({
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="monster-import-category">
-              Universo (categoria)
-            </Label>
-            <Input
-              id="monster-import-category"
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              placeholder='ex.: "dragon ball"'
+            <Label>Universo</Label>
+            <EntitySearchCombobox<UniverseRow>
+              endpoint="/api/admin/universes"
+              value={universeId}
+              placeholder="Buscar universo..."
+              formatOption={(row) => row.name}
+              renderOption={(row) => <UniverseBadge name={row.name} color={row.color} />}
+              onSelect={(row) => setUniverseId(row?.id ?? null)}
             />
           </div>
 

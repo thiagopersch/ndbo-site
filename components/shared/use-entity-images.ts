@@ -5,9 +5,24 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import type { EntityImageType } from "@/lib/entity-image";
 
-export type EntityImageInfo = { extension: string; updatedAt: string };
+export type EntityImageLooktype = {
+  id: number;
+  frameCount: number;
+  frameDurationsMs: number[];
+  updatedAt: string;
+};
 
-type ImagesResponse = { images: { entityId: number; extension: string; updatedAt: string }[] };
+/** `extension`/`updatedAt` só existem quando há um snapshot estático salvo; `looktype`, quando
+ * presente, tem prioridade — é a sprite animada do cadastro (ver `EntityThumb`). */
+export type EntityImageInfo = {
+  extension: string | null;
+  updatedAt: string | null;
+  looktype: EntityImageLooktype | null;
+};
+
+type ImagesResponse = {
+  images: { entityId: number; extension: string | null; updatedAt: string | null; looktype: EntityImageLooktype | null }[];
+};
 
 /** Lookup em lote — uma chamada por página/tabela (não uma por linha). A chave do SWR é
  * determinística (ids ordenados) para que múltiplos componentes com o mesmo conjunto de ids
@@ -20,7 +35,11 @@ export function useEntityImages(entityType: EntityImageType, ids: number[]): Map
 
   const map = new Map<number, EntityImageInfo>();
   for (const image of data?.images ?? []) {
-    map.set(image.entityId, { extension: image.extension, updatedAt: image.updatedAt });
+    map.set(image.entityId, {
+      extension: image.extension,
+      updatedAt: image.updatedAt,
+      looktype: image.looktype,
+    });
   }
   return map;
 }

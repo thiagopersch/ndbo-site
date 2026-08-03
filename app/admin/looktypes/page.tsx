@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2, ImagePlus } from "lucide-react";
@@ -9,19 +10,13 @@ import dayjs from "dayjs";
 import { fetcher } from "@/lib/fetcher";
 import type { Looktype } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import {
-  LOOKTYPE_CATEGORY_LABELS,
-  spriteTermFor,
-  type LooktypeCategory,
-  type LooktypeInput,
-} from "@/lib/validations/admin/looktype";
+import { LOOKTYPE_CATEGORY_LABELS, spriteTermFor, type LooktypeCategory } from "@/lib/validations/admin/looktype";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
-import { LooktypeFormDialog } from "@/components/admin/looktypes/looktype-form-dialog";
 import { LooktypeImageDialog } from "@/components/admin/looktypes/looktype-image-dialog";
 import { LooktypeCreateDialog } from "@/components/admin/looktypes/looktype-create-dialog";
 
@@ -41,16 +36,6 @@ export default function AdminLooktypesPage() {
     }
     toast.success("Removido.");
     mutate();
-  }
-
-  async function handleUpdate(values: LooktypeInput, id: number) {
-    const response = await fetch(`/api/admin/looktypes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    if (response.ok) mutate();
-    return response.ok;
   }
 
   const columns: ColumnDef<Looktype>[] = [
@@ -107,22 +92,15 @@ export default function AdminLooktypesPage() {
               </Button>
             }
           />
-          <LooktypeFormDialog
-            title={`Editar ${spriteTermFor(row.original.category).toLowerCase()} #${row.original.id}`}
-            looktypeId={row.original.id}
-            defaultValues={{
-              name: row.original.name,
-              category: row.original.category as LooktypeCategory,
-              looktypeNumber: row.original.looktypeNumber,
-            }}
-            successMessage="Atualizado com sucesso."
-            onSubmit={(values) => handleUpdate(values, row.original.id)}
-            trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
-                <Pencil className="size-4" />
-              </Button>
-            }
-          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Editar"
+            nativeButton={false}
+            render={<Link href={`/admin/looktypes/${row.original.id}`} />}
+          >
+            <Pencil className="size-4" />
+          </Button>
           <ConfirmDialog
             trigger={
               <Button variant="destructive" size="icon-sm" title="Excluir">

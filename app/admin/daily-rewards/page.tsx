@@ -115,18 +115,6 @@ export default function AdminDailyRewardsPage() {
           <h1 className="text-2xl font-semibold">Recompensas diárias</h1>
           <p className="text-muted-foreground">Tabela `daily_rewards_monthly` (por mês/ano/dia).</p>
         </div>
-        <DailyRewardFormDialog
-          title="Nova recompensa"
-          defaultValues={{ month: 1, year: new Date().getFullYear(), day: 1, itemId: 0, count: 1, clientId: 0 }}
-          successMessage="Criado com sucesso."
-          onSubmit={save}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Nova recompensa
-            </Button>
-          }
-        />
       </div>
 
       <DataTable
@@ -149,6 +137,20 @@ export default function AdminDailyRewardsPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <DailyRewardFormDialog
+            title="Nova recompensa"
+            defaultValues={{ month: 1, year: new Date().getFullYear(), day: 1, itemId: 0, count: 1, clientId: 0 }}
+            successMessage="Criado com sucesso."
+            onSubmit={save}
+            trigger={
+              <Button>
+                <Plus className="size-4" />
+                Nova recompensa
+              </Button>
+            }
+          />
+        }
       />
     </div>
   );

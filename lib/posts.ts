@@ -25,6 +25,7 @@ export async function getPublishedPostsForPage(page: PostPage) {
       ? {
           extension: imageByPostId.get(post.id)!.extension,
           updatedAt: imageByPostId.get(post.id)!.updatedAt.toISOString(),
+          looktype: null,
         }
       : null,
   }));

@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import dayjs from "dayjs";
+import { signOut } from "next-auth/react";
 import { AlertTriangle, Crown, Pencil, Plus, ShieldCheck, Sparkles, Sword, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { fetcher } from "@/lib/fetcher";
+import { fetcher, FetchError } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +23,16 @@ type AccountSummary = {
 };
 
 export function AccountDashboard() {
-  const { data, isLoading, mutate } = useSWR<AccountSummary>("/api/account/summary", fetcher);
+  const { data, error, isLoading, mutate } = useSWR<AccountSummary>(
+    "/api/account/summary",
+    fetcher,
+  );
+
+  useEffect(() => {
+    if (error instanceof FetchError && error.status === 401) {
+      signOut({ callbackUrl: "/login" });
+    }
+  }, [error]);
 
   async function handleDeleteCharacter(id: number) {
     const response = await fetch(`/api/account/characters/${id}`, { method: "DELETE" });

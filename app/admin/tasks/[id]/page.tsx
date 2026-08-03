@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { taskDefinitionRowToInput } from "@/lib/validations/admin/task-definition";
 import { EditTaskDefinitionForm } from "@/components/admin/tasks/edit-task-definition-form";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar task",
@@ -25,6 +26,7 @@ export default async function EditTaskDefinitionPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/tasks" />
       <div>
         <h1 className="text-2xl font-semibold">Editar task: {task.name}</h1>
         <p className="text-muted-foreground">

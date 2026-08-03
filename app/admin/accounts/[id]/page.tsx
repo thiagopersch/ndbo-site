@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { AccountForm } from "@/components/admin/accounts/account-form";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar conta",
@@ -33,6 +34,7 @@ export default async function EditAccountPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/accounts" />
       <div>
         <h1 className="text-2xl font-semibold">Editar conta: {account.name}</h1>
         <p className="text-muted-foreground">Altere os dados da conta.</p>

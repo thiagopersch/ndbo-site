@@ -105,18 +105,6 @@ export default function AdminCategoriesPage() {
             listagens.
           </p>
         </div>
-        <CategoryFormDialog
-          title="Nova categoria"
-          defaultValues={defaultCategoryValues}
-          successMessage="Criada com sucesso."
-          onSubmit={(values) => createOrUpdate(values)}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Nova categoria
-            </Button>
-          }
-        />
       </div>
 
       <DataTable
@@ -134,6 +122,20 @@ export default function AdminCategoriesPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <CategoryFormDialog
+            title="Nova categoria"
+            defaultValues={defaultCategoryValues}
+            successMessage="Criada com sucesso."
+            onSubmit={(values) => createOrUpdate(values)}
+            trigger={
+              <Button>
+                <Plus className="size-4" />
+                Nova categoria
+              </Button>
+            }
+          />
+        }
       />
     </div>
   );

@@ -64,14 +64,14 @@ function clearPersisted(pathname: string) {
  */
 export function useServerTable(options?: { initialPageSize?: number }) {
   const pathname = usePathname();
-  const [initial] = useState(() => readPersisted(pathname));
 
-  const [pageIndex, setPageIndex] = useState(initial.pageIndex ?? 0);
-  const [pageSize, setPageSizeState] = useState(initial.pageSize ?? options?.initialPageSize ?? 10);
-  const [searchInput, setSearchInput] = useState(initial.searchInput ?? "");
-  const [search, setSearch] = useState(initial.search ?? "");
-  const [draftFilters, setDraftFilters] = useState<FilterValues>(initial.draftFilters ?? {});
-  const [appliedFilters, setAppliedFilters] = useState<FilterValues>(initial.appliedFilters ?? {});
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize, setPageSizeState] = useState(options?.initialPageSize ?? 10);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [draftFilters, setDraftFilters] = useState<FilterValues>({});
+  const [appliedFilters, setAppliedFilters] = useState<FilterValues>({});
+  const [hydrated, setHydrated] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -80,9 +80,26 @@ export function useServerTable(options?: { initialPageSize?: number }) {
     };
   }, []);
 
+  // Lê o `sessionStorage` só depois do mount: a leitura precisa acontecer fora do
+  // render inicial (que também roda no SSR, onde `sessionStorage` não existe) — senão
+  // a página hidrata com um estado diferente do renderizado no servidor e o React
+  // acusa erro de hydration mismatch.
   useEffect(() => {
+    const initial = readPersisted(pathname);
+    if (initial.pageIndex != null) setPageIndex(initial.pageIndex);
+    if (initial.pageSize != null) setPageSizeState(initial.pageSize);
+    if (initial.searchInput != null) setSearchInput(initial.searchInput);
+    if (initial.search != null) setSearch(initial.search);
+    if (initial.draftFilters != null) setDraftFilters(initial.draftFilters);
+    if (initial.appliedFilters != null) setAppliedFilters(initial.appliedFilters);
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!hydrated) return;
     writePersisted(pathname, { pageIndex, pageSize, searchInput, search, draftFilters, appliedFilters });
-  }, [pathname, pageIndex, pageSize, searchInput, search, draftFilters, appliedFilters]);
+  }, [hydrated, pathname, pageIndex, pageSize, searchInput, search, draftFilters, appliedFilters]);
 
   function handleSearchChange(value: string) {
     setSearchInput(value);

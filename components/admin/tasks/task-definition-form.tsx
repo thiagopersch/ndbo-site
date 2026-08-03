@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -33,12 +32,14 @@ import { formatThousands } from "@/lib/utils";
 import { TASK_DIFFICULTY_COLORS } from "@/lib/task-difficulty";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
-import { MonsterThumb } from "@/components/shared/monster-thumb";
 import { FieldTooltip } from "@/components/shared/field-tooltip";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CategorySelect } from "@/components/admin/categories/category-select";
-import { MonsterThumbByName } from "@/components/admin/tasks/monster-thumb-by-name";
+import { TaskMonsterListField } from "@/components/admin/tasks/task-monster-list-field";
+import { QuestRewardItemListField } from "@/components/admin/quests/quest-reward-item-list-field";
+import { useItemName } from "@/components/shared/use-item-name";
 
 /** 1 crystal coin = 10000 gold coin — mesma conversão usada em outros CRUDs (ex.: loja de NPC). */
 const GOLD_PER_CRYSTAL = 10000;
@@ -73,11 +74,10 @@ export function TaskDefinitionForm({
     defaultValues,
   });
 
-  const monsters = useFieldArray({ control: form.control, name: "monsters" });
-  const rewardItems = useFieldArray({ control: form.control, name: "rewardItems" });
   const deliveryEnabled = form.watch("deliveryEnabled");
   const name = form.watch("name");
   const lookType = form.watch("lookType");
+  const watchedRewardItems = form.watch("rewardItems") ?? [];
 
   // O identificador é sempre travado no formulário: em criação ele acompanha o Nome (virando
   // a chave estável gravada em player_tasks.task_id); em edição, o valor existente nunca muda.
@@ -106,7 +106,8 @@ export function TaskDefinitionForm({
   }
 
   return (
-    <Form {...form}>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
         <Tabs defaultValue="identification">
           <TabsList>
@@ -395,91 +396,12 @@ export function TaskDefinitionForm({
 
           <TabsContent value="monsters">
             <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  Monstros da task
-                  <FieldTooltip text="A morte de qualquer monstro da lista conta para o total de Kills necessários." />
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => monsters.append({ name: "", kills: 100 })}
-                >
-                  <Plus className="size-4" />
-                  Adicionar
-                </Button>
-              </div>
-              {monsters.fields.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum monstro adicionado.</p>
-              )}
-              {monsters.fields.map((rowField, index) => {
-                const monsterName = form.watch(`monsters.${index}.name`);
-                return (
-                  <div key={rowField.id} className="flex items-end gap-2">
-                    {monsterName && <MonsterThumbByName name={monsterName} />}
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`monsters.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Monstro</FormLabel>
-                            <EntitySearchCombobox<{ id: number; name: string; lookTypeId: number | null }>
-                              endpoint="/api/admin/monsters"
-                              value={null}
-                              placeholder={field.value || "Buscar monstro..."}
-                              formatOption={(monster) => monster.name}
-                              renderOption={(monster) => (
-                                <span className="flex items-center gap-2">
-                                  <MonsterThumb
-                                    id={monster.id}
-                                    name={monster.name}
-                                    lookTypeId={monster.lookTypeId}
-                                    size="32"
-                                  />
-                                  {monster.name}
-                                </span>
-                              )}
-                              onSelect={(monster) => field.onChange(monster?.name ?? "")}
-                            />
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="w-28">
-                      <FormattedNumberField control={form.control} name={`monsters.${index}.kills`} label="Kills" />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => monsters.remove(index)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                );
-              })}
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                Monstros da task
+                <FieldTooltip text="A morte de qualquer monstro da lista conta para o total de Kills necessários." />
+              </span>
+              <TaskMonsterListField control={form.control} name="monsters" />
             </div>
-
-            {monsters.fields.length > 0 && (
-              <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-                <span className="text-sm font-medium">Looktypes dos monstros exigidos</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  {monsters.fields.map((rowField, index) => {
-                    const monsterEntry = form.watch(`monsters.${index}`);
-                    if (!monsterEntry.name) return null;
-                    return (
-                      <span key={rowField.id} className="flex items-center gap-1" title={`${monsterEntry.name} × ${monsterEntry.kills}`}>
-                        <MonsterThumbByName name={monsterEntry.name} />
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </TabsContent>
 
           <TabsContent value="rewards" className="flex flex-col gap-4">
@@ -520,73 +442,16 @@ export function TaskDefinitionForm({
             </div>
 
             <div className="flex flex-col gap-2 rounded-md border border-border p-3">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  Itens de recompensa
-                  <FieldTooltip text="Entregues em uma backpack ao reivindicar a task." />
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => rewardItems.append({ itemId: 0, count: 1 })}
-                >
-                  <Plus className="size-4" />
-                  Adicionar
-                </Button>
-              </div>
-              {rewardItems.fields.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum item de recompensa.</p>
-              )}
-              {rewardItems.fields.map((rowField, index) => {
-                const itemId = form.watch(`rewardItems.${index}.itemId`);
-                return (
-                  <div key={rowField.id} className="flex items-end gap-2">
-                    {itemId > 0 && <EntityThumb entityType="item" id={itemId} size="32" />}
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`rewardItems.${index}.itemId`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Item</FormLabel>
-                            <EntitySearchCombobox<{ id: number; name: string }>
-                              endpoint="/api/admin/items"
-                              value={field.value || null}
-                              placeholder="Buscar item..."
-                              formatOption={(item) => `${item.name} (#${item.id})`}
-                              renderOption={(item) => (
-                                <span className="flex items-center gap-2">
-                                  <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
-                                  {item.name} (#{item.id})
-                                </span>
-                              )}
-                              onSelect={(item) => field.onChange(item?.id ?? 0)}
-                            />
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="w-28">
-                      <NumberField control={form.control} name={`rewardItems.${index}.count`} label="Quantidade" />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => rewardItems.remove(index)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                );
-              })}
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                Itens de recompensa
+                <FieldTooltip text="Entregues em uma backpack ao reivindicar a task." />
+              </span>
+              <QuestRewardItemListField control={form.control} name="rewardItems" />
             </div>
           </TabsContent>
         </Tabs>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between">
           <Button type="button" variant="outline" onClick={() => router.push("/admin/tasks")}>
             Cancelar
           </Button>
@@ -595,7 +460,42 @@ export function TaskDefinitionForm({
           </Button>
         </div>
       </form>
-    </Form>
+      </Form>
+
+      <div className="flex flex-col gap-6 lg:sticky lg:top-6">
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Recompensas configuradas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {watchedRewardItems.filter((item) => item?.itemId > 0).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum item de recompensa configurado ainda.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {watchedRewardItems
+                  .filter((item): item is { itemId: number; count: number } => Boolean(item?.itemId > 0))
+                  .map((item, index) => (
+                    <TaskRewardPreviewRow key={`${item.itemId}-${index}`} itemId={item.itemId} count={item.count} />
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function TaskRewardPreviewRow({ itemId, count }: { itemId: number; count: number }) {
+  const name = useItemName(itemId);
+
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-border p-2">
+      <EntityThumb entityType="item" id={itemId} name={name ?? undefined} size="md" />
+      <span className="text-sm">
+        {name ?? "—"} <span className="text-muted-foreground">#{itemId}</span> × {count}
+      </span>
+    </div>
   );
 }
 

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
+import { NpcXmlImportDialog } from "@/components/admin/npcs/npc-xml-import-dialog";
 
 type NpcRow = {
   id: number;
@@ -95,12 +96,15 @@ export default function AdminNpcsPage() {
             Gera data/npc/{"{nome}"}.xml (+ script quando aplicável) no servidor.
           </p>
         </div>
-        <Link href="/admin/npcs/new">
-          <Button>
-            <Plus className="size-4" />
-            Novo
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <NpcXmlImportDialog onImported={() => mutate()} />
+          <Link href="/admin/npcs/new">
+            <Button>
+              <Plus className="size-4" />
+              Novo
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <DataTable

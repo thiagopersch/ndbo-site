@@ -22,14 +22,25 @@ function flush(entityType: EntityImageType) {
 
   fetch(`/api/admin/images/${entityType}?ids=${ids.join(",")}`)
     .then((response) => (response.ok ? response.json() : { images: [] }))
-    .then((data: { images: { entityId: number; extension: string; updatedAt: string }[] }) => {
-      const byId = new Map(data.images.map((image) => [image.entityId, image]));
-      for (const [id, resolvers] of queue) {
-        const image = byId.get(id);
-        const info = image ? { extension: image.extension, updatedAt: image.updatedAt } : null;
-        for (const resolve of resolvers) resolve(info);
+    .then(
+      (data: {
+        images: {
+          entityId: number;
+          extension: string | null;
+          updatedAt: string | null;
+          looktype: EntityImageInfo["looktype"];
+        }[];
+      }) => {
+        const byId = new Map(data.images.map((image) => [image.entityId, image]));
+        for (const [id, resolvers] of queue) {
+          const image = byId.get(id);
+          const info: EntityImageInfo | null = image
+            ? { extension: image.extension, updatedAt: image.updatedAt, looktype: image.looktype }
+            : null;
+          for (const resolve of resolvers) resolve(info);
+        }
       }
-    })
+    )
     .catch(() => {
       for (const resolvers of queue.values()) {
         for (const resolve of resolvers) resolve(null);

@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
 import type { NpcInput } from "@/lib/validations/admin/npc";
-import { buildNpcXml, DEFAULT_NPC_SCRIPT_TEMPLATE } from "@/lib/npc-xml";
+import { buildDefaultNpcScript, buildNpcScriptWithMessages, buildNpcXml } from "@/lib/npc-xml";
 
 export { buildNpcXml };
 
@@ -37,7 +37,12 @@ export async function writeNpcFiles(npc: NpcInput): Promise<void> {
     const linkedScript = npc.scriptId
       ? await prisma.luaScript.findUnique({ where: { id: npc.scriptId }, select: { content: true } })
       : null;
-    await fs.writeFile(scriptPath, linkedScript?.content ?? DEFAULT_NPC_SCRIPT_TEMPLATE, "utf-8");
+    const scriptContent =
+      linkedScript?.content ??
+      (npc.customMessages.length > 0
+        ? buildNpcScriptWithMessages(npc.customMessages, npc.defaultMessages)
+        : buildDefaultNpcScript(npc.defaultMessages));
+    await fs.writeFile(scriptPath, scriptContent, "utf-8");
   }
 }
 

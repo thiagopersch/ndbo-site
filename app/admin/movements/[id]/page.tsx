@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { movementRowToFormInput } from "@/lib/movement-mapper";
 import { MovementForm } from "@/components/admin/movements/movement-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar movement",
@@ -27,6 +28,7 @@ export default async function EditMovementPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/movements" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">

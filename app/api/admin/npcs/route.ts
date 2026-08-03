@@ -42,12 +42,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
-  const { shopItems, ...npcFields } = parsed.data;
+  const { shopItems, customMessages, defaultMessages, ...npcFields } = parsed.data;
 
   const npc = await prisma.npc.create({
     data: {
       ...npcFields,
       shopItems: shopItems.filter((item) => item.direction && item.itemId) as unknown as Prisma.InputJsonValue,
+      customMessages: customMessages as unknown as Prisma.InputJsonValue,
+      defaultMessages: defaultMessages as unknown as Prisma.InputJsonValue,
     },
   });
 

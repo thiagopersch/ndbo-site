@@ -32,7 +32,12 @@ export async function GET(request: Request) {
     : {};
 
   const [looktypes, total] = await Promise.all([
-    prisma.looktype.findMany({ where, orderBy: { id: "asc" }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.looktype.findMany({
+      where,
+      orderBy: [{ category: "asc" }, { looktypeNumber: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
     prisma.looktype.count({ where }),
   ]);
 

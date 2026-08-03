@@ -412,7 +412,14 @@ export function DashboardCharts({
         className="lg:col-span-2"
       />
 
-      <CategoryChartBox title="Spells por vocação" data={spellsByVocation} color="var(--chart-1)" />
+      <CategoryChartBox
+        title="Spells por vocação"
+        data={spellsByVocation}
+        color="var(--chart-1)"
+        barLayout="vertical"
+        barHeight={320}
+        className="lg:col-span-2"
+      />
 
       <CategoryChartBox title="NPCs por tipo" data={npcsByType} color="var(--chart-2)" />
 

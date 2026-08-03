@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -16,7 +16,6 @@ import { ExternalLink, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 type BrushType = "ground" | "wall" | "doodad";
 type BrushRef = { id: number; name: string; tilesetOrder: number };
@@ -47,11 +46,6 @@ function mergeBrushes(grounds: BrushRef[], walls: BrushRef[], doodads: BrushRef[
   return tagged
     .sort((a, b) => a.tilesetOrder - b.tilesetOrder || a.typeRank - b.typeRank)
     .map(({ type, id, name }) => ({ type, id, name }));
-}
-
-function sameOrder(a: CombinedBrush[], b: CombinedBrush[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((brush, index) => brush.type === b[index].type && brush.id === b[index].id);
 }
 
 /** Tile compacto (não uma linha inteira) — a lista inteira flui horizontalmente, tantos
@@ -106,19 +100,15 @@ type CategoryBrushOrderListProps = {
   doodads: BrushRef[];
   /** Chamado depois que a nova ordem é salva com sucesso — para revalidar os dados. */
   onSaved: () => void;
-  /** Reflete se há uma reordenação arrastada ainda não salva — o dialog usa isso para
-   * bloquear o fechamento ao clicar fora enquanto houver alteração pendente. */
+  /** Reflete se há um salvamento de ordem em andamento — o dialog usa isso para bloquear
+   * o fechamento ao clicar fora enquanto o PATCH ainda não terminou. */
   onDirtyChange?: (dirty: boolean) => void;
 };
 
-/** Lista arrastável dos brushes vinculados a uma categoria. A ordem só é persistida
- * (em `tilesetOrder` de cada Ground/WallBrush/DoodadBrush) quando o admin clica em
- * "Salvar ordem" — arrastar só reordena localmente, evitando um PATCH a cada solta.
- * Essa ordem salva é a que sai tanto ao exportar quanto ao copiar o XML do tileset.
- *
- * O componente é montado com `key={categoryId}` pelo chamador — trocar de categoria
- * remonta e descarta qualquer reordenação local não salva, em vez de sincronizar via
- * efeito. */
+/** Lista arrastável dos brushes vinculados a uma categoria — a ordem é persistida
+ * automaticamente a cada solta (mesmo padrão de `CategoryItemEntriesEditor`), sem exigir
+ * um botão "Salvar ordem" separado. Essa ordem salva é a que sai tanto ao exportar quanto
+ * ao copiar o XML do tileset. */
 export function CategoryBrushOrderList({
   categoryId,
   grounds,
@@ -129,20 +119,11 @@ export function CategoryBrushOrderList({
 }: CategoryBrushOrderListProps) {
   const serverItems = mergeBrushes(grounds, walls, doodads);
   const [localItems, setLocalItems] = useState<CombinedBrush[] | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const items = localItems ?? serverItems;
-  // Uma vez salvo, `localItems` continua igual ao que acabou de ser persistido — então
-  // volta a "não sujo" assim que `serverItems` alcançar essa mesma ordem (após o
-  // refetch disparado por `onSaved`), sem precisar de um efeito para zerar o estado.
-  const isDirty = localItems !== null && !sameOrder(localItems, serverItems);
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -150,63 +131,41 @@ export function CategoryBrushOrderList({
     const newIndex = items.findIndex((brush) => `${brush.type}-${brush.id}` === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    setLocalItems(arrayMove(items, oldIndex, newIndex));
-  }
-
-  function handleDiscard() {
-    setLocalItems(null);
-  }
-
-  async function handleSave() {
-    setIsSaving(true);
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    setLocalItems(reordered);
+    onDirtyChange?.(true);
 
     const response = await fetch(`/api/admin/tilesets/categories/${categoryId}/reorder-brushes`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: items.map((brush, index) => ({ type: brush.type, id: brush.id, order: index })),
+        items: reordered.map((brush, index) => ({ type: brush.type, id: brush.id, order: index })),
       }),
     });
 
-    setIsSaving(false);
+    onDirtyChange?.(false);
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
       toast.error(body?.error ?? "Não foi possível salvar a nova ordem dos brushes.");
+      setLocalItems(null);
       return;
     }
 
-    toast.success("Ordem dos brushes salva.");
     onSaved();
   }
 
   if (items.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={items.map((brush) => `${brush.type}-${brush.id}`)} strategy={rectSortingStrategy}>
-          <ul className="flex flex-wrap gap-2">
-            {items.map((brush, index) => (
-              <SortableBrushTile key={`${brush.type}-${brush.id}`} brush={brush} index={index} />
-            ))}
-          </ul>
-        </SortableContext>
-      </DndContext>
-
-      {isDirty && (
-        <div className="flex items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <span>Ordem alterada — salve para valer na exportação/cópia do XML.</span>
-          <div className="flex shrink-0 gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={handleDiscard} disabled={isSaving}>
-              Descartar
-            </Button>
-            <Button type="button" size="sm" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Salvando..." : "Salvar ordem"}
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={items.map((brush) => `${brush.type}-${brush.id}`)} strategy={rectSortingStrategy}>
+        <ul className="flex flex-wrap gap-2">
+          {items.map((brush, index) => (
+            <SortableBrushTile key={`${brush.type}-${brush.id}`} brush={brush} index={index} />
+          ))}
+        </ul>
+      </SortableContext>
+    </DndContext>
   );
 }

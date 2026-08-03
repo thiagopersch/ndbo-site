@@ -207,10 +207,6 @@ export default function AdminTasksPage() {
             precisar reiniciar ou editar Lua.
           </p>
         </div>
-        <Button nativeButton={false} render={<Link href="/admin/tasks/new" />}>
-          <Plus className="size-4" />
-          Nova
-        </Button>
       </div>
 
       <DataTable
@@ -233,6 +229,12 @@ export default function AdminTasksPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <Button nativeButton={false} render={<Link href="/admin/tasks/new" />}>
+            <Plus className="size-4" />
+            Nova
+          </Button>
+        }
       />
     </div>
   );

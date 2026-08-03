@@ -3,7 +3,13 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { NpcForm } from "@/components/admin/npcs/npc-form";
-import { normalizeShopItems, type NpcInput } from "@/lib/validations/admin/npc";
+import {
+  normalizeCustomMessages,
+  normalizeDefaultMessages,
+  normalizeShopItems,
+  type NpcInput,
+} from "@/lib/validations/admin/npc";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar NPC",
@@ -32,11 +38,14 @@ export default async function EditNpcPage({
     direction: npc.direction,
     shopItems: normalizeShopItems(npc.shopItems),
     scriptId: npc.scriptId,
+    customMessages: normalizeCustomMessages(npc.customMessages),
+    defaultMessages: normalizeDefaultMessages(npc.defaultMessages),
     published: npc.published,
   };
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/npcs" />
       <div>
         <h1 className="text-2xl font-semibold">
           Editar NPC: {npc.name} (#{npc.id})

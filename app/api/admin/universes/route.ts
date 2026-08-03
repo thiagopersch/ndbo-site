@@ -15,7 +15,14 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.UniverseWhereInput = search ? { name: { contains: search } } : {};
+  const where: Prisma.UniverseWhereInput = search
+    ? {
+        OR: [
+          { name: { contains: search } },
+          ...(Number.isInteger(Number(search)) ? [{ id: Number(search) }] : []),
+        ],
+      }
+    : {};
 
   const [universes, total] = await Promise.all([
     prisma.universe.findMany({

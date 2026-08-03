@@ -9,15 +9,17 @@ export type BlockType = (typeof BLOCK_TYPES)[number];
 
 /** Taxonomia própria do portal para o campo `group` (o atributo é decorativo na engine —
  * `TalkAction::configureEvent` só usa `group`/`groups` para IDs numéricos de acesso, não para
- * essa categorização). Armazenado em `Spell.group` como string separada por vírgula. */
+ * essa categorização). Armazenado em `Spell.group` como string separada por vírgula.
+ * Valores em inglês minúsculo — mesma convenção usada em `group="..."` no `spells.xml` real do
+ * servidor (ex.: `group="attacks"`, `group="healing,support"`). Salvar rótulos em português
+ * (ex.: "Suporte") não quebra a engine (o atributo é inerte), mas diverge do padrão real e
+ * atrapalha qualquer script/tooling que faça grep por `group="..."`. */
 export const SPELL_GROUP_OPTIONS = [
-  "Attacks",
-  "Defenses",
-  "Healings",
-  "Buffs",
-  "Suporte",
-  "Especial",
-  "Combos",
+  "attacks",
+  "healing",
+  "support",
+  "buffs",
+  "monsters",
 ] as const;
 export type SpellGroupOption = (typeof SPELL_GROUP_OPTIONS)[number];
 

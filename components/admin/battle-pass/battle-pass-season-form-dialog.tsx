@@ -106,7 +106,7 @@ export function BattlePassSeasonFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={trigger as React.ReactElement} />
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -145,6 +145,47 @@ export function BattlePassSeasonFormDialog({
                     return (
                       <FormItem>
                         <FormLabel>Item do passe Gold (cobrado do jogador)</FormLabel>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <EntitySearchCombobox<NamedRow>
+                              endpoint="/api/admin/items"
+                              value={itemId || null}
+                              placeholder="Buscar item..."
+                              formatOption={(item) => `${item.name} (#${item.id})`}
+                              renderOption={(item) => (
+                                <span className="flex items-center gap-2">
+                                  <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
+                                  {item.name} (#{item.id})
+                                </span>
+                              )}
+                              onSelect={(item) => field.onChange(item?.id ?? 0)}
+                            />
+                          </div>
+                          {itemId > 0 && <EntityThumb entityType="item" id={itemId} size="32" />}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormattedNumberField
+                    control={form.control}
+                    name="levelPurchaseCost"
+                    label="Custo para comprar 1 level"
+                    tooltip="Quantidade da moeda cobrada do jogador ao comprar um level avulso do passe (botão 'Lv. +' / 'Atualizar Passe')."
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="levelPurchaseItemId"
+                  render={({ field }) => {
+                    const itemId = field.value;
+                    return (
+                      <FormItem>
+                        <FormLabel>Item cobrado para comprar level</FormLabel>
                         <div className="flex items-center gap-3">
                           <div className="flex-1">
                             <EntitySearchCombobox<NamedRow>

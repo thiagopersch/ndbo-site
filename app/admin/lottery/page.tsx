@@ -101,18 +101,6 @@ export default function AdminLotteryPage() {
           <h1 className="text-2xl font-semibold">Loteria</h1>
           <p className="text-muted-foreground">Prêmios sorteáveis da tabela `lottery`.</p>
         </div>
-        <LotteryFormDialog
-          title="Novo prêmio"
-          defaultValues={{ name: "", item: "" }}
-          successMessage="Criado com sucesso."
-          onSubmit={(values) => createOrUpdate(values)}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Novo prêmio
-            </Button>
-          }
-        />
       </div>
 
       <DataTable
@@ -130,6 +118,20 @@ export default function AdminLotteryPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <LotteryFormDialog
+            title="Novo prêmio"
+            defaultValues={{ name: "", item: "" }}
+            successMessage="Criado com sucesso."
+            onSubmit={(values) => createOrUpdate(values)}
+            trigger={
+              <Button>
+                <Plus className="size-4" />
+                Novo prêmio
+              </Button>
+            }
+          />
+        }
       />
     </div>
   );

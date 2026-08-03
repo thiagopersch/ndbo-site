@@ -6,6 +6,7 @@ import { wallBrushToFormInput } from "@/lib/wall-mapper";
 import { WallForm } from "@/components/admin/walls/wall-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar wall",
@@ -25,6 +26,7 @@ export default async function EditWallPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/walls" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Editar wall: {brush.name}</h1>

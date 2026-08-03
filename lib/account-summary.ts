@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 const REPORTS_LIMIT = 20;
 
 export async function getAccountSummary(accountId: number) {
-  const account = await prisma.account.findUniqueOrThrow({
+  const account = await prisma.account.findUnique({
     where: { id: accountId },
     select: { name: true, premdays: true, blocked: true },
   });
+
+  if (!account) return null;
 
   const players = await prisma.player.findMany({
     where: { accountId, deleted: 0 },

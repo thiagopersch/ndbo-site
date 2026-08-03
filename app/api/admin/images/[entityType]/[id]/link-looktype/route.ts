@@ -135,6 +135,17 @@ export async function POST(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({
-    image: { entityType, entityId, extension: image.extension, updatedAt: image.updatedAt },
+    image: {
+      entityType,
+      entityId,
+      extension: image.extension,
+      updatedAt: image.updatedAt,
+      looktype: {
+        id: looktype.id,
+        frameCount: looktype.frameCount,
+        frameDurationsMs: looktype.frameDurationsMs,
+        updatedAt: looktype.updatedAt,
+      },
+    },
   });
 }

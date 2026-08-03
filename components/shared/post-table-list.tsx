@@ -38,7 +38,7 @@ export function PostTableList({ posts, emptyLabel = "Nenhum conteúdo publicado 
           <TableRow key={post.id}>
             <TableCell>
               <div className="size-12 overflow-hidden rounded-md border border-border bg-muted">
-                {post.image && (
+                {post.image?.extension && post.image.updatedAt && (
                   // eslint-disable-next-line @next/next/no-img-element -- imagem de capa enviada pelo admin, servida estática de public/storage
                   <img
                     src={entityImageUrl("post", post.id, post.image.extension, new Date(post.image.updatedAt))}

@@ -115,7 +115,10 @@ export function DailyRewardFormDialog({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="sm:justify-between">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Salvando..." : "Salvar"}
               </Button>

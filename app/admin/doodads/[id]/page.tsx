@@ -6,6 +6,7 @@ import { doodadBrushToFormInput } from "@/lib/doodad-mapper";
 import { DoodadForm } from "@/components/admin/doodads/doodad-form";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar doodad",
@@ -25,6 +26,7 @@ export default async function EditDoodadPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/doodads" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Editar doodad: {brush.name}</h1>

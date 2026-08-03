@@ -170,23 +170,21 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma entrada ainda.</p>
+          <p className="text-sm text-muted-foreground">Nenhuma entrada ainda — use o formulário abaixo.</p>
         ) : filteredEntries.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma entrada encontrada para &quot;{searchTerm}&quot;.</p>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={filteredEntries.map((e) => e.id)} strategy={rectSortingStrategy}>
-              <div className="flex flex-wrap gap-2">
-                {filteredEntries.map((entry) => (
-                  <EntryRowItem key={entry.id} entry={entry} onDelete={() => handleDelete(entry.id)} />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <SortableContext items={filteredEntries.map((e) => e.id)} strategy={rectSortingStrategy}>
+            <div className="flex flex-wrap gap-2">
+              {filteredEntries.map((entry) => (
+                <EntryRowItem key={entry.id} entry={entry} onDelete={() => handleDelete(entry.id)} />
+              ))}
+            </div>
+          </SortableContext>
         )}
-      </div>
+      </DndContext>
 
       <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
         <div className="flex flex-col gap-1">
@@ -208,8 +206,12 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
           <div className="flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">Item ID</span>
             <div className="flex items-center gap-2">
-              <Input type="number" value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-28" />
               <EntityThumb entityType="item" id={Number(itemId) || 0} />
+              <Input type="number" value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-28" />
+              <Button type="button" onClick={handleAdd} disabled={isSubmitting || rangeInvalid}>
+                <Plus className="size-4" />
+                Adicionar
+              </Button>
             </div>
           </div>
         ) : (
@@ -222,6 +224,10 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
               <span className="text-xs text-muted-foreground">Até</span>
               <Input type="number" value={toId} onChange={(e) => setToId(e.target.value)} className="w-24" />
             </div>
+            <Button type="button" onClick={handleAdd} disabled={isSubmitting || rangeInvalid}>
+              <Plus className="size-4" />
+              Adicionar
+            </Button>
             {rangeInvalid && (
               <p className="w-full text-sm text-destructive">
                 O campo &quot;Até&quot; deve ser maior ou igual ao campo &quot;De&quot;.
@@ -229,11 +235,6 @@ export function CategoryItemEntriesEditor({ categoryId, onChanged }: { categoryI
             )}
           </>
         )}
-
-        <Button type="button" onClick={handleAdd} disabled={isSubmitting || rangeInvalid} className="w-full">
-          <Plus className="size-4" />
-          Adicionar
-        </Button>
       </div>
     </div>
   );

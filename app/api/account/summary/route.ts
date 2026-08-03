@@ -8,5 +8,9 @@ export async function GET() {
   if (response) return response;
 
   const summary = await getAccountSummary(Number(session.user.id));
+  if (!summary) {
+    return NextResponse.json({ error: "Conta não encontrada." }, { status: 401 });
+  }
+
   return NextResponse.json(summary);
 }

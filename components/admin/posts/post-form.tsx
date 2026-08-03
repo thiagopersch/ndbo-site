@@ -297,7 +297,7 @@ export function PostForm({ post }: PostFormProps) {
                       <DialogTitle>Pré-visualização</DialogTitle>
                     </DialogHeader>
                     <article className="mx-auto w-full max-w-3xl px-4 pb-4">
-                      {post.image && (
+                      {post.image?.extension && post.image.updatedAt && (
                         // eslint-disable-next-line @next/next/no-img-element -- readonly preview, mesma imagem servida na página pública
                         <img
                           src={entityImageUrl("post", post.id, post.image.extension, new Date(post.image.updatedAt))}

@@ -91,13 +91,6 @@ export default function AdminDonationsPage() {
             integrado. O tier de donate da conta é calculado pela quantidade de lançamentos.
           </p>
         </div>
-        <DonationFormDialog
-          title="Nova doação"
-          defaultValues={{ accountName: "", amount: 0, note: "" }}
-          successMessage="Doação registrada."
-          onSubmit={create}
-          trigger={<Button>Nova doação</Button>}
-        />
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -120,6 +113,15 @@ export default function AdminDonationsPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <DonationFormDialog
+            title="Nova doação"
+            defaultValues={{ accountName: "", amount: 0, note: "" }}
+            successMessage="Doação registrada."
+            onSubmit={create}
+            trigger={<Button>Nova doação</Button>}
+          />
+        }
       />
     </div>
   );

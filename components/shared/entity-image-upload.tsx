@@ -49,7 +49,7 @@ export function EntityImageUpload({ entityType, id, name, currentImage }: Entity
     }
 
     const data = await response.json();
-    setImage({ extension: data.image.extension, updatedAt: data.image.updatedAt });
+    setImage({ extension: data.image.extension, updatedAt: data.image.updatedAt, looktype: data.image.looktype ?? null });
     toast.success("Imagem atualizada.");
   }
 
@@ -86,7 +86,7 @@ export function EntityImageUpload({ entityType, id, name, currentImage }: Entity
     }
 
     const data = await response.json();
-    setImage({ extension: data.image.extension, updatedAt: data.image.updatedAt });
+    setImage({ extension: data.image.extension, updatedAt: data.image.updatedAt, looktype: data.image.looktype });
     setShowLooktypePicker(false);
     toast.success("Sprite vinculada a partir do cadastro de looktypes.");
   }
@@ -123,7 +123,7 @@ export function EntityImageUpload({ entityType, id, name, currentImage }: Entity
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/gif"
+          accept=".obd,image/png,image/gif"
           className="hidden"
           onChange={handleFileChange}
         />
@@ -139,7 +139,10 @@ export function EntityImageUpload({ entityType, id, name, currentImage }: Entity
           onSelect={handleLinkLooktype}
         />
       )}
-      <p className="text-xs text-muted-foreground">PNG ou GIF, até 2MB. Servido como enviado (sem redimensionamento).</p>
+      <p className="text-xs text-muted-foreground">
+        PNG ou GIF (até 2MB) ficam estáticos. Envie um `.obd` do Object Builder (até 8MB) para animação
+        automática — cria/atualiza uma sprite no cadastro de looktypes e vincula por baixo dos panos.
+      </p>
     </div>
   );
 }

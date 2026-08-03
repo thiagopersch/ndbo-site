@@ -3,24 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
 
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import { buildNpcXml } from "@/lib/npc-xml";
-import {
-  npcSchema,
-  NPC_TYPES,
-  NPC_SHOP_DIRECTIONS,
-  type NpcInput,
-  type NpcShopDirection,
-} from "@/lib/validations/admin/npc";
+import { npcSchema, NPC_TYPES, type NpcInput, type NpcShopItemInput } from "@/lib/validations/admin/npc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -32,9 +26,12 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
-import { EntityThumb } from "@/components/shared/entity-thumb";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
+import { EntityThumb } from "@/components/shared/entity-thumb";
 import { FieldTooltip } from "@/components/shared/field-tooltip";
+import { NpcCustomMessageListField } from "@/components/admin/npcs/npc-custom-message-list-field";
+import { NpcDefaultMessageFields } from "@/components/admin/npcs/npc-default-message-fields";
+import { NpcShopItemListField } from "@/components/admin/npcs/npc-shop-item-list-field";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
 
@@ -56,11 +53,6 @@ const NPC_TYPE_LABELS: Record<(typeof NPC_TYPES)[number], string> = {
   misc: "Outro (usa script Lua customizado)",
 };
 
-const SHOP_DIRECTION_LABELS: Record<NpcShopDirection, string> = {
-  buy: "shop_buyable — itens comprados pelo jogador",
-  sell: "shop_sellable — itens vendidos pelo jogador",
-};
-
 const defaultValues: NpcInput = {
   name: "",
   lookTypeId: 0,
@@ -72,6 +64,18 @@ const defaultValues: NpcInput = {
   direction: 2,
   shopItems: [],
   scriptId: null,
+  customMessages: [],
+  /** Modelo comum pré-preenchido pra novos NPCs — admin edita/apaga à vontade; NPCs já
+   * existentes sempre carregam o que está salvo (ver `normalizeDefaultMessages`). */
+  defaultMessages: {
+    message_greet: "Hello, |PLAYERNAME|! How can I help you?",
+    message_farewell: "Good bye, |PLAYERNAME|!",
+    message_decline: "Ok then.",
+    message_walkaway: "Come back when you are ready.",
+    message_idletimeout: "Sorry, I don't have all day. Bye then.",
+    message_alreadyfocused: "I am already talking to someone else, please wait.",
+    message_placedinqueue: "You have been placed in the talking queue. I will be with you shortly.",
+  },
   published: true,
 };
 
@@ -88,7 +92,6 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
     defaultValues: initialValues ?? defaultValues,
   });
 
-  const shopItems = useFieldArray({ control: form.control, name: "shopItems" });
   const watched = useWatch({ control: form.control });
   const type = watched.type;
   const lookTypeId = watched.lookTypeId;
@@ -143,243 +146,195 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome</FormLabel>
-                <FormControl>
-                  <Input {...field} disabled={Boolean(npcId)} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <Tabs defaultValue="identification">
+            <TabsList>
+              <TabsTrigger value="identification">Identificador</TabsTrigger>
+              <TabsTrigger value="messages">Mensagens</TabsTrigger>
+              {type === "shop" && <TabsTrigger value="items">Items</TabsTrigger>}
+            </TabsList>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormItem>
-              <FormLabel>Looktype (sprite)</FormLabel>
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <EntitySearchCombobox<LooktypeRow>
-                    endpoint="/api/admin/looktypes"
-                    value={lookTypeId || null}
-                    placeholder="Buscar looktype..."
-                    formatOption={(lt) => formatLooktypeOption(lt)}
-                    renderOption={(lt) => (
-                      <span className="flex items-center gap-2">
+            <TabsContent value="identification" className="flex flex-col gap-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={Boolean(npcId)} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormItem>
+                  <FormLabel>Looktype (sprite)</FormLabel>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <EntitySearchCombobox<LooktypeRow>
+                        endpoint="/api/admin/looktypes"
+                        value={lookTypeId || null}
+                        placeholder="Buscar looktype..."
+                        formatOption={(lt) => formatLooktypeOption(lt)}
+                        renderOption={(lt) => (
+                          <span className="flex items-center gap-2">
+                            <LooktypeAnimatedImage
+                              key={lt.id}
+                              looktypeId={lt.id}
+                              frameCount={lt.frameCount}
+                              frameDurationsMs={lt.frameDurationsMs}
+                              updatedAt={lt.updatedAt}
+                              size="sm"
+                            />
+                            {formatLooktypeOption(lt)}
+                          </span>
+                        )}
+                        onSelect={(lt) => form.setValue("lookTypeId", lt?.id ?? 0)}
+                      />
+                    </div>
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/20">
+                      {selectedLooktype ? (
                         <LooktypeAnimatedImage
-                          key={lt.id}
-                          looktypeId={lt.id}
-                          frameCount={lt.frameCount}
-                          frameDurationsMs={lt.frameDurationsMs}
-                          updatedAt={lt.updatedAt}
+                          key={selectedLooktype.id}
+                          looktypeId={selectedLooktype.id}
+                          frameCount={selectedLooktype.frameCount}
+                          frameDurationsMs={selectedLooktype.frameDurationsMs}
+                          updatedAt={selectedLooktype.updatedAt}
                           size="sm"
                         />
-                        {formatLooktypeOption(lt)}
-                      </span>
-                    )}
-                    onSelect={(lt) => form.setValue("lookTypeId", lt?.id ?? 0)}
-                  />
-                </div>
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/20">
-                  {selectedLooktype ? (
-                    <LooktypeAnimatedImage
-                      key={selectedLooktype.id}
-                      looktypeId={selectedLooktype.id}
-                      frameCount={selectedLooktype.frameCount}
-                      frameDurationsMs={selectedLooktype.frameDurationsMs}
-                      updatedAt={selectedLooktype.updatedAt}
-                      size="sm"
-                    />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </div>
+                </FormItem>
+
+                <NumberField
+                  control={form.control}
+                  name="direction"
+                  label="Direção (0-3)"
+                  tooltip="Direção que o NPC olha ao spawnar: 0 = Norte, 1 = Leste, 2 = Sul, 3 = Oeste."
+                />
               </div>
-            </FormItem>
 
-            <NumberField
-              control={form.control}
-              name="direction"
-              label="Direção (0-3)"
-              tooltip="Direção que o NPC olha ao spawnar: 0 = Norte, 1 = Leste, 2 = Sul, 3 = Oeste."
-            />
-          </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        Tipo
+                        <FieldTooltip text="Shop: interface de loja nativa, sem script customizado. Quest/Outro: usa o Script Lua abaixo." />
+                      </FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione o tipo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {NPC_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {NPC_TYPE_LABELS[t]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center gap-1.5">
-                    Tipo
-                    <FieldTooltip text="Shop: interface de loja nativa, sem script customizado. Quest/Outro: usa o Script Lua abaixo." />
+                    Cidade
+                    <FieldTooltip text="Cidade (town) associada ao spawn do NPC — usado para agrupar NPCs por região no cliente/servidor, não afeta a posição real." />
                   </FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {NPC_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {NPC_TYPE_LABELS[t]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+                  <EntitySearchCombobox<TownRow>
+                    endpoint="/api/admin/towns"
+                    value={null}
+                    placeholder={watched.town || "Buscar cidade..."}
+                    formatOption={(town) => town.name}
+                    onSelect={(town) => form.setValue("town", town?.name ?? "")}
+                  />
+                </FormItem>
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-medium">Posições</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <NumberField
+                    control={form.control}
+                    name="posX"
+                    label="Posição X"
+                    tooltip="Coordenada X do tile onde o NPC nasce no mapa (mesmo sistema de coordenadas do mapa OTBM)."
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="posY"
+                    label="Posição Y"
+                    tooltip="Coordenada Y do tile onde o NPC nasce no mapa."
+                  />
+                  <NumberField
+                    control={form.control}
+                    name="posZ"
+                    label="Posição Z"
+                    tooltip="Andar/piso (floor) onde o NPC nasce — 7 é o nível do solo padrão; valores menores são andares superiores, maiores são subterrâneos."
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="messages" className="flex flex-col gap-4">
+              <div className="rounded-md border p-4">
+                <NpcDefaultMessageFields
+                  control={form.control}
+                  name="defaultMessages"
+                  onChange={(key, value) =>
+                    form.setValue("defaultMessages", { ...form.getValues("defaultMessages"), [key]: value })
+                  }
+                />
+              </div>
+
+              {type !== "shop" && (
+                <FormItem>
+                  <FormLabel>Script Lua</FormLabel>
+                  <ScriptLuaField value={watched.scriptId ?? null} onChange={(id) => form.setValue("scriptId", id)} />
                 </FormItem>
               )}
-            />
 
-            <FormItem>
-              <FormLabel className="flex items-center gap-1.5">
-                Cidade
-                <FieldTooltip text="Cidade (town) associada ao spawn do NPC — usado para agrupar NPCs por região no cliente/servidor, não afeta a posição real." />
-              </FormLabel>
-              <EntitySearchCombobox<TownRow>
-                endpoint="/api/admin/towns"
-                value={null}
-                placeholder={watched.town || "Buscar cidade..."}
-                formatOption={(town) => town.name}
-                onSelect={(town) => form.setValue("town", town?.name ?? "")}
-              />
-            </FormItem>
-          </div>
-
-          <div>
-            <p className="mb-2 text-sm font-medium">Posições</p>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <NumberField
-                control={form.control}
-                name="posX"
-                label="Posição X"
-                tooltip="Coordenada X do tile onde o NPC nasce no mapa (mesmo sistema de coordenadas do mapa OTBM)."
-              />
-              <NumberField
-                control={form.control}
-                name="posY"
-                label="Posição Y"
-                tooltip="Coordenada Y do tile onde o NPC nasce no mapa."
-              />
-              <NumberField
-                control={form.control}
-                name="posZ"
-                label="Posição Z"
-                tooltip="Andar/piso (floor) onde o NPC nasce — 7 é o nível do solo padrão; valores menores são andares superiores, maiores são subterrâneos."
-              />
-            </div>
-          </div>
-
-          {type === "shop" && (
-            <div className="flex flex-col gap-3 rounded-md border p-4">
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() =>
-                    shopItems.append({ direction: null, itemId: null, name: "", valueCrystal: 0 })
-                  }
-                >
-                  <Plus className="size-4" />
-                  Adicionar item
-                </Button>
-                <h3 className="font-medium">Itens à venda (preço em crystal coin)</h3>
-              </div>
-              {shopItems.fields.map((field, index) => {
-                const rowDirection = form.watch(`shopItems.${index}.direction`);
-                const shopItemId = form.watch(`shopItems.${index}.itemId`);
-                return (
-                  <div key={field.id} className="flex flex-col gap-2 rounded-md border p-2">
-                    <div className="flex items-center gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`shopItems.${index}.direction`}
-                        render={({ field: directionField }) => (
-                          <FormItem className="flex-1">
-                            <FormLabel>Parâmetro</FormLabel>
-                            <Select
-                              value={directionField.value ?? undefined}
-                              onValueChange={(value) => directionField.onChange(value)}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Selecione compra ou venda" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {NPC_SHOP_DIRECTIONS.map((direction) => (
-                                  <SelectItem key={direction} value={direction}>
-                                    {SHOP_DIRECTION_LABELS[direction]}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )}
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon-sm"
-                        className="mt-6"
-                        onClick={() => shopItems.remove(index)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-
-                    {rowDirection && (
-                      <div className="grid grid-cols-[auto_1fr_auto] items-end gap-2">
-                        {shopItemId != null && shopItemId > 0 && (
-                          <EntityThumb entityType="item" id={shopItemId} size="32" />
-                        )}
-                        <FormItem>
-                          <FormLabel>Item</FormLabel>
-                          <EntitySearchCombobox<{ id: number; name: string }>
-                            endpoint="/api/admin/items"
-                            value={shopItemId || null}
-                            placeholder="Buscar item por nome ou id..."
-                            formatOption={(item) => `${item.name} (#${item.id})`}
-                            renderOption={(item) => (
-                              <span className="flex items-center gap-2">
-                                <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
-                                {item.name} (#{item.id})
-                              </span>
-                            )}
-                            onSelect={(item) => {
-                              form.setValue(`shopItems.${index}.itemId`, item?.id ?? null);
-                              form.setValue(`shopItems.${index}.name`, item?.name ?? "");
-                            }}
-                          />
-                        </FormItem>
-                        <NumberField
-                          control={form.control}
-                          name={`shopItems.${index}.valueCrystal`}
-                          label="Valor (crystal)"
-                        />
-                      </div>
-                    )}
+              {type !== "shop" && !watched.scriptId && (
+                <div className="flex flex-col gap-2 rounded-md border p-4">
+                  <div>
+                    <h3 className="font-medium">Falas ambiente</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Mensagens que o NPC diz espontaneamente (independente de conversa), igual aos
+                      NPCs do Tibia Global — cada uma com seu próprio intervalo e chance.
+                    </p>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <NpcCustomMessageListField control={form.control} name="customMessages" />
+                </div>
+              )}
 
-          {type !== "shop" && (
-            <FormItem>
-              <FormLabel>Script Lua</FormLabel>
-              <ScriptLuaField value={watched.scriptId ?? null} onChange={(id) => form.setValue("scriptId", id)} />
-            </FormItem>
-          )}
+              {type === "shop" && (
+                <p className="text-sm text-muted-foreground">
+                  NPCs do tipo Loja usam a interface de loja nativa (sem script customizado) — falas
+                  ambiente e script Lua não se aplicam a esse tipo.
+                </p>
+              )}
+            </TabsContent>
 
-          <div className="flex items-center gap-4">
+            {type === "shop" && (
+              <TabsContent value="items">
+                <NpcShopItemListField control={form.control} name="shopItems" />
+              </TabsContent>
+            )}
+          </Tabs>
+
+          <div className="flex items-center justify-between">
             <Button type="button" variant="outline" nativeButton={false} render={<Link href="/admin/npcs" />}>
               Cancelar
             </Button>
@@ -410,6 +365,33 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
             )}
           </CardContent>
         </Card>
+
+        {type === "shop" && (
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Items/recompensas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(watched.shopItems ?? []).filter((item) => item?.itemId && item.itemId > 0).length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum item de compra/venda ainda.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {(watched.shopItems ?? [])
+                    .filter((item): item is NpcShopItemInput => Boolean(item?.itemId && item.itemId > 0))
+                    .map((item, index) => (
+                      <EntityThumb
+                        key={`${item.itemId}-${index}`}
+                        entityType="item"
+                        id={item.itemId as number}
+                        name={item.name}
+                        size="32"
+                      />
+                    ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

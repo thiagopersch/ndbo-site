@@ -73,11 +73,50 @@ export function EntitySearchCombobox<Row extends { id: number }>({
     fetcher,
   );
 
+  // A opção já selecionada (vinda de um registro existente, ex.: form de edição) pode não estar
+  // na primeira página da busca em branco em catálogos grandes (items, looktypes) — sem isso o
+  // campo aparece vazio até o usuário digitar algo que traga o registro pra lista. Busca à parte,
+  // usando o próprio id como termo (endpoints desses catálogos resolvem número em `search` como
+  // id, ver comentário do endpoint de items acima).
+  const resolvedRow = data?.data.find((row) => row.id === value) ?? null;
+  const { data: valueData } = useSWR<PaginatedResult<Row>>(
+    value != null && resolvedRow === null
+      ? `${endpoint}${separator}pageSize=5&search=${encodeURIComponent(String(value))}&skipCount=1`
+      : null,
+    fetcher,
+  );
+
   const options: SearchOption[] = (data?.data ?? []).map((row) => ({
     value: row.id,
     label: formatOption(row),
   }));
-  const selected = options.find((option) => option.value === value) ?? null;
+
+  const selectedRow = resolvedRow ?? valueData?.data.find((row) => row.id === value) ?? null;
+  const selected = selectedRow ? { value: selectedRow.id, label: formatOption(selectedRow) } : null;
+
+  // `inputValue` é 100% controlado por `searchInput` — base-ui não sincroniza sozinho o texto
+  // do input com `value`/`selected` (são conceitos independentes ali). Sem isso, o campo mostra
+  // vazio mesmo com um item corretamente selecionado por baixo dos panos (ex.: ao abrir um form
+  // de edição). Só sincroniza quando o id selecionado (prop `value`) muda de fora — nunca
+  // enquanto o usuário está digitando pra filtrar (a busca não altera `value`).
+  const lastSyncedValueRef = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (lastSyncedValueRef.current === value) return;
+    // Vários campos usam `0` (não só `null`) como sentinela de "nada selecionado" — trata igual.
+    if (value == null || value <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza texto do input (estado interno, não sincronizável via derivação de render por depender do fetch assíncrono do label) com o id externo, sem sobrescrever o que o usuário está digitando
+      setSearchInput("");
+      lastSyncedValueRef.current = value;
+      return;
+    }
+    if (selected) {
+      setSearchInput(selected.label);
+      lastSyncedValueRef.current = value;
+    }
+    // else: `value` já mudou mas o label ainda não resolveu (fetch em andamento) — não marca
+    // como sincronizado ainda, o efeito roda de novo assim que `selected` ficar disponível.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à mudança do id (`value`), não a cada re-render de `selected`
+  }, [value, selected?.label]);
 
   return (
     <Combobox

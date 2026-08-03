@@ -25,6 +25,7 @@ const MONSTER_LIST_SELECT = {
   healthMax: true,
   published: true,
   lookTypeId: true,
+  universe: { select: { id: true, name: true, color: true } },
 } as const;
 
 type MonsterListRow = {
@@ -39,6 +40,7 @@ type MonsterListRow = {
   healthMax: number;
   published: boolean;
   lookTypeId: number | null;
+  universe: { id: number; name: string; color: string | null } | null;
 };
 
 function lootMatches(items: MonsterFormInput["loot"], query: string): boolean {
@@ -123,6 +125,7 @@ export async function GET(request: Request) {
       where,
       orderBy: { name: "asc" },
       take: 2000,
+      include: { universe: { select: { id: true, name: true, color: true } } },
     });
     const filtered = monsters
       .map((row) => ({ row, formInput: monsterRowToFormInput(row) }))
@@ -149,6 +152,7 @@ export async function GET(request: Request) {
         healthMax: Number(row.healthMax),
         published: row.published,
         lookTypeId: row.lookTypeId,
+        universe: row.universe,
       }));
 
     return NextResponse.json(

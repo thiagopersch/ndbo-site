@@ -12,6 +12,16 @@ export const MONSTER_RACES = [
 ] as const;
 export type MonsterRace = (typeof MONSTER_RACES)[number];
 
+/** Cor temática de cada raça — usada na badge da listagem e no select do form, sempre a mesma
+ * cor pra reforçar o elemento visualmente (ex.: blood = vermelho, fire = laranja de fogo). */
+export const MONSTER_RACE_COLORS: Record<MonsterRace, string> = {
+  blood: "#dc2626",
+  fire: "#f97316",
+  energy: "#a855f7",
+  undead: "#65a30d",
+  venom: "#22c55e",
+};
+
 export const MONSTER_SKULLS = ["none", "yellow", "green", "white", "red", "black"] as const;
 
 /** Opções do select de Caveira (Skull) — `value` é o número salvo no banco e escrito no XML

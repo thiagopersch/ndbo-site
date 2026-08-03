@@ -107,7 +107,7 @@ export function CategoryFormDialog({ trigger, title, defaultValues, onSubmit, su
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="sm:justify-between">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancelar
               </Button>

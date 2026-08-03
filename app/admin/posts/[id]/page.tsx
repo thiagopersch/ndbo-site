@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { PostForm } from "@/components/admin/posts/post-form";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
   title: "Editar post",
@@ -24,6 +25,7 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/posts" />
       <div>
         <h1 className="text-2xl font-semibold">Editar post: {post.title || "Sem título"}</h1>
         <p className="text-muted-foreground">
@@ -39,7 +41,9 @@ export default async function EditPostPage({ params }: { params: Promise<{ id: s
           excerpt: post.excerpt,
           content: post.content,
           published: post.published,
-          image: image ? { extension: image.extension, updatedAt: image.updatedAt.toISOString() } : null,
+          image: image
+            ? { extension: image.extension, updatedAt: image.updatedAt.toISOString(), looktype: null }
+            : null,
         }}
       />
     </div>

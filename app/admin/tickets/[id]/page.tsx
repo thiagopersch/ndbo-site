@@ -1,4 +1,5 @@
 import { TicketThread } from "@/components/shared/ticket-thread";
+import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export default async function AdminTicketDetailPage({
   params,
@@ -7,5 +8,10 @@ export default async function AdminTicketDetailPage({
 }) {
   const { id } = await params;
 
-  return <TicketThread ticketId={Number(id)} isStaff />;
+  return (
+    <div className="flex flex-col gap-6">
+      <BackToListButton href="/admin/tickets" />
+      <TicketThread ticketId={Number(id)} isStaff />
+    </div>
+  );
 }

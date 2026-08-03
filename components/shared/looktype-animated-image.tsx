@@ -23,6 +23,8 @@ type LooktypeAnimatedImageProps = {
   frameDurationsMs: number[];
   updatedAt: string | Date;
   size?: keyof typeof SIZE_CLASSES;
+  /** Desliga o zoom no hover — ver mesmo motivo em `EntityThumb`. @default true */
+  zoomOnHover?: boolean;
 };
 
 /** Cicla os frames pré-renderizados (`renderLooktypeFrames`, salvos como PNG em disco no
@@ -38,6 +40,7 @@ export function LooktypeAnimatedImage({
   frameDurationsMs,
   updatedAt,
   size = "md",
+  zoomOnHover = true,
 }: LooktypeAnimatedImageProps) {
   const [frameIndex, setFrameIndex] = useState(0);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
@@ -82,7 +85,7 @@ export function LooktypeAnimatedImage({
               const { naturalWidth, naturalHeight } = event.currentTarget;
               setNaturalSize({ width: naturalWidth, height: naturalHeight });
             }}
-            className={`${sizeClass} shrink-0 scale-100 rounded-sm border border-border object-contain bg-muted/40 transition-transform duration-150 hover:z-10 hover:scale-150`}
+            className={`${sizeClass} shrink-0 scale-100 rounded-sm border border-border object-contain bg-muted/40 transition-transform duration-150 ${zoomOnHover ? "hover:z-10 hover:scale-150" : ""}`}
             style={{ imageRendering: "pixelated" }}
           />
         </TooltipTrigger>

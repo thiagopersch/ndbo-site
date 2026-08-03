@@ -21,7 +21,16 @@ export async function GET(_request: Request, { params }: Params) {
   const formInput = monsterRowToFormInput(monster);
   const wordsBySpellId = await fetchWordsBySpellId(prisma, formInput);
 
-  const xml = monsterToXml(formInput, wordsBySpellId);
+  const [looktype, universe] = await Promise.all([
+    monster.lookTypeId != null
+      ? prisma.looktype.findUnique({ where: { id: monster.lookTypeId } })
+      : null,
+    monster.universeId != null
+      ? prisma.universe.findUnique({ where: { id: monster.universeId } })
+      : null,
+  ]);
+
+  const xml = monsterToXml(formInput, wordsBySpellId, looktype?.looktypeNumber ?? null, universe?.name ?? null);
 
   return new Response(xml + "\n", {
     headers: {

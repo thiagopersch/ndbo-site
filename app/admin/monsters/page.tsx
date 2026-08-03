@@ -11,6 +11,8 @@ import type { PaginatedResult } from "@/lib/pagination";
 import {
   MONSTER_BESTIARY_TYPES,
   MONSTER_RACES,
+  MONSTER_RACE_COLORS,
+  type MonsterRace,
 } from "@/lib/validations/admin/monster";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { MonsterXmlImportDialog } from "@/components/admin/monsters/monster-xml-import-dialog";
 import { MonsterThumb } from "@/components/shared/monster-thumb";
+import { UniverseBadge } from "@/components/shared/universe-badge";
 import { PublishedToggle } from "@/components/shared/published-toggle";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
@@ -35,6 +38,7 @@ type MonsterRow = {
   healthMax: number;
   published: boolean;
   lookTypeId: number | null;
+  universe: { id: number; name: string; color: string | null } | null;
 };
 
 type FacetsResponse = { categories: string[]; subcategories: string[] };
@@ -174,14 +178,30 @@ export default function AdminMonstersPage() {
     {
       accessorKey: "category",
       header: "Universo pertence",
-      cell: ({ row }) => row.original.category || "—",
+      cell: ({ row }) => {
+        const universe = row.original.universe;
+        if (!universe) return row.original.category || "—";
+        return <UniverseBadge name={universe.name} color={universe.color} />;
+      },
     },
     {
       accessorKey: "subcategory",
       header: "Subcategoria",
       cell: ({ row }) => row.original.subcategory || "—",
     },
-    { accessorKey: "race", header: "Race" },
+    {
+      accessorKey: "race",
+      header: "Race",
+      cell: ({ row }) => {
+        const race = row.original.race as MonsterRace;
+        const color = MONSTER_RACE_COLORS[race];
+        return (
+          <Badge style={color ? { backgroundColor: color, color: "#fff", borderColor: color } : undefined}>
+            {race}
+          </Badge>
+        );
+      },
+    },
     { accessorKey: "experience", header: "Experience" },
     { accessorKey: "healthMax", header: "HP" },
     {

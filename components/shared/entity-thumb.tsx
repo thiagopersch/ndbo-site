@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { ImageOff } from "lucide-react";
 
 import { entityImageUrl, type EntityImageType } from "@/lib/entity-image";
 import { fetchEntityImageBatched } from "@/lib/entity-image-batch";
+import { looktypeFrameUrl } from "@/lib/looktype-storage";
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +32,10 @@ type EntityThumbProps = {
   /** Já resolvido pelo caller (ex.: tabela usando `useEntityImages` em lote). Quando omitido,
    * o componente busca sozinho (lookup individual — barato, usado em campos avulsos). */
   image?: EntityImageInfo | null;
+  /** Desliga o zoom no hover — necessário em contextos onde a sprite fica sobre botões de ação
+   * (ex.: cards de loot com editar/duplicar/remover no canto), já que o `scale-150` aumenta o
+   * elemento por cima dos botões e captura o clique antes deles. @default true */
+  zoomOnHover?: boolean;
 };
 
 /** Chave estável por entidade (não pela URL) — várias instâncias de `EntityThumb` para o mesmo
@@ -48,23 +53,48 @@ export function EntityThumb({
   name,
   size = "sm",
   image,
+  zoomOnHover = true,
 }: EntityThumbProps) {
   const resolvedByProp = image !== undefined;
   const owned = useOwnLookup(entityType, id, resolvedByProp);
   const info = resolvedByProp ? image : owned;
+  const looktype = info?.looktype ?? null;
 
   const [naturalSize, setNaturalSize] = useState<{
     width: number;
     height: number;
   } | null>(null);
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  // Sprite vinculada ao cadastro de looktypes tem prioridade sobre o snapshot estático
+  // (`EntityImage`) — cicla os frames em vez de mostrar só o frame 0 congelado. Reset do
+  // índice ao trocar de looktype ajustado durante o render (não num efeito em separado),
+  // seguindo o padrão recomendado pra "resetar estado quando uma prop muda".
+  const [lastLooktypeId, setLastLooktypeId] = useState(looktype?.id);
+  if (looktype?.id !== lastLooktypeId) {
+    setLastLooktypeId(looktype?.id);
+    setFrameIndex(0);
+  }
+
+  useEffect(() => {
+    if (!looktype || looktype.frameCount <= 1) return;
+
+    const duration = looktype.frameDurationsMs[frameIndex] || 100;
+    const timeout = setTimeout(() => {
+      setFrameIndex((current) => (current + 1) % looktype.frameCount);
+    }, duration);
+    return () => clearTimeout(timeout);
+  }, [looktype, frameIndex]);
 
   const sizeClass = SIZE_CLASSES[size];
   const label = name ? `#${id} — ${name}` : `#${id}`;
   const tooltipLabel = name ? `${name} (#${id})` : `#${id}`;
 
-  const imageUrl = info
-    ? entityImageUrl(entityType, id, info.extension, new Date(info.updatedAt))
-    : null;
+  const imageUrl = looktype
+    ? looktypeFrameUrl(looktype.id, frameIndex, new Date(looktype.updatedAt))
+    : info?.extension && info?.updatedAt
+      ? entityImageUrl(entityType, id, info.extension, new Date(info.updatedAt))
+      : null;
 
   const previewWidth = naturalSize
     ? Math.min(naturalSize.width * PREVIEW_SCALE, MAX_PREVIEW_SIZE)
@@ -82,11 +112,11 @@ export function EntityThumb({
         const { naturalWidth, naturalHeight } = event.currentTarget;
         setNaturalSize({ width: naturalWidth, height: naturalHeight });
       }}
-      className={`${sizeClass} shrink-0 scale-100 rounded-sm border border-border object-contain bg-muted/40 transition-transform duration-150 hover:z-10 hover:scale-150`}
+      className={`${sizeClass} shrink-0 scale-100 rounded-sm border border-border object-contain bg-muted/40 transition-transform duration-150 ${zoomOnHover ? "hover:z-10 hover:scale-150" : ""}`}
     />
   ) : (
     <span
-      className={`${sizeClass} flex shrink-0 scale-100 items-center justify-center rounded-sm border border-dashed border-border text-muted-foreground transition-transform duration-150 hover:z-10 hover:scale-150`}
+      className={`${sizeClass} flex shrink-0 scale-100 items-center justify-center rounded-sm border border-dashed border-border text-muted-foreground transition-transform duration-150 ${zoomOnHover ? "hover:z-10 hover:scale-150" : ""}`}
     >
       <ImageOff className="size-3.5" />
     </span>
