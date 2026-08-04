@@ -122,14 +122,20 @@ function toPngBuffer(thing: ObdThingData, rgba: Buffer): Buffer {
  *   isso também apareça animado, sempre a 100ms por quadro independente do arquivo ter frames
  *   de animação "de verdade" ou só patterns.
  */
-export function renderLooktypeFrames(thing: ObdThingData): RenderedLooktypeFrame[] {
+/**
+ * @param speedMs Velocidade (ms/quadro) escolhida pelo admin no upload/edição — sobrescreve o
+ * `DEFAULT_FRAME_DURATION_MS` fixo. Continua limitada por `MAX_FRAME_DURATION_MS` via
+ * `clampFrameDurationMs`. Sem valor, mantém o default de 100ms (mesmo comportamento de antes).
+ */
+export function renderLooktypeFrames(thing: ObdThingData, speedMs?: number | null): RenderedLooktypeFrame[] {
   const frames: RenderedLooktypeFrame[] = [];
+  const durationMs = clampFrameDurationMs(speedMs ?? DEFAULT_FRAME_DURATION_MS);
 
   if (thing.category === "outfit") {
     const patternX = thing.patternX > SOUTH_DIRECTION_INDEX ? SOUTH_DIRECTION_INDEX : 0;
     for (let frame = 0; frame < thing.frames; frame++) {
       const rgba = composeFrame(thing, { patternX, patternY: 0, patternZ: 0, frame }, 1);
-      frames.push({ png: toPngBuffer(thing, rgba), durationMs: clampFrameDurationMs(DEFAULT_FRAME_DURATION_MS) });
+      frames.push({ png: toPngBuffer(thing, rgba), durationMs });
     }
     return frames;
   }
@@ -139,7 +145,7 @@ export function renderLooktypeFrames(thing: ObdThingData): RenderedLooktypeFrame
       for (let patternY = 0; patternY < thing.patternY; patternY++) {
         for (let patternX = 0; patternX < thing.patternX; patternX++) {
           const rgba = composeFrame(thing, { patternX, patternY, patternZ, frame }, thing.layers);
-          frames.push({ png: toPngBuffer(thing, rgba), durationMs: clampFrameDurationMs(DEFAULT_FRAME_DURATION_MS) });
+          frames.push({ png: toPngBuffer(thing, rgba), durationMs });
         }
       }
     }

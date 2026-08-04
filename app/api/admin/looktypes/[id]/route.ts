@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { looktypeSchema } from "@/lib/validations/admin/looktype";
 import { looktypeFrameDirPath } from "@/lib/looktype-storage";
+import { clampFrameDurationMs } from "@/lib/obd/obd-render";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -22,12 +23,23 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
+  const existing = await prisma.looktype.findUnique({ where: { id: Number(id) } });
+  if (!existing) {
+    return NextResponse.json({ error: "Looktype não encontrada." }, { status: 404 });
+  }
+
+  const frameDurationsMs =
+    parsed.data.frameSpeedMs != null && existing.frameCount > 0
+      ? Array.from({ length: existing.frameCount }, () => clampFrameDurationMs(parsed.data.frameSpeedMs))
+      : undefined;
+
   const looktype = await prisma.looktype.update({
     where: { id: Number(id) },
     data: {
       name: parsed.data.name,
       category: parsed.data.category,
       looktypeNumber: parsed.data.category === "item" ? null : parsed.data.looktypeNumber,
+      ...(frameDurationsMs ? { frameDurationsMs } : {}),
     },
   });
 

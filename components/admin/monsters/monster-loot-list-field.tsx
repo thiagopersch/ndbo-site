@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   useController,
   useFieldArray,
+  useFormContext,
   useWatch,
   type Control,
   type FieldArrayPath,
@@ -44,24 +45,48 @@ export function flattenLootItemIds(items: MonsterLootItemInput[]): number[] {
 export function MonsterLootListField<T extends FieldValues>({
   control,
   name,
+  nested = false,
 }: {
   control: Control<T>;
   name: string;
+  /** Quando `true`, renderiza o editor de item inline (sem `Dialog`) — usado para o conteúdo de
+   * containers, evitando empilhar um segundo Dialog/overlay em cima do dialog pai (isso deixava
+   * botões de itens filhos inalcançáveis, atrás do overlay errado). */
+  nested?: boolean;
 }) {
   const { fields, append, insert, remove } = useFieldArray({
     control,
     name: name as FieldArrayPath<T>,
   });
-  const [editing, setEditing] = useState<{ index: number; isNew: boolean } | null>(null);
+  const { getValues, setValue } = useFormContext<T>();
+  const [editing, setEditing] = useState<{ index: number; isNew: boolean; snapshot: MonsterLootItemInput } | null>(
+    null,
+  );
+
+  function openEdit(index: number, isNew: boolean) {
+    const snapshot = structuredClone(getValues(`${name}.${index}` as FieldPath<T>)) as MonsterLootItemInput;
+    setEditing({ index, isNew, snapshot });
+  }
 
   function handleAdd() {
     const index = fields.length;
     append(emptyMonsterLootItem as never);
-    setEditing({ index, isNew: true });
+    openEdit(index, true);
   }
 
-  function handleCancelNew() {
-    if (editing) remove(editing.index);
+  /** Fecha o editor descartando qualquer alteração feita — usado tanto pelo botão "Cancelar"
+   * quanto ao fechar via X/clique fora, pra nenhum dos dois salvar mudanças silenciosamente. */
+  function discardEdit() {
+    if (!editing) return;
+    if (editing.isNew) {
+      remove(editing.index);
+    } else {
+      setValue(`${name}.${editing.index}` as FieldPath<T>, editing.snapshot as never, { shouldDirty: false });
+    }
+    setEditing(null);
+  }
+
+  function confirmEdit() {
     setEditing(null);
   }
 
@@ -81,7 +106,7 @@ export function MonsterLootListField<T extends FieldValues>({
               key={field.id}
               control={control}
               basePath={`${name}.${index}`}
-              onEdit={() => setEditing({ index, isNew: false })}
+              onEdit={() => openEdit(index, false)}
               onDuplicate={(value) => insert(index + 1, structuredClone(value) as never)}
               onRemove={() => remove(index)}
             />
@@ -89,22 +114,33 @@ export function MonsterLootListField<T extends FieldValues>({
         </div>
       )}
 
-      {editing && (
-        <Dialog open onOpenChange={(next) => !next && setEditing(null)}>
+      {editing && nested && (
+        <div className="flex flex-col gap-4 rounded-md border p-3">
+          <p className="text-sm font-medium">{editing.isNew ? "Adicionar item de loot" : "Editar item de loot"}</p>
+          <LootItemFields control={control} basePath={`${name}.${editing.index}`} />
+          <div className="flex items-center justify-between gap-2">
+            <Button type="button" variant="outline" onClick={discardEdit}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={confirmEdit}>
+              Concluir
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {editing && !nested && (
+        <Dialog open onOpenChange={(next) => !next && discardEdit()}>
           <DialogContent className="flex max-h-[90vh] flex-col overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editing.isNew ? "Adicionar item de loot" : "Editar item de loot"}</DialogTitle>
             </DialogHeader>
             <LootItemFields control={control} basePath={`${name}.${editing.index}`} />
             <DialogFooter className="sm:justify-between">
-              {editing.isNew ? (
-                <Button type="button" variant="outline" onClick={handleCancelNew}>
-                  Cancelar
-                </Button>
-              ) : (
-                <span />
-              )}
-              <Button type="button" onClick={() => setEditing(null)}>
+              <Button type="button" variant="outline" onClick={discardEdit}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={confirmEdit}>
                 Concluir
               </Button>
             </DialogFooter>
@@ -285,7 +321,7 @@ function LootItemFields<T extends FieldValues>({
         <p className="mb-2 text-xs font-medium text-muted-foreground">
           Conteúdo (se for um container)
         </p>
-        <MonsterLootListField control={control} name={`${basePath}.children`} />
+        <MonsterLootListField control={control} name={`${basePath}.children`} nested />
       </div>
     </div>
   );

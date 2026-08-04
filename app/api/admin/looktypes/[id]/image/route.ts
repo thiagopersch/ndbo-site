@@ -57,6 +57,8 @@ export async function POST(request: Request, { params }: Params) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Nenhum arquivo enviado." }, { status: 422 });
   }
+  const frameSpeedMsRaw = formData.get("frameSpeedMs");
+  const frameSpeedMs = frameSpeedMsRaw === null || frameSpeedMsRaw === "" ? null : Number(frameSpeedMsRaw);
 
   const buffer = Buffer.from(await file.arrayBuffer());
   if (buffer.length === 0) {
@@ -86,7 +88,7 @@ export async function POST(request: Request, { params }: Params) {
       const thing = await parseObd(buffer);
       width = thing.width;
       height = thing.height;
-      frames = renderLooktypeFrames(thing);
+      frames = renderLooktypeFrames(thing, frameSpeedMs);
     } catch (error) {
       const message = error instanceof ObdParseError ? error.message : "Não foi possível interpretar o arquivo.";
       return NextResponse.json({ error: message }, { status: 422 });

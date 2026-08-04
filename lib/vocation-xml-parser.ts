@@ -1,5 +1,16 @@
 import { asArray, createXmlParser, num, str, type XmlNode } from "@/lib/xml-parse-utils";
-import { defaultVocationValues, vocationSchema, type VocationInput } from "@/lib/validations/admin/vocation";
+import {
+  defaultVocationValues,
+  vocationSchema,
+  VOCATION_ARCHETYPES,
+  type VocationArchetype,
+  type VocationInput,
+} from "@/lib/validations/admin/vocation";
+
+function parseArchetype(value: unknown): VocationArchetype | null {
+  const raw = String(value ?? "");
+  return (VOCATION_ARCHETYPES as readonly string[]).includes(raw) ? (raw as VocationArchetype) : null;
+}
 
 const parser = createXmlParser(["vocation"]);
 
@@ -70,6 +81,8 @@ export function parseVocationsXml(xml: string): ParseVocationsXmlResult {
       typeClassId: null,
       typeUniverseId: null,
       maxRank: num(raw.maxrank),
+      archetype: parseArchetype(raw.archetype),
+      specificFragmentItemId: raw.specificfragmentitemid != null ? num(raw.specificfragmentitemid) : null,
       formula: {
         meleeDamage: num(formula.meleeDamage) || 1,
         distDamage: num(formula.distDamage) || 1,

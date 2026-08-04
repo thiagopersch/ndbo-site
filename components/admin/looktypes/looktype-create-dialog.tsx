@@ -37,12 +37,14 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [category, setCategory] = useState<LooktypeCategory>("item");
   const [sharedLooktypeNumber, setSharedLooktypeNumber] = useState<number | null>(null);
+  const [frameSpeedMs, setFrameSpeedMs] = useState(100);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
     setCategory("item");
     setSharedLooktypeNumber(null);
+    setFrameSpeedMs(100);
     setPendingFiles([]);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -100,6 +102,7 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
       formData.append("file", row.file);
       formData.append("name", row.name.trim());
       formData.append("category", category);
+      formData.append("frameSpeedMs", String(frameSpeedMs));
       if (row.looktypeNumber !== null) formData.append("looktypeNumber", String(row.looktypeNumber));
 
       const response = await fetch("/api/admin/looktypes", { method: "POST", body: formData });
@@ -173,6 +176,18 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
             looktypeNumber={sharedLooktypeNumber}
             onLooktypeNumberChange={setSharedLooktypeNumber}
           />
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Velocidade dos quadros (ms) — só afeta arquivos .obd animados</Label>
+            <Input
+              type="number"
+              min={1}
+              max={1000}
+              value={frameSpeedMs}
+              onChange={(event) => setFrameSpeedMs(Number(event.target.value))}
+              className="w-32"
+            />
+          </div>
 
           {showReview && (
             <div className="flex flex-col gap-2">

@@ -73,6 +73,19 @@ export default function AdminLooktypesPage() {
     },
     { accessorKey: "frameCount", header: "Frames" },
     {
+      id: "size",
+      header: "Tamanho (px)",
+      cell: ({ row }) => `${row.original.width * 32}x${row.original.height * 32}`,
+    },
+    {
+      id: "frameSpeedMs",
+      header: "Velocidade (ms)",
+      cell: ({ row }) => {
+        const durations = row.original.frameDurationsMs as number[];
+        return durations.length > 0 ? durations[0] : <span className="text-muted-foreground">—</span>;
+      },
+    },
+    {
       accessorKey: "updatedAt",
       header: "Atualizado em",
       cell: ({ row }) => dayjs(row.original.updatedAt).format("DD/MM/YYYY HH:mm"),

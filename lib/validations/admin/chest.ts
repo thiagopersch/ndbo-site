@@ -3,7 +3,7 @@ import { z } from "zod";
 /** Máximo de baús simultâneos (module game_chest do OTC: 1 central + 2 laterais). */
 export const MAX_CHESTS = 3;
 /** Máximo de opções de recompensa sorteáveis por baú. */
-export const MAX_CHEST_REWARD_SLOTS = 3;
+export const MAX_CHEST_REWARD_SLOTS = 10;
 
 export const chestRewardSlotSchema = z.object({
   itemId: z.number().int().min(1, "Selecione um item"),

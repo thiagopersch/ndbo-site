@@ -18,11 +18,18 @@ export function spriteTermFor(category: string): string {
   return category === "outfit" ? "Looktype" : "Sprite";
 }
 
+/** Teto de velocidade de quadro (ms) editável pelo admin — mesmo limite de `MAX_FRAME_DURATION_MS`
+ * em `lib/obd/obd-render.ts` (não importado aqui pra não puxar `pngjs`/`lzma1` pro client bundle). */
+export const MAX_LOOKTYPE_FRAME_SPEED_MS = 1000;
+
 export const looktypeSchema = z
   .object({
     name: z.string().min(1, "Informe um nome").max(150),
     category: z.enum(LOOKTYPE_CATEGORIES),
     looktypeNumber: z.number().int().min(0).nullable(),
+    /** Velocidade de exibição dos quadros (ms/quadro) — só tem efeito em sprites com mais de 1
+     * quadro (animadas). Editar aqui recalcula `frameDurationsMs` sem precisar reenviar o arquivo. */
+    frameSpeedMs: z.number().int().min(1).max(MAX_LOOKTYPE_FRAME_SPEED_MS).nullable().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.category !== "item" && data.looktypeNumber === null) {
@@ -40,6 +47,7 @@ export const defaultLooktypeValues: LooktypeInput = {
   name: "",
   category: "item",
   looktypeNumber: null,
+  frameSpeedMs: null,
 };
 
 /** Nome do arquivo sem extensão, usado pra pré-preencher o campo "Nome" no create. */

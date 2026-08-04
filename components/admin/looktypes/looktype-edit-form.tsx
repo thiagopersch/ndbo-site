@@ -23,6 +23,9 @@ export function LooktypeEditForm({ looktype }: { looktype: Looktype }) {
   const [category, setCategory] = useState<LooktypeCategory>(looktype.category as LooktypeCategory);
   const [looktypeNumber, setLooktypeNumber] = useState<number | null>(looktype.looktypeNumber);
   const [currentLooktype, setCurrentLooktype] = useState(looktype);
+  const [frameSpeedMs, setFrameSpeedMs] = useState<number>(
+    (currentLooktype.frameDurationsMs as number[])[0] ?? 100,
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,6 +38,7 @@ export function LooktypeEditForm({ looktype }: { looktype: Looktype }) {
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("frameSpeedMs", String(frameSpeedMs));
 
     const response = await fetch(`/api/admin/looktypes/${looktype.id}/image`, {
       method: "POST",
@@ -71,7 +75,7 @@ export function LooktypeEditForm({ looktype }: { looktype: Looktype }) {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    const parsed = looktypeSchema.safeParse({ name, category, looktypeNumber });
+    const parsed = looktypeSchema.safeParse({ name, category, looktypeNumber, frameSpeedMs });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
       return;
@@ -90,6 +94,8 @@ export function LooktypeEditForm({ looktype }: { looktype: Looktype }) {
       return;
     }
 
+    const data = await response.json();
+    setCurrentLooktype(data.looktype);
     toast.success("Atualizado com sucesso.");
     router.push("/admin/looktypes");
     router.refresh();
@@ -108,6 +114,27 @@ export function LooktypeEditForm({ looktype }: { looktype: Looktype }) {
         looktypeNumber={looktypeNumber}
         onLooktypeNumberChange={setLooktypeNumber}
       />
+
+      <div className="flex gap-4">
+        <div className="flex flex-1 flex-col gap-1.5">
+          <Label>Largura (px)</Label>
+          <Input value={currentLooktype.width * 32} disabled />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <Label>Altura (px)</Label>
+          <Input value={currentLooktype.height * 32} disabled />
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <Label>Velocidade dos quadros (ms)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={1000}
+            value={frameSpeedMs}
+            onChange={(event) => setFrameSpeedMs(Number(event.target.value))}
+          />
+        </div>
+      </div>
 
       <div className="flex flex-col gap-1.5">
         <Label>Imagem</Label>

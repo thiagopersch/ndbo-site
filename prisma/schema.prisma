@@ -1808,12 +1808,12 @@ model Npc {
 
 /// Sistema de baús do OTC (module game_chest): até 3 baús configuráveis, exibidos como 1 central
 /// + 2 laterais. Cada baú exige consumir `keyItemId` (o jogador precisa possuir o item) e, ao
-/// abrir, sorteia aleatoriamente 1 dentre até 3 itens em `rewards` (JSON: `[{itemId, count}]`).
+/// abrir, sorteia aleatoriamente 1 dentre até 10 itens em `rewards` (JSON: `[{itemId, count}]`).
 model Chest {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(100)
   keyItemId Int      @map("key_item_id")
-  /// Até 3 opções de recompensa, uma sorteada por vez (peso igual entre elas).
+  /// Até 10 opções de recompensa, uma sorteada por vez (peso igual entre elas).
   rewards   Json
   /// Período de vigência (início/fim, mês+ano) — permite configurar rotação de prêmios ao
   /// longo do tempo (ex.: um baú vale de agosto a novembro, outro só em dezembro).

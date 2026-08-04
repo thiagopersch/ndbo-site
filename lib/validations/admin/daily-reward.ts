@@ -26,7 +26,7 @@ export const dailyRewardBonusEntrySchema = z.object({
 });
 export type DailyRewardBonusEntryInput = z.infer<typeof dailyRewardBonusEntrySchema>;
 
-export const MAX_DAILY_REWARD_BONUS_ENTRIES = 4;
+export const MAX_DAILY_REWARD_BONUS_ENTRIES = 6;
 
 export const dailyRewardCompetenciaSchema = z
   .object({
