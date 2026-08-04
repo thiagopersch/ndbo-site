@@ -194,29 +194,30 @@ function LootItemFields<T extends FieldValues>({
   }, [itemName]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <FormItem>
-          <FormLabel>Item</FormLabel>
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <EntitySearchCombobox<{ id: number; name: string }>
-                endpoint="/api/admin/items"
-                value={itemId || null}
-                placeholder="Buscar item por nome ou id..."
-                formatOption={(item) => `${item.name} (#${item.id})`}
-                renderOption={(item) => (
-                  <span className="flex items-center gap-2">
-                    <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
-                    {item.name} (#{item.id})
-                  </span>
-                )}
-                onSelect={(item) => idController.field.onChange(item?.id ?? 0)}
-              />
-            </div>
-            {Boolean(itemId) && <EntityThumb entityType="item" id={itemId as number} size="32" />}
+    <div className="flex flex-col gap-4">
+      <FormItem>
+        <FormLabel>Item</FormLabel>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <EntitySearchCombobox<{ id: number; name: string }>
+              endpoint="/api/admin/items"
+              value={itemId || null}
+              placeholder="Buscar item por nome ou id..."
+              formatOption={(item) => `${item.name} (#${item.id})`}
+              renderOption={(item) => (
+                <span className="flex items-center gap-2">
+                  <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
+                  {item.name} (#{item.id})
+                </span>
+              )}
+              onSelect={(item) => idController.field.onChange(item?.id ?? 0)}
+            />
           </div>
-        </FormItem>
+          {Boolean(itemId) && <EntityThumb entityType="item" id={itemId as number} size="32" />}
+        </div>
+      </FormItem>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <NumberField
           control={control}
           name={`${basePath}.count` as FieldPath<T>}
@@ -232,7 +233,7 @@ function LootItemFields<T extends FieldValues>({
           control={control}
           name={`${basePath}.comment` as FieldPath<T>}
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="col-span-2 sm:col-span-1">
               <FormLabel>Comentário</FormLabel>
               <FormControl>
                 <Input
@@ -245,7 +246,8 @@ function LootItemFields<T extends FieldValues>({
           )}
         />
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <NumberField
           control={control}
           name={`${basePath}.subtype` as FieldPath<T>}
@@ -264,22 +266,23 @@ function LootItemFields<T extends FieldValues>({
           label="Unique ID"
           nullable
         />
-        <FormField
-          control={control}
-          name={`${basePath}.text` as FieldPath<T>}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Texto (Text)</FormLabel>
-              <FormControl>
-                <Input {...field} value={String(field.value ?? "")} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
       </div>
 
-      <div>
-        <p className="mb-1 text-xs text-muted-foreground">
+      <FormField
+        control={control}
+        name={`${basePath}.text` as FieldPath<T>}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Texto (Text)</FormLabel>
+            <FormControl>
+              <Input {...field} value={String(field.value ?? "")} />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+
+      <div className="rounded-md border border-dashed p-3">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">
           Conteúdo (se for um container)
         </p>
         <MonsterLootListField control={control} name={`${basePath}.children`} />

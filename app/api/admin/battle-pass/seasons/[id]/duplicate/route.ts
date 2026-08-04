@@ -71,6 +71,7 @@ export async function POST(_request: Request, { params }: Params) {
           rarity: reward.rarity,
           itemId: reward.itemId,
           count: reward.count,
+          order: reward.order,
         })),
       },
     },

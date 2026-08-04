@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: Params) {
     where: { id: Number(id) },
     include: {
       missions: { orderBy: { id: "asc" } },
-      rewards: { orderBy: [{ track: "asc" }, { level: "asc" }] },
+      rewards: { orderBy: [{ track: "asc" }, { level: "asc" }, { order: "asc" }] },
     },
   });
 

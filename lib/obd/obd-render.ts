@@ -89,6 +89,17 @@ export type RenderedLooktypeFrame = { png: Buffer; durationMs: number };
 
 const DEFAULT_FRAME_DURATION_MS = 100;
 
+/** Teto absoluto de duração por quadro na pré-visualização/preview salvo (requisito do admin:
+ * nenhum formato — .obd, .png único ou .gif animado — pode exibir um quadro por mais de 1s). */
+export const MAX_FRAME_DURATION_MS = 1000;
+
+/** Aplica o teto de `MAX_FRAME_DURATION_MS`, com fallback pro default quando a duração de origem
+ * for inválida (0, negativa ou ausente). */
+export function clampFrameDurationMs(durationMs: number | undefined | null): number {
+  if (!durationMs || durationMs <= 0) return DEFAULT_FRAME_DURATION_MS;
+  return Math.min(durationMs, MAX_FRAME_DURATION_MS);
+}
+
 function toPngBuffer(thing: ObdThingData, rgba: Buffer): Buffer {
   const png = new PNG({ width: thing.width * SPRITE_SIZE, height: thing.height * SPRITE_SIZE });
   rgba.copy(png.data);
@@ -99,8 +110,10 @@ function toPngBuffer(thing: ObdThingData, rgba: Buffer): Buffer {
  * Renderiza as frames de animação de um `ThingData` já decodificado (ver `obd-parser.ts`):
  * - `outfit`: direção Sul parada (layer 0, sem addon/mount — layers > 0 em outfit são
  *   addon/mount, não fazem parte da animação), iterando `frames` (animação de andar) — pedido
- *   do usuário ("quando for outfit deve ser animado andando para o sul"); duração vem do OBD
- *   quando presente, senão 100ms.
+ *   do usuário ("quando for outfit deve ser animado andando para o sul"); duração sempre fixada
+ *   em 100ms por quadro (ver `DEFAULT_FRAME_DURATION_MS` abaixo) — ignora a duração declarada no
+ *   OBD de propósito: alguns arquivos importados (ex.: moedas com patterns) declaram durações
+ *   bem menores, o que fazia a pré-visualização/animação passar rápido demais.
  * - `item`/`effect`/`missile`: empilha todas as `layers` (quando `layers > 1` a layer 0 costuma
  *   ser a base/moldura estática e as seguintes o conteúdo que anima de fato — ex.: o
  *   preenchimento de uma barra) e percorre TODAS as combinações de `frames`×`patternX`×
@@ -116,9 +129,7 @@ export function renderLooktypeFrames(thing: ObdThingData): RenderedLooktypeFrame
     const patternX = thing.patternX > SOUTH_DIRECTION_INDEX ? SOUTH_DIRECTION_INDEX : 0;
     for (let frame = 0; frame < thing.frames; frame++) {
       const rgba = composeFrame(thing, { patternX, patternY: 0, patternZ: 0, frame }, 1);
-      const duration = thing.frameDurations[frame];
-      const durationMs = duration ? Math.max(duration.minimum, 1) : DEFAULT_FRAME_DURATION_MS;
-      frames.push({ png: toPngBuffer(thing, rgba), durationMs });
+      frames.push({ png: toPngBuffer(thing, rgba), durationMs: clampFrameDurationMs(DEFAULT_FRAME_DURATION_MS) });
     }
     return frames;
   }
@@ -128,7 +139,7 @@ export function renderLooktypeFrames(thing: ObdThingData): RenderedLooktypeFrame
       for (let patternY = 0; patternY < thing.patternY; patternY++) {
         for (let patternX = 0; patternX < thing.patternX; patternX++) {
           const rgba = composeFrame(thing, { patternX, patternY, patternZ, frame }, thing.layers);
-          frames.push({ png: toPngBuffer(thing, rgba), durationMs: DEFAULT_FRAME_DURATION_MS });
+          frames.push({ png: toPngBuffer(thing, rgba), durationMs: clampFrameDurationMs(DEFAULT_FRAME_DURATION_MS) });
         }
       }
     }

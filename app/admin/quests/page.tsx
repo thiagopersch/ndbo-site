@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 
 type QuestRow = Quest & { categoryRef: Category | null };
@@ -111,6 +112,12 @@ export default function AdminQuestsPage() {
           >
             <Pencil className="size-4" />
           </Button>
+          <DuplicateButton
+            endpoint={`/api/admin/quests/${row.original.id}/duplicate`}
+            editPathBase="/admin/quests"
+            variant="icon"
+            onDuplicated={() => mutate()}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="destructive" size="icon-sm" title="Excluir">

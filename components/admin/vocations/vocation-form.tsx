@@ -17,6 +17,7 @@ import type { PaginatedResult } from "@/lib/pagination";
 import {
   defaultVocationValues,
   vocationSchema,
+  VOCATION_ARCHETYPES,
   type VocationInput,
 } from "@/lib/validations/admin/vocation";
 import { vocationToXml } from "@/lib/vocation-xml";
@@ -38,6 +39,7 @@ import {
 import { NumberField } from "@/components/shared/number-field";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
+import { EntityThumb } from "@/components/shared/entity-thumb";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { VocationTypeSelect } from "@/components/admin/vocations/vocation-type-select";
 
@@ -277,6 +279,60 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="archetype"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Arquétipo (rank)</FormLabel>
+                        <Select
+                          value={field.value ?? "none"}
+                          onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione o arquétipo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {VOCATION_ARCHETYPES.map((archetype) => (
+                              <SelectItem key={archetype} value={archetype}>
+                                {archetype}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormItem>
+                    <FormLabel>Fragmento específico (rank)</FormLabel>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <EntitySearchCombobox<{ id: number; name: string }>
+                          endpoint="/api/admin/items"
+                          value={watched.specificFragmentItemId ?? null}
+                          placeholder="Buscar item..."
+                          formatOption={(item) => `${item.name} (#${item.id})`}
+                          renderOption={(item) => (
+                            <span className="flex items-center gap-2">
+                              <EntityThumb entityType="item" id={item.id} name={item.name} size="32" />
+                              {item.name} (#{item.id})
+                            </span>
+                          )}
+                          onSelect={(item) => form.setValue("specificFragmentItemId", item?.id ?? null)}
+                        />
+                      </div>
+                      {!!watched.specificFragmentItemId && watched.specificFragmentItemId > 0 && (
+                        <EntityThumb entityType="item" id={watched.specificFragmentItemId} size="32" />
+                      )}
+                    </div>
+                    <FormField control={form.control} name="specificFragmentItemId" render={() => <FormMessage />} />
+                  </FormItem>
 
                   <FormField
                     control={form.control}

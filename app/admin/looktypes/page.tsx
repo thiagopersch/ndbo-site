@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Trash2, ImagePlus } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
-import { LooktypeImageDialog } from "@/components/admin/looktypes/looktype-image-dialog";
 import { LooktypeCreateDialog } from "@/components/admin/looktypes/looktype-create-dialog";
 
 export default function AdminLooktypesPage() {
@@ -83,15 +82,6 @@ export default function AdminLooktypesPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <LooktypeImageDialog
-            looktype={row.original}
-            onUpdated={() => mutate()}
-            trigger={
-              <Button variant="ghost" size="icon-sm" title="Imagem">
-                <ImagePlus className="size-4" />
-              </Button>
-            }
-          />
           <Button
             variant="ghost"
             size="icon-sm"

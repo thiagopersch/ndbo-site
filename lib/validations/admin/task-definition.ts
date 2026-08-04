@@ -101,6 +101,16 @@ export function normalizeTaskCategory(categoryName: string): string {
   return categoryName.trim().toLowerCase().replace(/\s+/g, "");
 }
 
+/** Únicos valores que `task_rank.lua: TaskRank_getPlayerVocationCategory` (via `type_universe`
+ * em vocations.xml) e `task_network.lua` podem produzir/comparar. Uma `Category` que não
+ * normalize para um destes deixa a task com uma categoria que o servidor nunca bate — a task
+ * fica cadastrada, mas invisível no `game_tasks` do cliente para todo mundo, silenciosamente. */
+export const TASK_VALID_UNIVERSES = ["dragonball", "bleach", "general"] as const;
+
+export function isValidTaskUniverse(normalizedCategory: string): boolean {
+  return (TASK_VALID_UNIVERSES as readonly string[]).includes(normalizedCategory);
+}
+
 /** Payload que vai pro Prisma (colunas JSON) a partir dos campos "achatados" do formulário.
  * `categoryName` resolve `categoryId` -> `category` (string denormalizada que o
  * `task_db_loader.lua` lê — nunca fica dessincronizada, ver `/api/admin/categories`). */

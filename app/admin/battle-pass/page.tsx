@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -7,16 +8,11 @@ import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import type { BattlePassSeason } from "@/lib/generated/prisma/client";
-import {
-  defaultBattlePassSeasonValues,
-  type BattlePassSeasonInput,
-} from "@/lib/validations/admin/battle-pass";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
-import { BattlePassSeasonFormDialog } from "@/components/admin/battle-pass/battle-pass-season-form-dialog";
 
 type SeasonRow = BattlePassSeason & { _count: { missions: number; rewards: number } };
 
@@ -53,26 +49,6 @@ export default function AdminBattlePassPage() {
     mutate();
   }
 
-  async function createOrUpdate(values: BattlePassSeasonInput, id?: number) {
-    const response = await fetch(
-      id ? `/api/admin/battle-pass/seasons/${id}` : "/api/admin/battle-pass/seasons",
-      {
-        method: id ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      },
-    );
-
-    if (response.ok) {
-      mutate();
-      return true;
-    }
-
-    const body = await response.json().catch(() => null);
-    toast.error(body?.error ?? "Não foi possível salvar.");
-    return false;
-  }
-
   const columns: ColumnDef<SeasonRow>[] = [
     {
       id: "monthYear",
@@ -99,29 +75,15 @@ export default function AdminBattlePassPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <BattlePassSeasonFormDialog
-            title={`Editar temporada ${MONTH_NAMES[row.original.month - 1]}/${row.original.year}`}
-            seasonId={row.original.id}
-            defaultValues={{
-              month: row.original.month,
-              year: row.original.year,
-              maxLevel: row.original.maxLevel,
-              xpPerLevel: row.original.xpPerLevel,
-              goldPassItemId: row.original.goldPassItemId,
-              goldPassCost: row.original.goldPassCost,
-              levelPurchaseItemId: row.original.levelPurchaseItemId,
-              levelPurchaseCost: row.original.levelPurchaseCost,
-              missions: [],
-              rewards: [],
-            }}
-            successMessage="Atualizado com sucesso."
-            onSubmit={(values) => createOrUpdate(values, row.original.id)}
-            trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
-                <Pencil className="size-4" />
-              </Button>
-            }
-          />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Editar"
+            nativeButton={false}
+            render={<Link href={`/admin/battle-pass/${row.original.id}`} />}
+          >
+            <Pencil className="size-4" />
+          </Button>
           <DuplicateButton
             endpoint={`/api/admin/battle-pass/seasons/${row.original.id}/duplicate`}
             editPathBase="/admin/battle-pass"
@@ -154,18 +116,10 @@ export default function AdminBattlePassPage() {
             vigente para os jogadores — as demais servem de histórico ou planejamento futuro.
           </p>
         </div>
-        <BattlePassSeasonFormDialog
-          title="Nova temporada"
-          defaultValues={defaultBattlePassSeasonValues}
-          successMessage="Criada com sucesso."
-          onSubmit={(values) => createOrUpdate(values)}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Nova
-            </Button>
-          }
-        />
+        <Button nativeButton={false} render={<Link href="/admin/battle-pass/new" />}>
+          <Plus className="size-4" />
+          Nova
+        </Button>
       </div>
 
       <DataTable columns={columns} data={seasons} isLoading={isLoading} />

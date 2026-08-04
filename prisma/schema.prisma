@@ -652,10 +652,11 @@ model PlayerDailyRewardBonus {
 }
 
 model PlayerSkillPoints {
-  playerId        Int @map("player_id")
-  vocationId      Int @map("vocation_id")
-  availablePoints Int @default(0) @map("available_points")
-  spentPoints     Int @default(0) @map("spent_points")
+  playerId            Int @map("player_id")
+  vocationId          Int @map("vocation_id")
+  availablePoints     Int @default(0) @map("available_points")
+  spentPoints         Int @default(0) @map("spent_points")
+  highestLevelCounted Int @default(0) @map("highest_level_counted")
 
   player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -875,6 +876,16 @@ model Vocation {
   /// vocation_ranks_config.lua (server/data/lib). O script lê esse valor exportado no XML em vez
   /// do hardcode `addVocation(...)` por vocação.
   maxRank Int @default(0) @map("max_rank")
+
+  /// Arquétipo de combate ("DPS" | "Bruiser" | "Support" | "Tank") — espelha
+  /// `VocationRankConfig.Vocations[id].archetype` em vocation_ranks_config.lua, exportado no XML
+  /// (atributo `archetype`) em vez do hardcode `addVocation(...)` por vocação.
+  archetype String? @db.VarChar(20)
+
+  /// Item de fragmento específico dessa vocação, usado no upgrade por estrelas — espelha
+  /// `VocationRankConfig.Vocations[id].specificFragmentItemId`, exportado no XML (atributo
+  /// `specificfragmentitemid`) em vez do hardcode `addVocation(...)` por vocação.
+  specificFragmentItemId Int? @map("specific_fragment_item_id")
 
   // <formula ... />
   formulaMeleeDamage      Float @default(1) @map("formula_melee_damage")
@@ -1726,8 +1737,11 @@ model BattlePassReward {
   rarity   String @db.VarChar(20)
   itemId   Int    @map("item_id")
   count    Int    @default(1)
+  /// Ordem manual de exibição dentro do mesmo level+track (drag and drop no admin) —
+  /// múltiplos itens podem ocupar o mesmo level+track+rarity.
+  order    Int    @default(0)
 
-  @@unique([seasonId, level, track])
+  @@index([seasonId, level, track])
   @@map("battle_pass_rewards")
 }
 

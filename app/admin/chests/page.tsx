@@ -13,6 +13,7 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useItemName } from "@/components/shared/use-item-name";
 import { ChestFormDialog } from "@/components/admin/chests/chest-form-dialog";
@@ -111,6 +112,12 @@ export default function AdminChestsPage() {
                 <Pencil className="size-4" />
               </Button>
             }
+          />
+          <DuplicateButton
+            endpoint={`/api/admin/chests/${row.original.id}/duplicate`}
+            editPathBase="/admin/chests"
+            variant="icon"
+            onDuplicated={() => mutate()}
           />
           <ConfirmDialog
             trigger={

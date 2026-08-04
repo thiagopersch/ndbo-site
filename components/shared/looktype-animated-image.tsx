@@ -27,9 +27,10 @@ type LooktypeAnimatedImageProps = {
   zoomOnHover?: boolean;
 };
 
-/** Cicla os frames pré-renderizados (`renderLooktypeFrames`, salvos como PNG em disco no
- * upload) usando a duração real de cada frame — outfits ficam com passo de "andar para o
- * sul", item/effect/missile ciclam a 100ms (ou a duração do `.obd` quando presente).
+/** Cicla os frames pré-renderizados (`renderLooktypeFrames`/`renderRasterFrames`, salvos como
+ * PNG em disco no upload) usando a duração real de cada frame — sempre limitada a 1s por quadro
+ * (`MAX_FRAME_DURATION_MS` em `lib/obd/obd-render.ts`), não importa o formato de origem
+ * (.obd, .png, .gif).
  * Passe `key={looktypeId}` no caller se a mesma instância puder trocar de looktype (ex.:
  * dentro de um dialog reaproveitado) — sem isso o índice de frame não reseta ao trocar.
  * Zoom no hover segue o mesmo padrão de `EntityThumb` (scale inline + preview ampliado no
@@ -49,7 +50,7 @@ export function LooktypeAnimatedImage({
   useEffect(() => {
     if (frameCount <= 1) return;
 
-    const duration = frameDurationsMs[frameIndex] || 100;
+    const duration = Math.min(frameDurationsMs[frameIndex] || 100, 1000);
     const timeout = setTimeout(() => {
       setFrameIndex((current) => (current + 1) % frameCount);
     }, duration);

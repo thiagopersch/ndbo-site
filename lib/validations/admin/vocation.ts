@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const VOCATION_ARCHETYPES = ["DPS", "Bruiser", "Support", "Tank"] as const;
+export type VocationArchetype = (typeof VOCATION_ARCHETYPES)[number];
+
 export const vocationTypeSchema = z.object({
   name: z.string().min(1, "Informe um nome").max(100),
 });
@@ -55,6 +58,8 @@ export const vocationSchema = z.object({
   typeUniverseId: z.number().int().nullable(),
   lookTypeId: z.number().int().nullable(),
   maxRank: z.number().int().min(0).max(4),
+  archetype: z.enum(VOCATION_ARCHETYPES).nullable(),
+  specificFragmentItemId: z.number().int().nullable(),
   formula: vocationFormulaSchema,
   skill: vocationSkillSchema,
 });
@@ -84,6 +89,8 @@ export const defaultVocationValues: VocationInput = {
   typeUniverseId: null,
   lookTypeId: null,
   maxRank: 0,
+  archetype: null,
+  specificFragmentItemId: null,
   formula: {
     meleeDamage: 1,
     distDamage: 1,

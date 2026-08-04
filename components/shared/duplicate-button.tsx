@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type DuplicatedRecord = { id: number; name: string };
+type DuplicatedRecord = { id: number | string; name: string };
 
 type DuplicateButtonProps = {
   /** Rota POST que cria a cópia, ex.: `/api/admin/vocations/${id}/duplicate`. */

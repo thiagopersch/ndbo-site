@@ -94,6 +94,7 @@ export const battlePassRewardSchema = z.object({
   rarity: z.enum(BATTLE_PASS_RARITIES),
   itemId: z.number().int().positive(),
   count: z.number().int().min(1),
+  order: z.number().int().min(0),
 });
 
 export const battlePassSeasonSchema = z.object({
@@ -130,8 +131,10 @@ export const defaultBattlePassSeasonValues: BattlePassSeasonInput = {
   rewards: [],
 };
 
-/** Garante que, dentro de cada trilha, a raridade das recompensas cresça junto com o level, e
- * que nenhum item se repita na mesma trilha. Retorna a primeira mensagem de erro encontrada. */
+/** Garante que, dentro de cada trilha, a raridade das recompensas cresça junto com o level
+ * (múltiplos itens no mesmo level devem ter a mesma raridade), e que nenhum item se repita no
+ * mesmo level+trilha (itens diferentes podem se repetir em levels diferentes). Retorna a
+ * primeira mensagem de erro encontrada. */
 export function validateRewardsOrdering(rewards: BattlePassRewardInput[]): string | null {
   const byTrack = new Map<string, BattlePassRewardInput[]>();
   for (const reward of rewards) {
@@ -141,20 +144,29 @@ export function validateRewardsOrdering(rewards: BattlePassRewardInput[]): strin
   }
 
   for (const [track, list] of byTrack) {
-    const itemIds = new Set<number>();
+    const byLevel = new Map<number, BattlePassRewardInput[]>();
     for (const reward of list) {
-      if (itemIds.has(reward.itemId)) {
-        return `Trilha "${track}": o item #${reward.itemId} está repetido — recompensas não podem repetir na mesma trilha.`;
-      }
-      itemIds.add(reward.itemId);
+      const levelList = byLevel.get(reward.level) ?? [];
+      levelList.push(reward);
+      byLevel.set(reward.level, levelList);
     }
 
-    const sorted = [...list].sort((a, b) => a.level - b.level);
-    for (let i = 1; i < sorted.length; i++) {
-      const previousOrder = RARITY_ORDER[sorted[i - 1].rarity];
-      const currentOrder = RARITY_ORDER[sorted[i].rarity];
-      if (currentOrder < previousOrder) {
-        return `Trilha "${track}": level ${sorted[i].level} ("${sorted[i].rarity}") é menos raro que o level ${sorted[i - 1].level} ("${sorted[i - 1].rarity}") — a raridade deve crescer com o level.`;
+    for (const [level, levelRewards] of byLevel) {
+      const itemIds = new Set<number>();
+      for (const reward of levelRewards) {
+        if (itemIds.has(reward.itemId)) {
+          return `Trilha "${track}", level ${level}: o item #${reward.itemId} está repetido nesse level.`;
+        }
+        itemIds.add(reward.itemId);
+      }
+    }
+
+    const levels = [...byLevel.keys()].sort((a, b) => a - b);
+    for (let i = 1; i < levels.length; i++) {
+      const previousMinOrder = Math.min(...byLevel.get(levels[i - 1])!.map((r) => RARITY_ORDER[r.rarity]));
+      const currentMinOrder = Math.min(...byLevel.get(levels[i])!.map((r) => RARITY_ORDER[r.rarity]));
+      if (currentMinOrder < previousMinOrder) {
+        return `Trilha "${track}": level ${levels[i]} é menos raro que o level ${levels[i - 1]} — a raridade deve crescer com o level.`;
       }
     }
   }

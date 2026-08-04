@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 
 import { NextResponse } from "next/server";
+import sharp from "sharp";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
@@ -8,7 +9,29 @@ import { logAudit } from "@/lib/audit";
 import { MAX_IMAGE_BYTES, detectImageExtension } from "@/lib/entity-image";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
 import { ObdParseError, parseObd } from "@/lib/obd/obd-parser";
-import { renderLooktypeFrames } from "@/lib/obd/obd-render";
+import { clampFrameDurationMs, renderLooktypeFrames, type RenderedLooktypeFrame } from "@/lib/obd/obd-render";
+
+/** GIFs animados viram 1 PNG estático por página (`sharp` decodifica cada página/quadro do
+ * GIF), cada um com a duração declarada no próprio GIF — sempre limitada a
+ * `MAX_FRAME_DURATION_MS` (mesma regra do .obd, ver `obd-render.ts`) pra nenhum formato passar
+ * quadros rápido demais na pré-visualização. PNG/JPG estáticos caem no branch de 1 página só. */
+async function renderRasterFrames(buffer: Buffer): Promise<RenderedLooktypeFrame[]> {
+  const metadata = await sharp(buffer, { animated: true }).metadata();
+  const pageCount = metadata.pages ?? 1;
+
+  if (pageCount <= 1) {
+    const png = await sharp(buffer).png().toBuffer();
+    return [{ png, durationMs: clampFrameDurationMs(100) }];
+  }
+
+  const delays = metadata.delay ?? [];
+  const frames: RenderedLooktypeFrame[] = [];
+  for (let page = 0; page < pageCount; page++) {
+    const png = await sharp(buffer, { page, pages: 1 }).png().toBuffer();
+    frames.push({ png, durationMs: clampFrameDurationMs(delays[page]) });
+  }
+  return frames;
+}
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -50,7 +73,11 @@ export async function POST(request: Request, { params }: Params) {
     if (buffer.length > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: "Imagem maior que 2MB." }, { status: 413 });
     }
-    frames = [{ png: buffer, durationMs: 100 }];
+    try {
+      frames = await renderRasterFrames(buffer);
+    } catch {
+      return NextResponse.json({ error: "Não foi possível interpretar a imagem." }, { status: 422 });
+    }
   } else {
     if (buffer.length > MAX_OBD_BYTES) {
       return NextResponse.json({ error: "Arquivo OBD maior que 8MB." }, { status: 413 });

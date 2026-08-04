@@ -1,5 +1,12 @@
 import type { Vocation } from "@/lib/generated/prisma/client";
-import type { VocationInput } from "@/lib/validations/admin/vocation";
+import type { VocationArchetype, VocationInput } from "@/lib/validations/admin/vocation";
+import { VOCATION_ARCHETYPES } from "@/lib/validations/admin/vocation";
+
+function toVocationArchetype(value: string | null): VocationArchetype | null {
+  return value && (VOCATION_ARCHETYPES as readonly string[]).includes(value)
+    ? (value as VocationArchetype)
+    : null;
+}
 
 export function vocationToInput(vocation: Vocation): VocationInput {
   return {
@@ -25,6 +32,8 @@ export function vocationToInput(vocation: Vocation): VocationInput {
     typeUniverseId: vocation.typeUniverseId,
     lookTypeId: vocation.lookTypeId,
     maxRank: vocation.maxRank,
+    archetype: toVocationArchetype(vocation.archetype),
+    specificFragmentItemId: vocation.specificFragmentItemId,
     formula: {
       meleeDamage: vocation.formulaMeleeDamage,
       distDamage: vocation.formulaDistDamage,
@@ -72,6 +81,8 @@ export function vocationInputToPrismaData(input: VocationInput) {
     typeUniverseId: input.typeUniverseId,
     lookTypeId: input.lookTypeId,
     maxRank: input.maxRank,
+    archetype: input.archetype,
+    specificFragmentItemId: input.specificFragmentItemId,
     formulaMeleeDamage: input.formula.meleeDamage,
     formulaDistDamage: input.formula.distDamage,
     formulaWandDamage: input.formula.wandDamage,

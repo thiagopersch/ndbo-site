@@ -5,7 +5,13 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
-import { taskDefinitionSchema, taskDefinitionInputToRow } from "@/lib/validations/admin/task-definition";
+import {
+  taskDefinitionSchema,
+  taskDefinitionInputToRow,
+  normalizeTaskCategory,
+  isValidTaskUniverse,
+  TASK_VALID_UNIVERSES,
+} from "@/lib/validations/admin/task-definition";
 import { isTaskDifficulty, TASK_DIFFICULTIES } from "@/lib/task-difficulty";
 
 type TaskMonster = { name: string; kills: number };
@@ -127,6 +133,15 @@ export async function POST(request: Request) {
   const category = await prisma.category.findUnique({ where: { id: parsed.data.categoryId } });
   if (!category) {
     return NextResponse.json({ error: "Categoria não encontrada." }, { status: 422 });
+  }
+
+  if (!isValidTaskUniverse(normalizeTaskCategory(category.name))) {
+    return NextResponse.json(
+      {
+        error: `A Categoria "${category.name}" não corresponde a nenhum universo do jogo (${TASK_VALID_UNIVERSES.join(", ")}). A task ficaria salva mas invisível no módulo de tasks do cliente. Renomeie a Categoria para um desses nomes (sem acentos/espaços) ou escolha outra.`,
+      },
+      { status: 422 },
+    );
   }
 
   const entry = await prisma.taskDefinition.create({ data: taskDefinitionInputToRow(parsed.data, category.name) });

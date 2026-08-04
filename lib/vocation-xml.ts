@@ -45,6 +45,13 @@ export function vocationToXml(vocation: VocationXmlData): string {
     `maxrank="${fmtInt(vocation.maxRank)}"`,
   ];
 
+  if (vocation.archetype) {
+    attrs.push(`archetype="${escapeXml(vocation.archetype)}"`);
+  }
+  if (vocation.specificFragmentItemId) {
+    attrs.push(`specificfragmentitemid="${fmtInt(vocation.specificFragmentItemId)}"`);
+  }
+
   const formula = vocation.formula;
   const formulaAttrs = [
     `meleeDamage="${fmtFloat(formula.meleeDamage)}"`,

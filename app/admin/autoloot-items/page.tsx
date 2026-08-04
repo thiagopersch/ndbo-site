@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { CopyPlus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -70,17 +70,30 @@ export default function AdminAutolootItemsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <ConfirmDialog
-          trigger={
-            <Button variant="destructive" size="icon-sm" title="Excluir">
-              <Trash2 className="size-4" />
-            </Button>
-          }
-          title="Remover"
-          description="Remove o item da lista de autoloot disponível."
-          confirmLabel="Remover"
-          onConfirm={() => handleDelete(row.original.id)}
-        />
+        <div className="flex items-center gap-1">
+          <AutolootItemFormDialog
+            title="Duplicar item"
+            defaultValues={{ itemId: 0, name: row.original.name, published: row.original.published }}
+            successMessage="Item duplicado."
+            onSubmit={(values) => createOrUpdate(values)}
+            trigger={
+              <Button variant="ghost" size="icon-sm" title="Duplicar">
+                <CopyPlus className="size-4" />
+              </Button>
+            }
+          />
+          <ConfirmDialog
+            trigger={
+              <Button variant="destructive" size="icon-sm" title="Excluir">
+                <Trash2 className="size-4" />
+              </Button>
+            }
+            title="Remover"
+            description="Remove o item da lista de autoloot disponível."
+            confirmLabel="Remover"
+            onConfirm={() => handleDelete(row.original.id)}
+          />
+        </div>
       ),
     },
   ];
