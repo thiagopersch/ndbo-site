@@ -123,7 +123,7 @@ export async function GET(request: Request) {
   if (loot || attacks) {
     const monsters = await prisma.monster.findMany({
       where,
-      orderBy: { name: "asc" },
+      orderBy: [{ universe: { name: "asc" } }, { subcategory: "asc" }, { name: "asc" }],
       take: 2000,
       include: { universe: { select: { id: true, name: true, color: true } } },
     });
@@ -165,7 +165,7 @@ export async function GET(request: Request) {
   const [monsters, total] = await Promise.all([
     prisma.monster.findMany({
       where,
-      orderBy: { name: "asc" },
+      orderBy: [{ universe: { name: "asc" } }, { subcategory: "asc" }, { name: "asc" }],
       select: MONSTER_LIST_SELECT,
       skip: (page - 1) * pageSize,
       take: pageSize,
