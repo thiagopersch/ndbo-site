@@ -17,7 +17,14 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 type AccountSummary = {
   account: { name: string; premdays: number; isVip: boolean; blocked: boolean };
-  characters: { id: number; name: string; level: number; vocationName: string; worldId: number }[];
+  characters: {
+    id: number;
+    name: string;
+    level: number;
+    vocationName: string;
+    worldId: number;
+    online: number;
+  }[];
   reports: { id: number; report: string; timestamp: number }[];
   openTicketsCount: number;
 };
@@ -192,7 +199,15 @@ export function AccountDashboard() {
                 className="flex items-center justify-between gap-3 rounded-md border p-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-primary">{character.name}</p>
+                  <Link
+                    href={`/community/characters/${encodeURIComponent(character.name)}`}
+                    className={cn(
+                      "truncate font-medium hover:underline",
+                      character.online === 1 ? "text-green-500" : "text-red-500",
+                    )}
+                  >
+                    {character.name}
+                  </Link>
                   <p className="truncate text-xs text-muted-foreground">
                     {character.vocationName} · Level {character.level} · NDBO
                   </p>

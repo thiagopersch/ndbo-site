@@ -362,6 +362,7 @@ export function DashboardCharts({
   vocationsByTypeClass,
   vocationsByTypeUniverse,
   vocationsByPremium,
+  vocationsByRank,
   spellsByVocation,
   npcsByType,
   tasksByCategory,
@@ -378,6 +379,7 @@ export function DashboardCharts({
   vocationsByTypeClass: CategoryPoint[];
   vocationsByTypeUniverse: CategoryPoint[];
   vocationsByPremium: CategoryPoint[];
+  vocationsByRank: CategoryPoint[];
   spellsByVocation: CategoryPoint[];
   npcsByType: CategoryPoint[];
   tasksByCategory: CategoryPoint[];
@@ -402,6 +404,8 @@ export function DashboardCharts({
       <CategoryChartBox title="Vocações por universo" data={vocationsByTypeUniverse} color="var(--chart-2)" />
 
       <CategoryChartBox title="Vocações por premium" data={vocationsByPremium} color="var(--chart-4)" />
+
+      <CategoryChartBox title="Vocações por rank" data={vocationsByRank} color="var(--chart-5)" />
 
       <CategoryChartBox
         title="Items por tipo (slot & weapon)"

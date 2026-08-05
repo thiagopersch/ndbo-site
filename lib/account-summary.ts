@@ -13,7 +13,7 @@ export async function getAccountSummary(accountId: number) {
   const players = await prisma.player.findMany({
     where: { accountId, deleted: 0 },
     orderBy: { id: "asc" },
-    select: { id: true, name: true, level: true, vocation: true, worldId: true },
+    select: { id: true, name: true, level: true, vocation: true, worldId: true, online: true },
   });
 
   const vocationIds = [...new Set(players.map((player) => player.vocation))];
@@ -51,6 +51,7 @@ export async function getAccountSummary(accountId: number) {
       level: player.level,
       vocationName: vocationNameById.get(player.vocation) ?? "Desconhecida",
       worldId: player.worldId,
+      online: player.online,
     })),
     reports: reports.map((report) => ({
       id: report.id,

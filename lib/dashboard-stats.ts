@@ -75,6 +75,7 @@ export async function getDashboardStats() {
     vocationsByTypeClass,
     vocationsByTypeUniverse,
     vocationsByPremium,
+    vocationsByRank,
 
     spellVocationLinks,
     spellsWithoutVocation,
@@ -145,6 +146,7 @@ export async function getDashboardStats() {
     prisma.vocation.groupBy({ by: ["typeClassId"], _count: { _all: true } }),
     prisma.vocation.groupBy({ by: ["typeUniverseId"], _count: { _all: true } }),
     prisma.vocation.groupBy({ by: ["needpremium"], _count: { _all: true } }),
+    prisma.vocation.groupBy({ by: ["maxRank"], _count: { _all: true } }),
 
     prisma.spellVocation.groupBy({ by: ["vocationId"], where: { vocationId: { not: 0 } }, _count: { _all: true } }),
     prisma.spell.count({ where: { vocations: { none: {} } } }),
@@ -297,6 +299,13 @@ export async function getDashboardStats() {
     label: row.needpremium ? "Premium" : "Free",
     total: row._count._all,
   }));
+  // Rank máximo por estrelas que a vocação pode alcançar — espelha
+  // `VocationRankConfig.Vocations[id].maxRank` (vocation_ranks_config.lua).
+  const rankLabels: Record<number, string> = { 0: "Nenhum", 1: "Bronze", 2: "Prata", 3: "Ouro", 4: "Diamante" };
+  const vocationsByRankChart = vocationsByRank.map((row) => ({
+    label: rankLabels[row.maxRank] ?? `Rank ${row.maxRank}`,
+    total: row._count._all,
+  }));
 
   // Spells por vocação (ignorando vocation 0 — sentinela "qualquer/nenhuma" do jogo, não uma
   // vocação real) + spells sem nenhuma vocação vinculada, numa barra própria.
@@ -426,6 +435,7 @@ export async function getDashboardStats() {
       byTypeClass: vocationsByTypeClassChart,
       byTypeUniverse: vocationsByTypeUniverseChart,
       byPremium: vocationsByPremiumChart,
+      byRank: vocationsByRankChart,
     },
     createdTrend,
     spells: {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BadgeCheck,
+  Building2,
   Bug,
   ChevronDown,
   Coins,
@@ -74,6 +75,8 @@ const adminSections: AdminSection[] = [
       { label: "Contas", href: "/admin/accounts", icon: Users },
       { label: "Jogadores", href: "/admin/players", icon: BadgeCheck },
       { label: "Banimentos", href: "/admin/bans", icon: ShieldBan },
+      { label: "Guilds", href: "/admin/guilds", icon: Crown },
+      { label: "Houses", href: "/admin/houses", icon: Building2 },
     ],
   },
   {

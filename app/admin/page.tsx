@@ -231,6 +231,7 @@ export default async function AdminDashboardPage() {
         vocationsByTypeClass={stats.vocations.byTypeClass}
         vocationsByTypeUniverse={stats.vocations.byTypeUniverse}
         vocationsByPremium={stats.vocations.byPremium}
+        vocationsByRank={stats.vocations.byRank}
         spellsByVocation={stats.spells.byVocation}
         npcsByType={stats.npcs.byType}
         tasksByCategory={stats.tasks.byCategory}

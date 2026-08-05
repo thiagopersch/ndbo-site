@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
+import { auth } from "@/lib/auth";
+import { isAdmin } from "@/lib/auth-constants";
 import { prisma } from "@/lib/prisma";
 import { ACCOUNT_MANAGER_NAME, PUBLIC_LISTING_GROUP_ID_LIMIT } from "@/lib/public-player-visibility";
 import { getRankPosition, getResetAverage } from "@/lib/character-profile";
@@ -34,12 +37,15 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Personagem não encontrado." }, { status: 404 });
   }
 
+  const session = await auth();
+  // Contas com group_id >= 5 (admin) veem o perfil de qualquer personagem, inclusive staff
+  // in-game e personagens deletados — o resto do público continua com as restrições normais.
+  const where: Prisma.PlayerWhereInput = isAdmin(session?.user?.groupId)
+    ? { name: decodedName }
+    : { name: decodedName, deleted: 0, groupId: { lt: PUBLIC_LISTING_GROUP_ID_LIMIT } };
+
   const player = await prisma.player.findFirst({
-    where: {
-      name: decodedName,
-      deleted: 0,
-      groupId: { lt: PUBLIC_LISTING_GROUP_ID_LIMIT },
-    },
+    where,
     select: {
       id: true,
       name: true,

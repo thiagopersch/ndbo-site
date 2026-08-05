@@ -7,7 +7,7 @@ import { Download, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
-import type { VocationXmlData } from "@/lib/vocation-xml";
+import { vocationToXml, type VocationXmlData } from "@/lib/vocation-xml";
 import { VOCATION_RANK_LABELS, VOCATION_RANK_COLORS, type VocationRank } from "@/lib/vocation-rank";
 import type { PaginatedResult } from "@/lib/pagination";
 import { useServerTable } from "@/hooks/use-server-table";
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
+import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useEntityImages } from "@/components/shared/use-entity-images";
@@ -216,6 +217,11 @@ export default function AdminVocationsPage() {
             editPathBase="/admin/vocations"
             onDuplicated={() => mutate()}
           />
+          <CopyXmlButton
+            variant="icon"
+            label="Copiar XML desta vocação"
+            getText={() => vocationToXml(row.original)}
+          />
           <ConfirmDialog
             trigger={
               <Button variant="destructive" size="icon-sm" title="Excluir">
@@ -288,6 +294,13 @@ export default function AdminVocationsPage() {
               <Download className="size-4" />
               Exportar XML
             </Button>
+            <CopyXmlButton
+              label="Copiar XML (todas)"
+              getText={async () => {
+                const response = await fetch("/api/admin/vocations/export");
+                return response.text();
+              }}
+            />
             <Button
               nativeButton={false}
               render={<Link href="/admin/vocations/new" />}

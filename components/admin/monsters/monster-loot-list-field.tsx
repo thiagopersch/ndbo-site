@@ -11,7 +11,7 @@ import {
   type FieldPath,
   type FieldValues,
 } from "react-hook-form";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 
 import type { MonsterLootItemInput } from "@/lib/validations/admin/monster";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   FormItem,
   FormLabel,
 } from "@/components/ui/form";
+import { Collapsible, CollapsibleTrigger, CollapsiblePanel } from "@/components/ui/collapsible";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
@@ -39,7 +40,9 @@ import { emptyMonsterLootItem } from "@/lib/validations/admin/monster";
  * usado na box de preview do form (mostra todas as sprites que o monstro pode dropar, sem
  * distinguir profundidade do container). */
 export function flattenLootItemIds(items: MonsterLootItemInput[]): number[] {
-  return items.flatMap((item) => [item.id, ...flattenLootItemIds(item.children)]).filter((id) => id > 0);
+  return items
+    .flatMap((item) => [item.id, ...flattenLootItemIds(item.children ?? [])])
+    .filter((id) => id > 0);
 }
 
 export function MonsterLootListField<T extends FieldValues>({
@@ -195,9 +198,9 @@ function LootItemCard<T extends FieldValues>({
         </p>
       </button>
 
-      {value.children.length > 0 && (
+      {(value.children ?? []).length > 0 && (
         <div className="flex flex-wrap justify-center gap-1 border-t pt-1.5">
-          {value.children.map((child, index) => (
+          {(value.children ?? []).map((child, index) => (
             <EntityThumb key={index} entityType="item" id={child.id} name={child.comment} size="32" />
           ))}
         </div>
@@ -318,10 +321,17 @@ function LootItemFields<T extends FieldValues>({
       />
 
       <div className="rounded-md border border-dashed p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          Conteúdo (se for um container)
-        </p>
-        <MonsterLootListField control={control} name={`${basePath}.children`} nested />
+        <Collapsible defaultOpen>
+          <CollapsibleTrigger>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 data-panel-open:rotate-180" />
+            <span className="text-xs font-medium text-muted-foreground">
+              Conteúdo{itemName ? ` — ${itemName}` : " (se for um container)"}
+            </span>
+          </CollapsibleTrigger>
+          <CollapsiblePanel>
+            <MonsterLootListField control={control} name={`${basePath}.children`} nested />
+          </CollapsiblePanel>
+        </Collapsible>
       </div>
     </div>
   );

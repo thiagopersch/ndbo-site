@@ -16,7 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -29,7 +31,28 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-type VocationOption = { id: number; name: string };
+type VocationOption = { id: number; name: string; typeUniverse: { name: string } | null };
+
+const NO_UNIVERSE_LABEL = "Sem universo";
+
+/** Agrupa por universo mantendo a ordem já vinda da API (universo asc, depois nome asc) —
+ * sem universo fica num grupo à parte, sempre por último. */
+function groupVocationsByUniverse(vocations: VocationOption[]): [string, VocationOption[]][] {
+  const groups = new Map<string, VocationOption[]>();
+  for (const vocation of vocations) {
+    const label = vocation.typeUniverse?.name ?? NO_UNIVERSE_LABEL;
+    const group = groups.get(label);
+    if (group) {
+      group.push(vocation);
+    } else {
+      groups.set(label, [vocation]);
+    }
+  }
+
+  const entries = [...groups.entries()];
+  entries.sort(([a], [b]) => (a === NO_UNIVERSE_LABEL ? 1 : b === NO_UNIVERSE_LABEL ? -1 : 0));
+  return entries;
+}
 
 const SEX_LABELS: Record<string, string> = {
   "1": "Masculino",
@@ -47,6 +70,7 @@ export function NewCharacterForm() {
   const vocations = data?.vocations ?? [];
   const hasVocations = !isLoadingVocations && vocations.length > 0;
   const vocationNameById = new Map(vocations.map((vocation) => [String(vocation.id), vocation.name]));
+  const vocationGroups = groupVocationsByUniverse(vocations);
 
   const form = useForm<CreateCharacterInput>({
     resolver: zodResolver(createCharacterSchema),
@@ -150,10 +174,15 @@ export function NewCharacterForm() {
                     </FormControl>
                     <SelectContent>
                       {hasVocations ? (
-                        vocations.map((vocation) => (
-                          <SelectItem key={vocation.id} value={String(vocation.id)}>
-                            {vocation.name}
-                          </SelectItem>
+                        vocationGroups.map(([universeName, groupVocations]) => (
+                          <SelectGroup key={universeName}>
+                            <SelectLabel>{universeName}</SelectLabel>
+                            {groupVocations.map((vocation) => (
+                              <SelectItem key={vocation.id} value={String(vocation.id)}>
+                                {vocation.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
                         ))
                       ) : (
                         <div className="px-2 py-1.5 text-sm text-muted-foreground">

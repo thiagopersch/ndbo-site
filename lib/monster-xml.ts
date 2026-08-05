@@ -87,14 +87,15 @@ function lootItemXml(item: MonsterLootItemInput, level: number): string[] {
   if (item.text) attrs.push(`text="${escapeXml(item.text)}"`);
 
   const comment = item.comment ? ` <!-- ${item.comment} -->` : "";
+  const children = item.children ?? [];
 
-  if (item.children.length === 0) {
+  if (children.length === 0) {
     return indent([`${attrsToTag("item", attrs)}${comment}`], level);
   }
 
   const lines: string[] = [];
   lines.push(...indent([`${attrsToTag("item", attrs, false)}${comment}`], level));
-  for (const child of item.children) {
+  for (const child of children) {
     lines.push(...lootItemXml(child, level + 1));
   }
   lines.push(...indent(["</item>"], level));

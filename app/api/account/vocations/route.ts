@@ -10,8 +10,8 @@ export async function GET() {
 
   const vocations = await prisma.vocation.findMany({
     where: { published: true },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    orderBy: [{ typeUniverse: { name: "asc" } }, { name: "asc" }],
+    select: { id: true, name: true, typeUniverse: { select: { name: true } } },
   });
 
   return NextResponse.json({ vocations });
