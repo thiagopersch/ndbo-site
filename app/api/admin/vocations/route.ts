@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
-  const typeClassId = url.searchParams.get("typeClassId");
+  const archetypeId = url.searchParams.get("archetypeId");
   const typeUniverseId = url.searchParams.get("typeUniverseId");
   const needpremium = url.searchParams.get("needpremium");
   const published = url.searchParams.get("published");
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         }
       : {}),
     ...(hasImage ? { id: hasImage } : {}),
-    ...(typeClassId ? { typeClassId: Number(typeClassId) } : {}),
+    ...(archetypeId ? { archetypeId: Number(archetypeId) } : {}),
     ...(typeUniverseId ? { typeUniverseId: Number(typeUniverseId) } : {}),
     ...(needpremium === "true" || needpremium === "false"
       ? { needpremium: needpremium === "true" }
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     prisma.vocation.findMany({
       where,
       orderBy: { id: "asc" },
-      include: { typeClass: true, typeUniverse: true },
+      include: { archetype: true, typeUniverse: true },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     buildPaginatedResult(
       vocations.map((vocation) => ({
         ...vocationToInput(vocation),
-        typeClassName: vocation.typeClass?.name ?? "",
+        archetypeName: vocation.archetype?.name ?? "",
         typeUniverseName: vocation.typeUniverse?.name ?? "",
         typeUniverseColor: vocation.typeUniverse?.color ?? null,
       })),

@@ -9,13 +9,13 @@ export async function GET() {
 
   const vocations = await prisma.vocation.findMany({
     orderBy: { id: "asc" },
-    include: { typeClass: true, typeUniverse: true },
+    include: { archetype: true, typeUniverse: true },
   });
 
   const xml = vocationsToXmlDocument(
     vocations.map((vocation) => ({
       ...vocationToInput(vocation),
-      typeClassName: vocation.typeClass?.name ?? "",
+      archetypeName: vocation.archetype?.name ?? null,
       typeUniverseName: vocation.typeUniverse?.name ?? "",
     }))
   );

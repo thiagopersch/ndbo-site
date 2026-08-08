@@ -1,12 +1,5 @@
 import type { Vocation } from "@/lib/generated/prisma/client";
-import type { VocationArchetype, VocationInput } from "@/lib/validations/admin/vocation";
-import { VOCATION_ARCHETYPES } from "@/lib/validations/admin/vocation";
-
-function toVocationArchetype(value: string | null): VocationArchetype | null {
-  return value && (VOCATION_ARCHETYPES as readonly string[]).includes(value)
-    ? (value as VocationArchetype)
-    : null;
-}
+import type { VocationInput } from "@/lib/validations/admin/vocation";
 
 export function vocationToInput(vocation: Vocation): VocationInput {
   return {
@@ -28,11 +21,10 @@ export function vocationToInput(vocation: Vocation): VocationInput {
     soulmax: vocation.soulmax,
     gainsoulticks: vocation.gainsoulticks,
     fromvoc: vocation.fromvoc,
-    typeClassId: vocation.typeClassId,
     typeUniverseId: vocation.typeUniverseId,
     lookTypeId: vocation.lookTypeId,
     maxRank: vocation.maxRank,
-    archetype: toVocationArchetype(vocation.archetype),
+    archetypeId: vocation.archetypeId,
     specificFragmentItemId: vocation.specificFragmentItemId,
     formula: {
       meleeDamage: vocation.formulaMeleeDamage,
@@ -77,11 +69,10 @@ export function vocationInputToPrismaData(input: VocationInput) {
     soulmax: input.soulmax,
     gainsoulticks: input.gainsoulticks,
     fromvoc: input.fromvoc,
-    typeClassId: input.typeClassId,
     typeUniverseId: input.typeUniverseId,
     lookTypeId: input.lookTypeId,
     maxRank: input.maxRank,
-    archetype: input.archetype,
+    archetypeId: input.archetypeId,
     specificFragmentItemId: input.specificFragmentItemId,
     formulaMeleeDamage: input.formula.meleeDamage,
     formulaDistDamage: input.formula.distDamage,

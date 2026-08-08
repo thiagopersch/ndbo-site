@@ -15,19 +15,19 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.VocationTypeClassWhereInput = search ? { name: { contains: search } } : {};
+  const where: Prisma.VocationArchetypeWhereInput = search ? { name: { contains: search } } : {};
 
-  const [classes, total] = await Promise.all([
-    prisma.vocationTypeClass.findMany({
+  const [archetypes, total] = await Promise.all([
+    prisma.vocationArchetype.findMany({
       where,
       orderBy: { name: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    prisma.vocationTypeClass.count({ where }),
+    prisma.vocationArchetype.count({ where }),
   ]);
 
-  return NextResponse.json(buildPaginatedResult(classes, total, page, pageSize));
+  return NextResponse.json(buildPaginatedResult(archetypes, total, page, pageSize));
 }
 
 export async function POST(request: Request) {
@@ -41,20 +41,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
-  const existingNames = await prisma.vocationTypeClass.findMany({ select: { id: true, name: true } });
+  const existingNames = await prisma.vocationArchetype.findMany({ select: { id: true, name: true } });
   if (hasDuplicateName(existingNames, parsed.data.name)) {
-    return NextResponse.json({ error: "Já existe uma classe com esse nome." }, { status: 409 });
+    return NextResponse.json({ error: "Já existe um arquétipo com esse nome." }, { status: 409 });
   }
 
-  const vocationClass = await prisma.vocationTypeClass.create({ data: parsed.data });
+  const vocationArchetype = await prisma.vocationArchetype.create({ data: parsed.data });
 
   await logAudit({
     accountId: Number(session.user.id),
     action: "create",
-    entity: "vocation_type_class",
-    entityId: vocationClass.id,
+    entity: "vocation_archetype",
+    entityId: vocationArchetype.id,
     metadata: parsed.data,
   });
 
-  return NextResponse.json({ class: vocationClass }, { status: 201 });
+  return NextResponse.json({ archetype: vocationArchetype }, { status: 201 });
 }

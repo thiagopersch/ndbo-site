@@ -17,7 +17,7 @@ function escapeXml(value: string) {
 }
 
 export type VocationXmlData = VocationInput & {
-  typeClassName: string;
+  archetypeName?: string | null;
   typeUniverseName: string;
   typeUniverseColor?: string | null;
 };
@@ -40,13 +40,12 @@ export function vocationToXml(vocation: VocationXmlData): string {
     `soulmax="${fmtInt(vocation.soulmax)}"`,
     `gainsoulticks="${fmtInt(vocation.gainsoulticks)}"`,
     `fromvoc="${fmtInt(vocation.fromvoc)}"`,
-    `type_class="${escapeXml(vocation.typeClassName)}"`,
     `type_universe="${escapeXml(vocation.typeUniverseName)}"`,
     `maxrank="${fmtInt(vocation.maxRank)}"`,
   ];
 
-  if (vocation.archetype) {
-    attrs.push(`archetype="${escapeXml(vocation.archetype)}"`);
+  if (vocation.archetypeName) {
+    attrs.push(`archetype="${escapeXml(vocation.archetypeName)}"`);
   }
   if (vocation.specificFragmentItemId) {
     attrs.push(`specificfragmentitemid="${fmtInt(vocation.specificFragmentItemId)}"`);

@@ -22,6 +22,16 @@ export function spriteTermFor(category: string): string {
  * em `lib/obd/obd-render.ts` (não importado aqui pra não puxar `pngjs`/`lzma1` pro client bundle). */
 export const MAX_LOOKTYPE_FRAME_SPEED_MS = 1000;
 
+/** Velocidade padrão (ms/quadro) sugerida no create ao escolher o tipo — outfits andam mais
+ * devagar (300ms) que o padrão de item/effect/missile (100ms) pra ficar com uma cadência de
+ * "passos" mais natural na pré-visualização. Só um default editável, não um limite. */
+export const DEFAULT_LOOKTYPE_FRAME_SPEED_MS: Record<LooktypeCategory, number> = {
+  item: 100,
+  outfit: 300,
+  effect: 100,
+  missile: 100,
+};
+
 export const looktypeSchema = z
   .object({
     name: z.string().min(1, "Informe um nome").max(150),
@@ -53,6 +63,18 @@ export const defaultLooktypeValues: LooktypeInput = {
 /** Nome do arquivo sem extensão, usado pra pré-preencher o campo "Nome" no create. */
 export function fileNameToLooktypeName(fileName: string): string {
   return fileName.replace(/\.[^./\\]+$/, "");
+}
+
+/** Extrai o número da sprite do padrão de nome usado nos lotes exportados do Object Builder —
+ * `algumnome_NUMERO_860v2[sufixo].ext`, ex.: "bug_45_860v2.obd" → 45,
+ * "missile_104_860v2-v2.obd" → 104, "android_20_dr_gero_2480_860v2.obd" → 2480 (pega o número
+ * colado em "_860v2", não outros números que apareçam antes no nome). Retorna `null` quando o
+ * nome não segue esse padrão — nesse caso o admin preenche o número manualmente. */
+export function extractLooktypeNumberFromFileName(fileName: string): number | null {
+  const match = fileName.match(/_(\d+)_860v2/i);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isInteger(value) ? value : null;
 }
 
 /** Label padrão "id — nome (número)" usado em todo select/combobox que escolhe uma looktype do

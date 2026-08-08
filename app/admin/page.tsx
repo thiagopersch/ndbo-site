@@ -228,7 +228,7 @@ export default async function AdminDashboardPage() {
         monstersByCategory={stats.monsters.byCategory}
         ticketsByStatus={stats.tickets.byStatus}
         itemsByType={stats.items.byType}
-        vocationsByTypeClass={stats.vocations.byTypeClass}
+        vocationsByArchetype={stats.vocations.byArchetype}
         vocationsByTypeUniverse={stats.vocations.byTypeUniverse}
         vocationsByPremium={stats.vocations.byPremium}
         vocationsByRank={stats.vocations.byRank}

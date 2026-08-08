@@ -20,12 +20,12 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
 
-  const existingNames = await prisma.vocationTypeClass.findMany({ select: { id: true, name: true } });
+  const existingNames = await prisma.vocationArchetype.findMany({ select: { id: true, name: true } });
   if (hasDuplicateName(existingNames, parsed.data.name, Number(id))) {
-    return NextResponse.json({ error: "Já existe uma classe com esse nome." }, { status: 409 });
+    return NextResponse.json({ error: "Já existe um arquétipo com esse nome." }, { status: 409 });
   }
 
-  const vocationClass = await prisma.vocationTypeClass.update({
+  const vocationArchetype = await prisma.vocationArchetype.update({
     where: { id: Number(id) },
     data: parsed.data,
   });
@@ -33,12 +33,12 @@ export async function PATCH(request: Request, { params }: Params) {
   await logAudit({
     accountId: Number(session.user.id),
     action: "update",
-    entity: "vocation_type_class",
-    entityId: vocationClass.id,
+    entity: "vocation_archetype",
+    entityId: vocationArchetype.id,
     metadata: parsed.data,
   });
 
-  return NextResponse.json({ class: vocationClass });
+  return NextResponse.json({ archetype: vocationArchetype });
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
@@ -46,12 +46,12 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (response) return response;
 
   const { id } = await params;
-  await prisma.vocationTypeClass.delete({ where: { id: Number(id) } });
+  await prisma.vocationArchetype.delete({ where: { id: Number(id) } });
 
   await logAudit({
     accountId: Number(session.user.id),
     action: "delete",
-    entity: "vocation_type_class",
+    entity: "vocation_archetype",
     entityId: id,
   });
 

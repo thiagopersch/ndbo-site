@@ -22,7 +22,7 @@ const SIZE_CLASSES = { sm: "size-6", "32": "size-8", md: "size-10", lg: "size-16
 const MAX_PREVIEW_SIZE = 128;
 /** Fator de ampliação do preview em relação ao tamanho natural do arquivo (ex.: 32x32 vira
  * 64x64), até o teto de `MAX_PREVIEW_SIZE`. */
-const PREVIEW_SCALE = 2;
+const PREVIEW_SCALE = 3;
 
 type EntityThumbProps = {
   entityType: EntityImageType;

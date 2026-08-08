@@ -815,15 +815,19 @@ model TicketMessageAttachment {
   @@map("ticket_message_attachments")
 }
 
-/// Opções de `type_class` da vocação (ex.: DPS, Tank, Healer), gerenciadas via CRUD próprio
-/// e exibidas como <select> no formulário de vocação.
-model VocationTypeClass {
+/// Arquétipo de combate da vocação (ex.: DPS, Bruiser, Support, Tank), gerenciado via CRUD
+/// próprio e exibido como <select> no formulário de vocação. Substitui o antigo `type_class`
+/// (que nunca era lido pelo servidor de jogo) — o nome aqui é exportado no XML como o
+/// atributo `archetype`, consumido por `vocation_ranks_config.lua` (server/data/lib) para a
+/// fórmula de dano das spells, defesa e buffs de regen. Não é restrito a um enum fixo: além de
+/// categorizar cada vocação, o cadastro pode futuramente ganhar mais campos/utilidade.
+model VocationArchetype {
   id   Int    @id @default(autoincrement())
   name String @unique @db.VarChar(100)
 
   vocations Vocation[]
 
-  @@map("vocation_type_classes")
+  @@map("vocation_archetypes")
 }
 
 /// Universo genérico (ex.: Dragon Ball, Naruto), gerenciado via CRUD de Sistema e
@@ -868,7 +872,6 @@ model Vocation {
   /// Só do portal — libera a vocação na listagem pública `/gameplay/vocations` (independente de `published`).
   publishedGameplay Boolean @default(false) @map("published_gameplay")
 
-  typeClassId    Int? @map("type_class_id")
   typeUniverseId Int? @map("type_universe_id")
 
   /// Rank máximo de upgrade por estrelas que essa vocação pode alcançar (0=None, 1=Bronze,
@@ -877,10 +880,9 @@ model Vocation {
   /// do hardcode `addVocation(...)` por vocação.
   maxRank Int @default(0) @map("max_rank")
 
-  /// Arquétipo de combate ("DPS" | "Bruiser" | "Support" | "Tank") — espelha
-  /// `VocationRankConfig.Vocations[id].archetype` em vocation_ranks_config.lua, exportado no XML
-  /// (atributo `archetype`) em vez do hardcode `addVocation(...)` por vocação.
-  archetype String? @db.VarChar(20)
+  /// Arquétipo de combate — FK para `VocationArchetype`, exportado no XML (atributo
+  /// `archetype`) em vez do hardcode `addVocation(...)` por vocação em vocation_ranks_config.lua.
+  archetypeId Int? @map("archetype_id")
 
   /// Item de fragmento específico dessa vocação, usado no upgrade por estrelas — espelha
   /// `VocationRankConfig.Vocations[id].specificFragmentItemId`, exportado no XML (atributo
@@ -910,7 +912,7 @@ model Vocation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  typeClass    VocationTypeClass? @relation(fields: [typeClassId], references: [id])
+  archetype    VocationArchetype? @relation(fields: [archetypeId], references: [id])
   typeUniverse Universe?          @relation(fields: [typeUniverseId], references: [id])
 
   spellVocations    SpellVocation[]
@@ -1678,6 +1680,11 @@ model Looktype {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
+  /// Evita duas sprites com o mesmo nome dentro da mesma categoria (item/outfit/effect/missile) —
+  /// nomes iguais em categorias diferentes são permitidos. (Não há índice único equivalente para
+  /// `looktypeNumber`: a base já tinha duplicatas legadas em "outfit" quando essa regra foi
+  /// introduzida — a checagem de número é feita em aplicação, ver `POST /api/admin/looktypes`.)
+  @@unique([category, name])
   @@map("looktypes")
 }
 

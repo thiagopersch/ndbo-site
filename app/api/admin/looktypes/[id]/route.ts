@@ -33,15 +33,46 @@ export async function PATCH(request: Request, { params }: Params) {
       ? Array.from({ length: existing.frameCount }, () => clampFrameDurationMs(parsed.data.frameSpeedMs))
       : undefined;
 
-  const looktype = await prisma.looktype.update({
-    where: { id: Number(id) },
-    data: {
-      name: parsed.data.name,
-      category: parsed.data.category,
-      looktypeNumber: parsed.data.category === "item" ? null : parsed.data.looktypeNumber,
-      ...(frameDurationsMs ? { frameDurationsMs } : {}),
-    },
-  });
+  // Só o nome tem índice único no banco (ver `prisma/schema.prisma`); o número é checado aqui em
+  // aplicação, mesmo motivo do `POST /api/admin/looktypes`.
+  if (parsed.data.category !== "item" && parsed.data.looktypeNumber !== null) {
+    const numberConflict = await prisma.looktype.findFirst({
+      where: {
+        category: parsed.data.category,
+        looktypeNumber: parsed.data.looktypeNumber,
+        id: { not: Number(id) },
+      },
+    });
+    if (numberConflict) {
+      return NextResponse.json(
+        {
+          error: `Já existe uma sprite com o número ${parsed.data.looktypeNumber} na categoria ${parsed.data.category} (#${numberConflict.id} "${numberConflict.name}").`,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
+  let looktype;
+  try {
+    looktype = await prisma.looktype.update({
+      where: { id: Number(id) },
+      data: {
+        name: parsed.data.name,
+        category: parsed.data.category,
+        looktypeNumber: parsed.data.category === "item" ? null : parsed.data.looktypeNumber,
+        ...(frameDurationsMs ? { frameDurationsMs } : {}),
+      },
+    });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+      return NextResponse.json(
+        { error: `Já existe uma sprite chamada "${parsed.data.name}" na categoria ${parsed.data.category}.` },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 
   await logAudit({
     accountId: Number(session.user.id),

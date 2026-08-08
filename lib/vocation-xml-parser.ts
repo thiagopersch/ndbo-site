@@ -1,20 +1,9 @@
 import { asArray, createXmlParser, num, str, type XmlNode } from "@/lib/xml-parse-utils";
-import {
-  defaultVocationValues,
-  vocationSchema,
-  VOCATION_ARCHETYPES,
-  type VocationArchetype,
-  type VocationInput,
-} from "@/lib/validations/admin/vocation";
-
-function parseArchetype(value: unknown): VocationArchetype | null {
-  const raw = String(value ?? "");
-  return (VOCATION_ARCHETYPES as readonly string[]).includes(raw) ? (raw as VocationArchetype) : null;
-}
+import { defaultVocationValues, vocationSchema, type VocationInput } from "@/lib/validations/admin/vocation";
 
 const parser = createXmlParser(["vocation"]);
 
-export type ParsedVocation = VocationInput & { typeClassName: string; typeUniverseName: string };
+export type ParsedVocation = VocationInput & { archetypeName: string; typeUniverseName: string };
 
 export type ParseVocationsXmlResult = {
   vocations: ParsedVocation[];
@@ -24,8 +13,8 @@ export type ParseVocationsXmlResult = {
 /**
  * Faz o parse de um `vocations.xml` do OTServer (`<vocations><vocation ...><formula .../>
  * <skill .../></vocation></vocations>`) para o formato usado pelo formulário/persistência.
- * `type_class`/`type_universe` vêm como nome (string) no XML — são resolvidos/criados por
- * nome em `VocationTypeClass`/`Universe` na importação, não aqui.
+ * `archetype`/`type_universe` vêm como nome (string) no XML — são resolvidos/criados por
+ * nome em `VocationArchetype`/`Universe` na importação, não aqui.
  */
 export function parseVocationsXml(xml: string): ParseVocationsXmlResult {
   const errors: string[] = [];
@@ -78,10 +67,9 @@ export function parseVocationsXml(xml: string): ParseVocationsXmlResult {
       soulmax: num(raw.soulmax),
       gainsoulticks: num(raw.gainsoulticks),
       fromvoc: num(raw.fromvoc),
-      typeClassId: null,
       typeUniverseId: null,
       maxRank: num(raw.maxrank),
-      archetype: parseArchetype(raw.archetype),
+      archetypeId: null,
       specificFragmentItemId: raw.specificfragmentitemid != null ? num(raw.specificfragmentitemid) : null,
       formula: {
         meleeDamage: num(formula.meleeDamage) || 1,
@@ -103,7 +91,7 @@ export function parseVocationsXml(xml: string): ParseVocationsXmlResult {
         fishing: num(skill.fishing) || 1,
         experience: num(skill.experience) || 1,
       },
-      typeClassName: str(raw.type_class),
+      archetypeName: str(raw.archetype),
       typeUniverseName: str(raw.type_universe),
     };
 
@@ -114,7 +102,7 @@ export function parseVocationsXml(xml: string): ParseVocationsXmlResult {
       return;
     }
 
-    vocations.push({ ...result.data, typeClassName: candidate.typeClassName, typeUniverseName: candidate.typeUniverseName });
+    vocations.push({ ...result.data, archetypeName: candidate.archetypeName, typeUniverseName: candidate.typeUniverseName });
   });
 
   return { vocations, errors };

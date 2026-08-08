@@ -7,17 +7,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import useSWR from "swr";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 import { fetcher } from "@/lib/fetcher";
 import type {
-  VocationTypeClass,
+  VocationArchetype,
   Universe,
 } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
 import {
   defaultVocationValues,
   vocationSchema,
-  VOCATION_ARCHETYPES,
   type VocationInput,
 } from "@/lib/validations/admin/vocation";
 import { vocationToXml } from "@/lib/vocation-xml";
@@ -62,8 +62,8 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = vocationId != null;
 
-  const { data: classesData } = useSWR<PaginatedResult<VocationTypeClass>>(
-    "/api/admin/vocation-classes?pageSize=100",
+  const { data: archetypesData } = useSWR<PaginatedResult<VocationArchetype>>(
+    "/api/admin/vocation-archetypes?pageSize=100",
     fetcher,
   );
   const { data: universesData } = useSWR<PaginatedResult<Universe>>(
@@ -78,8 +78,8 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
 
   const watched = useWatch({ control: form.control });
 
-  const typeClassName =
-    classesData?.data.find((item) => item.id === watched.typeClassId)?.name ??
+  const archetypeName =
+    archetypesData?.data.find((item) => item.id === watched.archetypeId)?.name ??
     "";
   const typeUniverseName =
     universesData?.data.find((item) => item.id === watched.typeUniverseId)
@@ -96,7 +96,7 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
     ...watched,
     formula: { ...defaultVocationValues.formula, ...watched.formula },
     skill: { ...defaultVocationValues.skill, ...watched.skill },
-    typeClassName: typeClassName || "—",
+    archetypeName: archetypeName || null,
     typeUniverseName: typeUniverseName || "—",
   });
 
@@ -187,10 +187,10 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
 
                   <VocationTypeSelect
                     control={form.control}
-                    name="typeClassId"
-                    label="Classe (type_class)"
-                    placeholder="Selecione a classe"
-                    options={classesData?.data ?? []}
+                    name="archetypeId"
+                    label="Arquétipo (archetype)"
+                    placeholder="Selecione o arquétipo"
+                    options={archetypesData?.data ?? []}
                   />
 
                   <VocationTypeSelect
@@ -207,26 +207,41 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Sprite (looktype)</FormLabel>
-                        <EntitySearchCombobox<LooktypeRow>
-                          endpoint="/api/admin/looktypes"
-                          value={field.value}
-                          placeholder="Buscar looktype..."
-                          formatOption={(lt) => formatLooktypeOption(lt)}
-                          renderOption={(lt) => (
-                            <span className="flex items-center gap-2">
-                              <LooktypeAnimatedImage
-                                key={lt.id}
-                                looktypeId={lt.id}
-                                frameCount={lt.frameCount}
-                                frameDurationsMs={lt.frameDurationsMs}
-                                updatedAt={lt.updatedAt}
-                                size="sm"
-                              />
-                              {formatLooktypeOption(lt)}
-                            </span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <EntitySearchCombobox<LooktypeRow>
+                              endpoint="/api/admin/looktypes"
+                              value={field.value}
+                              placeholder="Buscar looktype..."
+                              formatOption={(lt) => formatLooktypeOption(lt)}
+                              renderOption={(lt) => (
+                                <span className="flex items-center gap-2">
+                                  <LooktypeAnimatedImage
+                                    key={lt.id}
+                                    looktypeId={lt.id}
+                                    frameCount={lt.frameCount}
+                                    frameDurationsMs={lt.frameDurationsMs}
+                                    updatedAt={lt.updatedAt}
+                                    size="sm"
+                                  />
+                                  {formatLooktypeOption(lt)}
+                                </span>
+                              )}
+                              onSelect={(lt) => field.onChange(lt?.id ?? null)}
+                            />
+                          </div>
+                          {field.value != null && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              title="Remover sprite vinculada"
+                              onClick={() => field.onChange(null)}
+                            >
+                              <X className="size-4" />
+                            </Button>
                           )}
-                          onSelect={(lt) => field.onChange(lt?.id ?? null)}
-                        />
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -271,35 +286,6 @@ export function VocationForm({ vocationId, initialValues }: VocationFormProps) {
                                   />
                                   {VOCATION_RANK_LABELS[rank]}
                                 </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="archetype"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Arquétipo (rank)</FormLabel>
-                        <Select
-                          value={field.value ?? "none"}
-                          onValueChange={(value) => field.onChange(value === "none" ? null : value)}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Selecione o arquétipo" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">Nenhum</SelectItem>
-                            {VOCATION_ARCHETYPES.map((archetype) => (
-                              <SelectItem key={archetype} value={archetype}>
-                                {archetype}
                               </SelectItem>
                             ))}
                           </SelectContent>

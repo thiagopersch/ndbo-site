@@ -85,8 +85,8 @@ const adminSections: AdminSection[] = [
     links: [
       { label: "Vocações", href: "/admin/vocations", icon: Sparkles },
       {
-        label: "Classes de vocação",
-        href: "/admin/vocation-classes",
+        label: "Arquétipos de vocação",
+        href: "/admin/vocation-archetypes",
         icon: Layers,
       },
     ],

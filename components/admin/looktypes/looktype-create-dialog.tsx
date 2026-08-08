@@ -1,11 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
 import type { Looktype } from "@/lib/generated/prisma/client";
-import { fileNameToLooktypeName, type LooktypeCategory } from "@/lib/validations/admin/looktype";
+import {
+  DEFAULT_LOOKTYPE_FRAME_SPEED_MS,
+  extractLooktypeNumberFromFileName,
+  fileNameToLooktypeName,
+  type LooktypeCategory,
+} from "@/lib/validations/admin/looktype";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +24,10 @@ import {
 } from "@/components/ui/dialog";
 import { LooktypeCategoryFields } from "@/components/admin/looktypes/looktype-category-fields";
 
-const MAX_FILES = 50;
+const MAX_FILES = 100;
+/** Requisições simultâneas ao criar em lote — cada upload envolve parse/render de OBD no
+ * servidor (CPU-bound), então um valor alto satura o processo Node em vez de acelerar. */
+const UPLOAD_CONCURRENCY = 4;
 
 type PendingFile = {
   file: File;
@@ -37,16 +45,37 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [category, setCategory] = useState<LooktypeCategory>("item");
   const [sharedLooktypeNumber, setSharedLooktypeNumber] = useState<number | null>(null);
-  const [frameSpeedMs, setFrameSpeedMs] = useState(100);
+  const [frameSpeedMs, setFrameSpeedMs] = useState(DEFAULT_LOOKTYPE_FRAME_SPEED_MS.item);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // O seletor nativo de arquivos do SO tira o foco da janela; sem essa trava o base-ui pode
+  // interpretar isso como um clique/foco fora do dialog e fechá-lo antes do usuário escolher
+  // os arquivos. Fica true enquanto o seletor está (provavelmente) aberto.
+  const filePickerOpenRef = useRef(false);
+
+  useEffect(() => {
+    function handleWindowFocus() {
+      // Adia um tick pro base-ui processar o foco relacionado ao seletor nativo antes de destravar.
+      setTimeout(() => {
+        filePickerOpenRef.current = false;
+      }, 0);
+    }
+    window.addEventListener("focus", handleWindowFocus);
+    return () => window.removeEventListener("focus", handleWindowFocus);
+  }, []);
 
   function reset() {
     setCategory("item");
     setSharedLooktypeNumber(null);
-    setFrameSpeedMs(100);
+    setFrameSpeedMs(DEFAULT_LOOKTYPE_FRAME_SPEED_MS.item);
     setPendingFiles([]);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function handleCategoryChange(next: LooktypeCategory) {
+    setCategory(next);
+    setFrameSpeedMs(DEFAULT_LOOKTYPE_FRAME_SPEED_MS[next]);
   }
 
   function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
@@ -63,7 +92,10 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
       files.map((file) => ({
         file,
         name: fileNameToLooktypeName(file.name),
-        looktypeNumber: sharedLooktypeNumber,
+        // Padrão `nome_NUMERO_860v2[...].ext` dos lotes exportados do Object Builder — quando o
+        // arquivo não segue esse padrão, cai pro número compartilhado (se o admin já tiver
+        // digitado um) ou fica em branco, exigindo preenchimento manual antes de enviar.
+        looktypeNumber: extractLooktypeNumberFromFileName(file.name) ?? sharedLooktypeNumber,
       })),
     );
   }
@@ -92,38 +124,116 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
       return;
     }
 
-    setIsSubmitting(true);
-
-    let createdCount = 0;
-    let firstError: string | null = null;
+    // Detecta nome/número repetido dentro do próprio lote antes de subir qualquer coisa — evita
+    // condição de corrida entre uploads concorrentes disputando o mesmo nome/número (o servidor
+    // ainda faz a checagem definitiva contra o que já existe no banco, ver
+    // `POST /api/admin/looktypes`). Mantém a primeira ocorrência de cada nome/número, marca as
+    // seguintes como duplicata.
+    const seenNames = new Map<string, PendingFile>();
+    const seenNumbers = new Map<string, PendingFile>();
+    const toUpload: PendingFile[] = [];
+    const clientDuplicates: {
+      fileName: string;
+      name: string;
+      looktypeNumber: number | null;
+      category: string;
+      reason: string;
+    }[] = [];
 
     for (const row of pendingFiles) {
+      const nameKey = row.name.trim().toLowerCase();
+      const numberKey = row.looktypeNumber !== null ? String(row.looktypeNumber) : null;
+      const duplicateOfName = seenNames.get(nameKey);
+      const duplicateOfNumber = numberKey ? seenNumbers.get(numberKey) : undefined;
+
+      if (duplicateOfName || duplicateOfNumber) {
+        const conflictFile = (duplicateOfName ?? duplicateOfNumber)!.file.name;
+        clientDuplicates.push({
+          fileName: row.file.name,
+          name: row.name,
+          looktypeNumber: row.looktypeNumber,
+          category,
+          reason: duplicateOfName
+            ? `Nome duplicado no mesmo lote (mesmo nome que "${conflictFile}").`
+            : `Número duplicado no mesmo lote (mesmo número que "${conflictFile}").`,
+        });
+        continue;
+      }
+
+      seenNames.set(nameKey, row);
+      if (numberKey) seenNumbers.set(numberKey, row);
+      toUpload.push(row);
+    }
+
+    setIsSubmitting(true);
+    setProgress({ done: 0, total: toUpload.length });
+
+    const batchId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`;
+
+    if (clientDuplicates.length > 0) {
+      await fetch("/api/admin/looktypes/import-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId, entries: clientDuplicates }),
+      }).catch(() => null);
+    }
+
+    let createdCount = 0;
+    let duplicateCount = clientDuplicates.length;
+    let firstError: string | null = null;
+
+    async function uploadRow(row: PendingFile) {
       const formData = new FormData();
       formData.append("file", row.file);
+      formData.append("fileName", row.file.name);
       formData.append("name", row.name.trim());
       formData.append("category", category);
       formData.append("frameSpeedMs", String(frameSpeedMs));
+      formData.append("batchId", batchId);
       if (row.looktypeNumber !== null) formData.append("looktypeNumber", String(row.looktypeNumber));
 
       const response = await fetch("/api/admin/looktypes", { method: "POST", body: formData });
 
       if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        if (data?.skipped) {
+          duplicateCount += 1;
+        }
         if (!firstError) {
-          const data = await response.json().catch(() => null);
           firstError = data?.error ?? `Não foi possível criar "${row.name}".`;
         }
-        continue;
+      } else {
+        const data = await response.json();
+        onCreated(data.looktype);
+        createdCount += 1;
       }
 
-      const data = await response.json();
-      onCreated(data.looktype);
-      createdCount += 1;
+      setProgress((current) => (current ? { ...current, done: current.done + 1 } : current));
     }
 
+    // Sobe em lotes com concorrência limitada: paraleliza a rede sem estourar o processo do
+    // servidor, que faz parse/render de OBD (CPU-bound) por requisição.
+    let cursor = 0;
+    async function worker() {
+      while (cursor < toUpload.length) {
+        const row = toUpload[cursor];
+        cursor += 1;
+        await uploadRow(row);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, toUpload.length) }, worker));
+
     setIsSubmitting(false);
+    setProgress(null);
 
     if (createdCount > 0) toast.success(`${createdCount} looktype(s) criada(s) com sucesso.`);
-    if (firstError) toast.error(firstError);
+    if (duplicateCount > 0) {
+      toast.error(
+        `${duplicateCount} arquivo(s) ignorado(s) por nome/número duplicado — veja os detalhes em Auditoria.`,
+      );
+    }
+    if (firstError && duplicateCount === 0) toast.error(firstError);
 
     if (firstError === null) {
       reset();
@@ -136,10 +246,11 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
   return (
     <Dialog
       open={open}
-      // Ver mesmo motivo/comentário em `entity-image-upload-dialog.tsx`.
-      disablePointerDismissal
-      onOpenChange={(next, eventDetails) => {
-        if (eventDetails?.reason === "focus-out" || eventDetails?.reason === "outside-press") return;
+      onOpenChange={(next) => {
+        // Bloqueia fechamento enquanto o seletor nativo de arquivos está aberto (ver
+        // `filePickerOpenRef`) ou enquanto o lote está sendo enviado — nesses casos um
+        // clique fora/perda de foco é provavelmente espúrio, não uma intenção de fechar.
+        if (!next && (filePickerOpenRef.current || isSubmitting)) return;
         setOpen(next);
         if (!next) reset();
       }}
@@ -152,7 +263,14 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label>Arquivos (.obd, PNG ou GIF — até {MAX_FILES} por vez)</Label>
-            <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                filePickerOpenRef.current = true;
+                inputRef.current?.click();
+              }}
+            >
               {pendingFiles.length > 0
                 ? `${pendingFiles.length} arquivo(s) selecionado(s)`
                 : "Selecionar arquivos..."}
@@ -172,7 +290,7 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
 
           <LooktypeCategoryFields
             category={category}
-            onCategoryChange={setCategory}
+            onCategoryChange={handleCategoryChange}
             looktypeNumber={sharedLooktypeNumber}
             onLooktypeNumberChange={setSharedLooktypeNumber}
           />
@@ -236,7 +354,11 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting || pendingFiles.length === 0}>
-              {isSubmitting ? "Criando..." : `Criar${pendingFiles.length > 1 ? ` (${pendingFiles.length})` : ""}`}
+              {isSubmitting
+                ? progress
+                  ? `Criando... (${progress.done}/${progress.total})`
+                  : "Criando..."
+                : `Criar${pendingFiles.length > 1 ? ` (${pendingFiles.length})` : ""}`}
             </Button>
           </DialogFooter>
         </form>

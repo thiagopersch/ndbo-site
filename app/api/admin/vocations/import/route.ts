@@ -28,17 +28,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const classNames = [...new Set(vocations.map((v) => v.typeClassName).filter(Boolean))];
+  const archetypeNames = [...new Set(vocations.map((v) => v.archetypeName).filter(Boolean))];
   const universeNames = [...new Set(vocations.map((v) => v.typeUniverseName).filter(Boolean))];
 
-  const classIdByName = new Map<string, number>();
-  for (const name of classNames) {
-    const record = await prisma.vocationTypeClass.upsert({
+  const archetypeIdByName = new Map<string, number>();
+  for (const name of archetypeNames) {
+    const record = await prisma.vocationArchetype.upsert({
       where: { name },
       update: {},
       create: { name },
     });
-    classIdByName.set(name, record.id);
+    archetypeIdByName.set(name, record.id);
   }
 
   const universeIdByName = new Map<string, number>();
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   for (const vocation of vocations) {
     const data = vocationInputToPrismaData({
       ...vocation,
-      typeClassId: vocation.typeClassName ? (classIdByName.get(vocation.typeClassName) ?? null) : null,
+      archetypeId: vocation.archetypeName ? (archetypeIdByName.get(vocation.archetypeName) ?? null) : null,
       typeUniverseId: vocation.typeUniverseName
         ? (universeIdByName.get(vocation.typeUniverseName) ?? null)
         : null,

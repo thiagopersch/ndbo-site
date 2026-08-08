@@ -8,6 +8,7 @@ import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/shared/data-table";
+import { AuditLogDetailsDialog } from "@/components/admin/audit-logs/audit-log-details-dialog";
 
 type AuditLogRow = {
   id: number;
@@ -15,6 +16,7 @@ type AuditLogRow = {
   action: string;
   entity: string;
   entityId: string | null;
+  metadata: unknown;
   createdAt: string;
 };
 
@@ -32,6 +34,17 @@ export default function AdminAuditLogsPage() {
     { accessorKey: "action", header: "Ação" },
     { accessorKey: "entity", header: "Entidade" },
     { accessorKey: "entityId", header: "ID do registro" },
+    {
+      id: "details",
+      header: "Detalhes",
+      cell: ({ row }) => (
+        <AuditLogDetailsDialog
+          action={row.original.action}
+          entity={row.original.entity}
+          metadata={row.original.metadata}
+        />
+      ),
+    },
   ];
 
   return (

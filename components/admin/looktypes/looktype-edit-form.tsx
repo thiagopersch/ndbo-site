@@ -89,12 +89,13 @@ export function LooktypeEditForm({ looktype }: { looktype: Looktype }) {
     });
     setIsSubmitting(false);
 
+    const data = await response.json().catch(() => null);
+
     if (!response.ok) {
-      toast.error("Não foi possível salvar.");
+      toast.error(data?.error ?? "Não foi possível salvar.");
       return;
     }
 
-    const data = await response.json();
     setCurrentLooktype(data.looktype);
     toast.success("Atualizado com sucesso.");
     router.push("/admin/looktypes");

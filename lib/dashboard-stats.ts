@@ -72,7 +72,7 @@ export async function getDashboardStats() {
     openTickets,
     ticketsByStatus,
 
-    vocationsByTypeClass,
+    vocationsByArchetype,
     vocationsByTypeUniverse,
     vocationsByPremium,
     vocationsByRank,
@@ -89,7 +89,7 @@ export async function getDashboardStats() {
     lastLotteryWinner,
     activeChests,
 
-    typeClasses,
+    archetypes,
     typeUniverses,
   ] = await Promise.all([
     prisma.account.count(),
@@ -143,7 +143,7 @@ export async function getDashboardStats() {
     prisma.ticket.count({ where: { status: "open" } }),
     prisma.ticket.groupBy({ by: ["status"], _count: { _all: true } }),
 
-    prisma.vocation.groupBy({ by: ["typeClassId"], _count: { _all: true } }),
+    prisma.vocation.groupBy({ by: ["archetypeId"], _count: { _all: true } }),
     prisma.vocation.groupBy({ by: ["typeUniverseId"], _count: { _all: true } }),
     prisma.vocation.groupBy({ by: ["needpremium"], _count: { _all: true } }),
     prisma.vocation.groupBy({ by: ["maxRank"], _count: { _all: true } }),
@@ -185,7 +185,7 @@ export async function getDashboardStats() {
       },
     }),
 
-    prisma.vocationTypeClass.findMany({ select: { id: true, name: true } }),
+    prisma.vocationArchetype.findMany({ select: { id: true, name: true } }),
     prisma.universe.findMany({ select: { id: true, name: true } }),
   ]);
 
@@ -281,11 +281,11 @@ export async function getDashboardStats() {
     total: row._count._all,
   }));
 
-  const typeClassNameById = new Map(typeClasses.map((row) => [row.id, row.name]));
+  const archetypeNameById = new Map(archetypes.map((row) => [row.id, row.name]));
   const typeUniverseNameById = new Map(typeUniverses.map((row) => [row.id, row.name]));
 
-  const vocationsByTypeClassChart = vocationsByTypeClass.map((row) => ({
-    label: row.typeClassId != null ? (typeClassNameById.get(row.typeClassId) ?? "Sem classe") : "Sem classe",
+  const vocationsByArchetypeChart = vocationsByArchetype.map((row) => ({
+    label: row.archetypeId != null ? (archetypeNameById.get(row.archetypeId) ?? "Sem arquétipo") : "Sem arquétipo",
     total: row._count._all,
   }));
   const vocationsByTypeUniverseChart = vocationsByTypeUniverse.map((row) => ({
@@ -432,7 +432,7 @@ export async function getDashboardStats() {
       byStatus: ticketsByStatusChart,
     },
     vocations: {
-      byTypeClass: vocationsByTypeClassChart,
+      byArchetype: vocationsByArchetypeChart,
       byTypeUniverse: vocationsByTypeUniverseChart,
       byPremium: vocationsByPremiumChart,
       byRank: vocationsByRankChart,

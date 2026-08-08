@@ -60,10 +60,19 @@ export async function POST(request: Request) {
   const looktypeNumber = looktypeNumberRaw === null || looktypeNumberRaw === "" ? null : Number(looktypeNumberRaw);
   const frameSpeedMsRaw = formData.get("frameSpeedMs");
   const frameSpeedMs = frameSpeedMsRaw === null || frameSpeedMsRaw === "" ? null : Number(frameSpeedMsRaw);
+  // Preenchidos pelo dialog de criação em lote (`LooktypeCreateDialog`) — permitem correlacionar
+  // as entradas de auditoria de uma mesma sessão de import e mostrar o nome do arquivo original
+  // (que pode divergir do campo "nome", editável na revisão antes de enviar).
+  const fileNameRaw = formData.get("fileName");
+  const batchIdRaw = formData.get("batchId");
+  const batchId = typeof batchIdRaw === "string" && batchIdRaw ? batchIdRaw : null;
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Nenhum arquivo enviado." }, { status: 422 });
   }
+
+  const fileName = typeof fileNameRaw === "string" && fileNameRaw ? fileNameRaw : file.name;
+
   if (!name) {
     return NextResponse.json({ error: "Informe um nome." }, { status: 422 });
   }
@@ -72,6 +81,36 @@ export async function POST(request: Request) {
   }
   if (category !== "item" && (looktypeNumber === null || !Number.isInteger(looktypeNumber) || looktypeNumber < 0)) {
     return NextResponse.json({ error: "Informe o número da sprite no Object Builder." }, { status: 422 });
+  }
+
+  // Bloqueia nome ou número repetido dentro da mesma categoria (item/outfit/effect/missile) —
+  // checado antes do parse/render do arquivo (CPU-bound) pra não desperdiçar trabalho em algo
+  // que vai ser rejeitado. Registrado em auditoria pra o admin conseguir ver depois, num import
+  // em lote, quais arquivos foram ignorados e por quê (ver `app/admin/audit-logs/page.tsx`).
+  const duplicate = await prisma.looktype.findFirst({
+    where: {
+      category,
+      OR: [
+        { name },
+        ...(category !== "item" && looktypeNumber !== null ? [{ looktypeNumber }] : []),
+      ],
+    },
+  });
+
+  if (duplicate) {
+    const isNameConflict = duplicate.name.trim().toLowerCase() === name.toLowerCase();
+    const reason = isNameConflict
+      ? `Já existe uma sprite chamada "${name}" na categoria ${category} (#${duplicate.id}).`
+      : `Já existe uma sprite com o número ${looktypeNumber} na categoria ${category} (#${duplicate.id} "${duplicate.name}").`;
+
+    await logAudit({
+      accountId: Number(session.user.id),
+      action: "import_skip",
+      entity: "looktype",
+      metadata: { fileName, name, looktypeNumber, category, reason, batchId },
+    });
+
+    return NextResponse.json({ error: reason, skipped: true }, { status: 409 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -105,17 +144,36 @@ export async function POST(request: Request) {
     }
   }
 
-  const looktype = await prisma.looktype.create({
-    data: {
-      name,
-      category,
-      looktypeNumber: category === "item" ? null : looktypeNumber,
-      width,
-      height,
-      frameCount: 0,
-      frameDurationsMs: [],
-    },
-  });
+  let looktype;
+  try {
+    looktype = await prisma.looktype.create({
+      data: {
+        name,
+        category,
+        looktypeNumber: category === "item" ? null : looktypeNumber,
+        width,
+        height,
+        frameCount: 0,
+        frameDurationsMs: [],
+      },
+    });
+  } catch (error) {
+    // Corrida entre requisições concorrentes do mesmo lote (upload em paralelo, ver
+    // `UPLOAD_CONCURRENCY` no dialog) que passaram pela checagem acima antes de qualquer uma
+    // criar o registro — o índice único em (category, name) pega o que a checagem otimista deixa
+    // passar.
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+      const reason = `Já existe uma sprite chamada "${name}" na categoria ${category}.`;
+      await logAudit({
+        accountId: Number(session.user.id),
+        action: "import_skip",
+        entity: "looktype",
+        metadata: { fileName, name, looktypeNumber, category, reason, batchId },
+      });
+      return NextResponse.json({ error: reason, skipped: true }, { status: 409 });
+    }
+    throw error;
+  }
 
   const frameDir = looktypeFrameDirPath(looktype.id);
   await fs.mkdir(frameDir, { recursive: true });
@@ -133,7 +191,7 @@ export async function POST(request: Request) {
     action: "create",
     entity: "looktype",
     entityId: updated.id,
-    metadata: { category, looktypeNumber, frameCount: frames.length },
+    metadata: { fileName, name, category, looktypeNumber, frameCount: frames.length, batchId },
   });
 
   return NextResponse.json({ looktype: updated }, { status: 201 });

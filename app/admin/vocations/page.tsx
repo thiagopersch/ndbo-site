@@ -21,11 +21,12 @@ import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useEntityImages } from "@/components/shared/use-entity-images";
 import { PublishedToggle } from "@/components/shared/published-toggle";
+import { VocationLooktypeQuickLink } from "@/components/admin/vocations/vocation-looktype-quick-link";
 import { UniverseBadge } from "@/components/shared/universe-badge";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type VocationRow = VocationXmlData;
-type ClassOption = { id: number; name: string };
+type ArchetypeOption = { id: number; name: string };
 type UniverseOption = { id: number; name: string };
 
 // eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page route
@@ -34,8 +35,8 @@ const exportXmlLink = <a href="/api/admin/vocations/export" />;
 export default function AdminVocationsPage() {
   const table = useServerTable();
 
-  const { data: classesData } = useSWR<PaginatedResult<ClassOption>>(
-    "/api/admin/vocation-classes?pageSize=100",
+  const { data: archetypesData } = useSWR<PaginatedResult<ArchetypeOption>>(
+    "/api/admin/vocation-archetypes?pageSize=100",
     fetcher,
   );
   const { data: universesData } = useSWR<PaginatedResult<UniverseOption>>(
@@ -68,12 +69,12 @@ export default function AdminVocationsPage() {
 
   const filterFields: FilterFieldConfig[] = [
     {
-      key: "typeClassId",
-      label: "Classe",
+      key: "archetypeId",
+      label: "Arquétipo",
       type: "select",
-      options: (classesData?.data ?? []).map((c) => ({
-        value: String(c.id),
-        label: c.name,
+      options: (archetypesData?.data ?? []).map((a) => ({
+        value: String(a.id),
+        label: a.name,
       })),
     },
     {
@@ -134,15 +135,27 @@ export default function AdminVocationsPage() {
           id={row.original.id}
           name={row.original.name}
           image={images.get(row.original.id) ?? null}
+          size="md"
         />
       ),
     },
     { accessorKey: "name", header: "Nome" },
+    {
+      id: "lookType",
+      header: "Sprite",
+      cell: ({ row }) => (
+        <VocationLooktypeQuickLink
+          vocationId={row.original.id}
+          lookTypeId={row.original.lookTypeId}
+          onLinked={() => mutate()}
+        />
+      ),
+    },
     { accessorKey: "description", header: "Descrição" },
     {
-      accessorKey: "typeClassName",
-      header: "Classe",
-      cell: ({ row }) => row.original.typeClassName || "—",
+      accessorKey: "archetypeName",
+      header: "Arquétipo",
+      cell: ({ row }) => row.original.archetypeName || "—",
     },
     {
       accessorKey: "typeUniverseName",
@@ -276,7 +289,7 @@ export default function AdminVocationsPage() {
               description={
                 <>
                   Envie um arquivo no formato do <code>vocations.xml</code> do
-                  OTServer. As classes (<code>type_class</code>) e universos (
+                  OTServer. Os arquétipos (<code>archetype</code>) e universos (
                   <code>type_universe</code>) são resolvidos pelo nome, criando
                   novos registros automaticamente quando necessário. Vocações
                   com dados inválidos são ignoradas e reportadas ao final.

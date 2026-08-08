@@ -12,27 +12,27 @@ export async function POST(_request: Request, { params }: Params) {
   if (response) return response;
 
   const { id } = await params;
-  const source = await prisma.vocationTypeClass.findUnique({ where: { id: Number(id) } });
+  const source = await prisma.vocationArchetype.findUnique({ where: { id: Number(id) } });
 
   if (!source) {
-    return NextResponse.json({ error: "Classe não encontrada." }, { status: 404 });
+    return NextResponse.json({ error: "Arquétipo não encontrado." }, { status: 404 });
   }
 
   const name = await uniqueCopyName(
     source.name,
     async (candidate) =>
-      (await prisma.vocationTypeClass.findUnique({ where: { name: candidate }, select: { id: true } })) != null,
+      (await prisma.vocationArchetype.findUnique({ where: { name: candidate }, select: { id: true } })) != null,
   );
 
-  const vocationClass = await prisma.vocationTypeClass.create({ data: { name } });
+  const vocationArchetype = await prisma.vocationArchetype.create({ data: { name } });
 
   await logAudit({
     accountId: Number(session.user.id),
     action: "duplicate",
-    entity: "vocation_type_class",
-    entityId: vocationClass.id,
-    metadata: { sourceId: source.id, name: vocationClass.name },
+    entity: "vocation_archetype",
+    entityId: vocationArchetype.id,
+    metadata: { sourceId: source.id, name: vocationArchetype.name },
   });
 
-  return NextResponse.json({ id: vocationClass.id, name: vocationClass.name }, { status: 201 });
+  return NextResponse.json({ id: vocationArchetype.id, name: vocationArchetype.name }, { status: 201 });
 }

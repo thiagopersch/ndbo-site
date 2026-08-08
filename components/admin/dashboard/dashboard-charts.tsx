@@ -359,7 +359,7 @@ export function DashboardCharts({
   monstersByCategory,
   ticketsByStatus,
   itemsByType,
-  vocationsByTypeClass,
+  vocationsByArchetype,
   vocationsByTypeUniverse,
   vocationsByPremium,
   vocationsByRank,
@@ -376,7 +376,7 @@ export function DashboardCharts({
   monstersByCategory: CategoryPoint[];
   ticketsByStatus: CategoryPoint[];
   itemsByType: CategoryPoint[];
-  vocationsByTypeClass: CategoryPoint[];
+  vocationsByArchetype: CategoryPoint[];
   vocationsByTypeUniverse: CategoryPoint[];
   vocationsByPremium: CategoryPoint[];
   vocationsByRank: CategoryPoint[];
@@ -399,7 +399,7 @@ export function DashboardCharts({
 
       <CategoryChartBox title="Tickets por status" data={ticketsByStatus} color="var(--chart-5)" />
 
-      <CategoryChartBox title="Vocações por classe" data={vocationsByTypeClass} color="var(--chart-1)" />
+      <CategoryChartBox title="Vocações por arquétipo" data={vocationsByArchetype} color="var(--chart-1)" />
 
       <CategoryChartBox title="Vocações por universo" data={vocationsByTypeUniverse} color="var(--chart-2)" />
 

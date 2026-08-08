@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
-import type { VocationTypeClass } from "@/lib/generated/prisma/client";
+import type { VocationArchetype } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
 import { vocationTypeSchema, type VocationTypeInput } from "@/lib/validations/admin/vocation";
 import { useServerTable } from "@/hooks/use-server-table";
@@ -16,18 +16,18 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
 
-const fields: SimpleField<VocationTypeInput>[] = [{ name: "name", label: "Nome (ex.: DPS, Tank, Healer)" }];
+const fields: SimpleField<VocationTypeInput>[] = [{ name: "name", label: "Nome (ex.: DPS, Bruiser, Support, Tank)" }];
 
-export default function AdminVocationClassesPage() {
+export default function AdminVocationArchetypesPage() {
   const table = useServerTable();
 
-  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<VocationTypeClass>>(
-    `/api/admin/vocation-classes?${table.buildQueryParams().toString()}`,
+  const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<VocationArchetype>>(
+    `/api/admin/vocation-archetypes?${table.buildQueryParams().toString()}`,
     fetcher
   );
 
   async function handleDelete(id: number) {
-    const response = await fetch(`/api/admin/vocation-classes/${id}`, { method: "DELETE" });
+    const response = await fetch(`/api/admin/vocation-archetypes/${id}`, { method: "DELETE" });
 
     if (!response.ok) {
       toast.error("Não foi possível remover. Verifique se nenhuma vocação a utiliza.");
@@ -39,7 +39,7 @@ export default function AdminVocationClassesPage() {
   }
 
   async function createOrUpdate(values: VocationTypeInput, id?: number) {
-    const response = await fetch(id ? `/api/admin/vocation-classes/${id}` : "/api/admin/vocation-classes", {
+    const response = await fetch(id ? `/api/admin/vocation-archetypes/${id}` : "/api/admin/vocation-archetypes", {
       method: id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
@@ -49,7 +49,7 @@ export default function AdminVocationClassesPage() {
     return response.ok;
   }
 
-  const columns: ColumnDef<VocationTypeClass>[] = [
+  const columns: ColumnDef<VocationArchetype>[] = [
     { accessorKey: "id", header: "ID" },
     { accessorKey: "name", header: "Nome" },
     {
@@ -58,7 +58,7 @@ export default function AdminVocationClassesPage() {
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
           <SimpleFormDialog
-            title="Editar classe"
+            title="Editar arquétipo"
             schema={vocationTypeSchema}
             fields={fields}
             defaultValues={{ name: row.original.name }}
@@ -71,8 +71,8 @@ export default function AdminVocationClassesPage() {
             }
           />
           <DuplicateButton
-            endpoint={`/api/admin/vocation-classes/${row.original.id}/duplicate`}
-            editPathBase="/admin/vocation-classes"
+            endpoint={`/api/admin/vocation-archetypes/${row.original.id}/duplicate`}
+            editPathBase="/admin/vocation-archetypes"
             onDuplicated={() => mutate()}
           />
           <ConfirmDialog
@@ -81,7 +81,7 @@ export default function AdminVocationClassesPage() {
                 <Trash2 className="size-4" />
               </Button>
             }
-            title="Remover classe"
+            title="Remover arquétipo"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
@@ -95,13 +95,14 @@ export default function AdminVocationClassesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Classes de vocação</h1>
+          <h1 className="text-2xl font-semibold">Arquétipos de vocação</h1>
           <p className="text-muted-foreground">
-            Opções de <code>type_class</code> disponíveis no formulário de vocação.
+            Opções de <code>archetype</code> disponíveis no formulário de vocação — usadas pela fórmula de dano das
+            spells, defesa e buffs de regen no servidor.
           </p>
         </div>
         <SimpleFormDialog
-          title="Nova classe"
+          title="Novo arquétipo"
           schema={vocationTypeSchema}
           fields={fields}
           defaultValues={{ name: "" }}
@@ -110,7 +111,7 @@ export default function AdminVocationClassesPage() {
           trigger={
             <Button>
               <Plus className="size-4" />
-              Nova classe
+              Novo arquétipo
             </Button>
           }
         />
@@ -121,7 +122,7 @@ export default function AdminVocationClassesPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         isFiltering={!isLoading && isValidating}
-        searchPlaceholder="Buscar classe..."
+        searchPlaceholder="Buscar arquétipo..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
         manualPagination
