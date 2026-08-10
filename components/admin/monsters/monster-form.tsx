@@ -55,7 +55,8 @@ import { MonsterSpellLinkField } from "@/components/admin/monsters/monster-spell
 import { MonsterVoiceListField } from "@/components/admin/monsters/monster-voice-list-field";
 import { MonsterSummonListField } from "@/components/admin/monsters/monster-summon-list-field";
 import { MonsterScriptListField } from "@/components/admin/monsters/monster-script-list-field";
-import { MonsterLootListField, flattenLootItemIds } from "@/components/admin/monsters/monster-loot-list-field";
+import { MonsterLootListField } from "@/components/admin/monsters/monster-loot-list-field";
+import { flattenLootItemIds } from "@/lib/monster-loot";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 
 type LooktypeRow = {

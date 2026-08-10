@@ -81,6 +81,7 @@ function parseLootItem(raw: XmlNode): MonsterLootItemInput {
     uniqueId: uniqueId != null ? num(uniqueId) : null,
     text: str(a(raw, "text")),
     comment: "",
+    addToAutoloot: false,
     children: childrenRaw.map((child) => parseLootItem(child)),
   };
 }

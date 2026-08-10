@@ -10,6 +10,7 @@ import {
   type MonsterFormInput,
 } from "@/lib/validations/admin/monster";
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
+import { syncAutolootFromMonsterLoot } from "@/lib/autoloot-sync";
 import { hasDuplicateName } from "@/lib/unique-name";
 import { hasImageIdFilter } from "@/lib/entity-image-filter";
 
@@ -217,6 +218,8 @@ export async function POST(request: Request) {
     },
     include: { spells: { select: { spellId: true } } },
   });
+
+  await syncAutolootFromMonsterLoot(prisma, parsed.data.loot);
 
   await logAudit({
     accountId: Number(session.user.id),

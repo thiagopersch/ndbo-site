@@ -7,7 +7,17 @@ import {
   type ElementKey,
   type ImmunityKey,
   type MonsterFormInput,
+  type MonsterLootItemInput,
 } from "@/lib/validations/admin/monster";
+
+/** Preenche `addToAutoloot` (campo novo) com `false` em itens de loot salvos antes dele existir. */
+function normalizeLootItems(items: MonsterLootItemInput[] | undefined | null): MonsterLootItemInput[] {
+  return (items ?? []).map((item) => ({
+    ...item,
+    addToAutoloot: item.addToAutoloot ?? false,
+    children: normalizeLootItems(item.children),
+  }));
+}
 
 /** Ids de spell vinculados nos attacks/defenses (para resolver `words` na exportação XML). */
 export function spellIdsFromMonsterFormInput(input: Pick<MonsterFormInput, "attacks" | "defenses">): number[] {
@@ -134,7 +144,7 @@ export function monsterRowToFormInput(
     voiceInterval: voices.interval ?? 5000,
     voiceChance: voices.chance ?? 0,
     voices: (voices.list as MonsterFormInput["voices"]) ?? [],
-    loot: (monster.loot as MonsterFormInput["loot"]) ?? [],
+    loot: normalizeLootItems(monster.loot as MonsterFormInput["loot"]),
     maxSummons: summons.maxSummons ?? 0,
     summons: (summons.list as MonsterFormInput["summons"]) ?? [],
     script: (monster.script as string[]) ?? [],

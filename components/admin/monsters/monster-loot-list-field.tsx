@@ -14,6 +14,7 @@ import {
 import { ChevronDown, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 
 import type { MonsterLootItemInput } from "@/lib/validations/admin/monster";
+import { flattenLootItemIds } from "@/lib/monster-loot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,15 +36,6 @@ import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useItemName } from "@/components/shared/use-item-name";
 import { emptyMonsterLootItem } from "@/lib/validations/admin/monster";
-
-/** Achata a árvore de loot (containers dentro de containers) numa lista plana de item ids —
- * usado na box de preview do form (mostra todas as sprites que o monstro pode dropar, sem
- * distinguir profundidade do container). */
-export function flattenLootItemIds(items: MonsterLootItemInput[]): number[] {
-  return items
-    .flatMap((item) => [item.id, ...flattenLootItemIds(item.children ?? [])])
-    .filter((id) => id > 0);
-}
 
 export function MonsterLootListField<T extends FieldValues>({
   control,
@@ -316,6 +308,26 @@ function LootItemFields<T extends FieldValues>({
             <FormControl>
               <Input {...field} value={String(field.value ?? "")} />
             </FormControl>
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name={`${basePath}.addToAutoloot` as FieldPath<T>}
+        render={({ field }) => (
+          <FormItem className="flex flex-row items-center gap-2">
+            <FormControl>
+              <input
+                type="checkbox"
+                className="size-4"
+                checked={Boolean(field.value)}
+                onChange={(event) => field.onChange(event.target.checked)}
+              />
+            </FormControl>
+            <FormLabel className="!mt-0">
+              Adicionar ao autoloot (disponível no módulo de autoloot do OTC)
+            </FormLabel>
           </FormItem>
         )}
       />

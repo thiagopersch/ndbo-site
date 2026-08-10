@@ -192,6 +192,8 @@ export type MonsterLootItemInput = {
   uniqueId: number | null;
   text: string;
   comment: string;
+  /** Se marcado, o item é publicado/mantido no catálogo de autoloot (`AutolootItem`) ao salvar o monstro. */
+  addToAutoloot: boolean;
   children: MonsterLootItemInput[];
 };
 
@@ -205,6 +207,7 @@ export const monsterLootItemSchema: z.ZodType<MonsterLootItemInput, MonsterLootI
     uniqueId: z.number().int().nullable(),
     text: z.string(),
     comment: z.string(),
+    addToAutoloot: z.boolean(),
     children: z.array(monsterLootItemSchema),
   })
 );
@@ -326,6 +329,7 @@ export const emptyMonsterLootItem: MonsterLootItemInput = {
   uniqueId: null,
   text: "",
   comment: "",
+  addToAutoloot: false,
   children: [],
 };
 

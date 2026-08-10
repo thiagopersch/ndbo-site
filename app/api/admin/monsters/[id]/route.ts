@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { monsterFormSchema } from "@/lib/validations/admin/monster";
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
 import { hasDuplicateName } from "@/lib/unique-name";
+import { syncAutolootFromMonsterLoot } from "@/lib/autoloot-sync";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -57,6 +58,8 @@ export async function PATCH(request: Request, { params }: Params) {
     },
     include: { spells: { select: { spellId: true } } },
   });
+
+  await syncAutolootFromMonsterLoot(prisma, parsed.data.loot);
 
   await logAudit({
     accountId: Number(session.user.id),
