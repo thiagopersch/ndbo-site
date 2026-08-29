@@ -10,7 +10,12 @@ import dayjs from "dayjs";
 import { fetcher } from "@/lib/fetcher";
 import type { Looktype } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import { LOOKTYPE_CATEGORY_LABELS, spriteTermFor, type LooktypeCategory } from "@/lib/validations/admin/looktype";
+import {
+  LOOKTYPE_CATEGORIES,
+  LOOKTYPE_CATEGORY_LABELS,
+  spriteTermFor,
+  type LooktypeCategory,
+} from "@/lib/validations/admin/looktype";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,14 +23,62 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { LooktypeCreateDialog } from "@/components/admin/looktypes/looktype-create-dialog";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
+
+type FacetsResponse = {
+  frameCounts: number[];
+  sizes: { width: number; height: number }[];
+  speeds: number[];
+};
 
 export default function AdminLooktypesPage() {
   const table = useServerTable();
+
+  const { data: facets } = useSWR<FacetsResponse>("/api/admin/looktypes/facets", fetcher);
 
   const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<Looktype>>(
     `/api/admin/looktypes?${table.buildQueryParams().toString()}`,
     fetcher
   );
+
+  const filterFields: FilterFieldConfig[] = [
+    {
+      key: "category",
+      label: "Tipo",
+      type: "select",
+      options: LOOKTYPE_CATEGORIES.map((category) => ({
+        value: category,
+        label: LOOKTYPE_CATEGORY_LABELS[category],
+      })),
+    },
+    {
+      key: "frameCount",
+      label: "Frames",
+      type: "select",
+      options: (facets?.frameCounts ?? []).map((frameCount) => ({
+        value: String(frameCount),
+        label: String(frameCount),
+      })),
+    },
+    {
+      key: "size",
+      label: "Tamanho (largura x altura)",
+      type: "select",
+      options: (facets?.sizes ?? []).map(({ width, height }) => ({
+        value: `${width}x${height}`,
+        label: `${width * 32}x${height * 32}`,
+      })),
+    },
+    {
+      key: "frameSpeedMs",
+      label: "Velocidade (ms)",
+      type: "select",
+      options: (facets?.speeds ?? []).map((speed) => ({
+        value: String(speed),
+        label: String(speed),
+      })),
+    },
+  ];
 
   async function handleDelete(id: number) {
     const response = await fetch(`/api/admin/looktypes/${id}`, { method: "DELETE" });
@@ -122,16 +175,13 @@ export default function AdminLooktypesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Sprites</h1>
-          <p className="text-muted-foreground">
-            Registro centralizado de aparências (item/outfit/monstro/npc/vocação/efeito/missile) — importe um
-            `.obd` do Object Builder para gerar a animação automaticamente, ou uma imagem PNG/GIF estática.
-            &quot;Looktype&quot; é o termo usado só para outfits; os demais tipos são chamados de &quot;Sprite&quot;.
-          </p>
-        </div>
-        <LooktypeCreateDialog onCreated={() => mutate()} trigger={<Button>Nova sprite / looktype</Button>} />
+      <div>
+        <h1 className="text-2xl font-semibold">Sprites</h1>
+        <p className="text-muted-foreground">
+          Registro centralizado de aparências (item/outfit/monstro/npc/vocação/efeito/missile) — importe um
+          `.obd` do Object Builder para gerar a animação automaticamente, ou uma imagem PNG/GIF estática.
+          &quot;Looktype&quot; é o termo usado só para outfits; os demais tipos são chamados de &quot;Sprite&quot;.
+        </p>
       </div>
 
       <DataTable
@@ -142,6 +192,14 @@ export default function AdminLooktypesPage() {
         searchPlaceholder="Buscar por nome, id ou número..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
+        toolbar={
+          <LooktypeCreateDialog onCreated={() => mutate()} trigger={<Button>Nova sprite / looktype</Button>} />
+        }
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}

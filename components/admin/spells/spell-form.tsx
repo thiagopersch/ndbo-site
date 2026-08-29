@@ -166,10 +166,18 @@ export function SpellForm({ spellId, initialValues }: SpellFormProps) {
   });
 
   const watched = useWatch({ control: form.control });
-  const previewXml = spellToXml({
-    ...defaultSpellValues,
-    ...watched,
-  } as SpellFormInput);
+  const { data: vocationsData } = useSWR<PaginatedResult<{ id: number; name: string }>>(
+    "/api/admin/vocations?pageSize=200",
+    fetcher,
+  );
+  const vocationNameById = new Map((vocationsData?.data ?? []).map((voc) => [voc.id, voc.name]));
+  const previewXml = spellToXml(
+    {
+      ...defaultSpellValues,
+      ...watched,
+    } as SpellFormInput,
+    vocationNameById,
+  );
   const currentKind = (watched.kind ?? "instant") as SpellKind;
 
   const { data: selectedLooktypeData } = useSWR<PaginatedResult<LooktypeRow>>(

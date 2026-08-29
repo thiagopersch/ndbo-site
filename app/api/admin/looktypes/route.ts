@@ -21,15 +21,48 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
+  const category = url.searchParams.get("category");
+  const frameCount = url.searchParams.get("frameCount");
+  const size = url.searchParams.get("size");
+  const frameSpeedMs = url.searchParams.get("frameSpeedMs");
 
-  const where: Prisma.LooktypeWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search } },
-          ...(Number.isInteger(Number(search)) ? [{ id: Number(search) }, { looktypeNumber: Number(search) }] : []),
-        ],
-      }
-    : {};
+  const [sizeWidth, sizeHeight] = size ? size.split("x").map(Number) : [];
+
+  const where: Prisma.LooktypeWhereInput = {
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            ...(Number.isInteger(Number(search))
+              ? [{ id: Number(search) }, { looktypeNumber: Number(search) }]
+              : []),
+          ],
+        }
+      : {}),
+    ...(category ? { category } : {}),
+    ...(frameCount ? { frameCount: Number(frameCount) } : {}),
+    ...(size && Number.isInteger(sizeWidth) && Number.isInteger(sizeHeight)
+      ? { width: sizeWidth, height: sizeHeight }
+      : {}),
+  };
+
+  // Velocidade é o primeiro elemento de `frameDurationsMs` (JSON) — não dá pra filtrar via
+  // `where` do Prisma, então paginamos em memória só quando esse filtro é usado (mesmo padrão
+  // do filtro de loot/attacks em monstros).
+  if (frameSpeedMs) {
+    const speed = Number(frameSpeedMs);
+    const looktypes = await prisma.looktype.findMany({
+      where,
+      orderBy: [{ category: "asc" }, { looktypeNumber: "asc" }],
+    });
+    const filtered = looktypes.filter((looktype) => (looktype.frameDurationsMs as number[])?.[0] === speed);
+
+    const total = filtered.length;
+    const start = (page - 1) * pageSize;
+    const pageItems = filtered.slice(start, start + pageSize);
+
+    return NextResponse.json(buildPaginatedResult(pageItems, total, page, pageSize));
+  }
 
   const [looktypes, total] = await Promise.all([
     prisma.looktype.findMany({

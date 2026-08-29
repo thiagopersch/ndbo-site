@@ -32,12 +32,17 @@ function parseBlockType(raw: XmlNode): BlockType {
 function parseSpellNode(
   raw: XmlNode,
   kind: SpellKind,
-  vocationNameToId: Map<string, number>
+  vocationNameToId: Map<string, number>,
+  validVocationIds: Set<number>
 ): { spell: SpellFormInput | null; errors: string[] } {
   const errors: string[] = [];
   const name = str(raw.name);
 
-  const { vocations, errors: vocationErrors } = parseVocationRefs(raw.vocation, vocationNameToId);
+  const { vocations, errors: vocationErrors } = parseVocationRefs(
+    raw.vocation,
+    vocationNameToId,
+    validVocationIds
+  );
   for (const error of vocationErrors) errors.push(`"${name || "(sem nome)"}": ${error}`);
 
   const candidate: SpellFormInput = {
@@ -102,6 +107,7 @@ export type ParseSpellsXmlResult = {
  */
 export function parseSpellsXml(xml: string, vocationNameToId: Map<string, number>): ParseSpellsXmlResult {
   const errors: string[] = [];
+  const validVocationIds = new Set(vocationNameToId.values());
   let parsed: XmlNode;
 
   try {
@@ -124,7 +130,7 @@ export function parseSpellsXml(xml: string, vocationNameToId: Map<string, number
   const kinds: SpellKind[] = ["instant", "rune", "conjure"];
   for (const kind of kinds) {
     for (const raw of asArray(root[kind])) {
-      const { spell, errors: nodeErrors } = parseSpellNode(raw, kind, vocationNameToId);
+      const { spell, errors: nodeErrors } = parseSpellNode(raw, kind, vocationNameToId, validVocationIds);
       errors.push(...nodeErrors);
       if (spell) spells.push(spell);
     }

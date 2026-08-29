@@ -9,8 +9,12 @@ export async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
-  const spells = await prisma.spell.findMany({ orderBy: { id: "asc" }, include: { vocations: true } });
-  const xml = spellsToXmlDocument(spells.map(spellToFormInput));
+  const [spells, vocations] = await Promise.all([
+    prisma.spell.findMany({ orderBy: { id: "asc" }, include: { vocations: true } }),
+    prisma.vocation.findMany({ select: { id: true, name: true } }),
+  ]);
+  const vocationNameById = new Map(vocations.map((vocation) => [vocation.id, vocation.name]));
+  const xml = spellsToXmlDocument(spells.map(spellToFormInput), vocationNameById);
 
   return new Response(xml, {
     headers: {

@@ -103,7 +103,7 @@ export function LooktypeEditForm({ looktype }: { looktype: Looktype }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-w-xl flex-col gap-4">
+    <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-xl flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label>Nome</Label>
         <Input value={name} onChange={(event) => setName(event.target.value)} />

@@ -7,7 +7,7 @@ import { escapeXml, indent } from "@/lib/xml-utils";
  * byte-a-byte o `spells.xml` original (que sempre escreve alguns atributos como
  * `needlearn="0"` mesmo no default), só precisa ser um round-trip válido pelo nosso parser.
  */
-export function spellToXml(spell: SpellFormInput): string {
+export function spellToXml(spell: SpellFormInput, vocationNameById?: Map<number, string>): string {
   const tag = spell.kind;
   const attrs: string[] = [`name="${escapeXml(spell.name)}"`];
 
@@ -60,7 +60,9 @@ export function spellToXml(spell: SpellFormInput): string {
 
   const vocationLines = spell.vocations.map((voc) => {
     const showAttr = voc.showInDescription ? "" : ` showInDescription="0"`;
-    return `<vocation id="${voc.vocationId}"${showAttr} />`;
+    const name = vocationNameById?.get(voc.vocationId);
+    const comment = name ? ` <!-- ${name.replace(/--/g, "-")} -->` : "";
+    return `<vocation id="${voc.vocationId}"${showAttr} />${comment}`;
   });
 
   if (vocationLines.length === 0) {
@@ -70,10 +72,13 @@ export function spellToXml(spell: SpellFormInput): string {
   return [`<${tag} ${attrs.join(" ")}>`, ...indent(vocationLines, 1), `</${tag}>`].join("\n");
 }
 
-export function spellsToXmlDocument(spells: SpellFormInput[]): string {
+export function spellsToXmlDocument(
+  spells: SpellFormInput[],
+  vocationNameById?: Map<number, string>
+): string {
   const body = spells
     .map((spell) =>
-      spellToXml(spell)
+      spellToXml(spell, vocationNameById)
         .split("\n")
         .map((line) => `    ${line}`)
         .join("\n")

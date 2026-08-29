@@ -25,7 +25,7 @@ export default async function EditLooktypePage({
   return (
     <div className="flex flex-col gap-6">
       <BackToListButton href="/admin/looktypes" />
-      <div>
+      <div className="mx-auto w-full max-w-xl text-center">
         <h1 className="text-2xl font-semibold">
           Editar {spriteTermFor(looktype.category).toLowerCase()}: {looktype.name} (#{looktype.id})
         </h1>

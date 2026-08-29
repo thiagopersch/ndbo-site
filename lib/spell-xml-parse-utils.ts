@@ -72,10 +72,14 @@ export type ParseVocationRefsResult = {
 
 /** Faz o parse dos filhos `<vocation id="N|N-M|N,M" />` ou `<vocation name="X" />` de um
  * `<instant>/<rune>/<conjure>`, mirror de `parseVocationNode` (tools.cpp). Nomes são
- * resolvidos contra `vocationNameToId` (case-sensitive, igual ao lookup da engine). */
+ * resolvidos contra `vocationNameToId` (case-sensitive, igual ao lookup da engine). IDs são
+ * validados contra `validVocationIds` — a tabela `spell_vocations` tem FK para `vocations.id`,
+ * então um id sem vocação correspondente no banco quebraria o `prisma.spell.create` inteiro
+ * em vez de só pular aquela spell. */
 export function parseVocationRefs(
   raw: unknown,
-  vocationNameToId: Map<string, number>
+  vocationNameToId: Map<string, number>,
+  validVocationIds: Set<number>
 ): ParseVocationRefsResult {
   const errors: string[] = [];
   const vocations: SpellVocationInput[] = [];
@@ -91,7 +95,13 @@ export function parseVocationRefs(
         errors.push(`vocation id inválido: "${idAttr}"`);
         continue;
       }
-      for (const vocationId of ids) vocations.push({ vocationId, showInDescription });
+      for (const vocationId of ids) {
+        if (!validVocationIds.has(vocationId)) {
+          errors.push(`vocation id desconhecido: "${vocationId}"`);
+          continue;
+        }
+        vocations.push({ vocationId, showInDescription });
+      }
     } else if (nameAttr !== "") {
       const vocationId = vocationNameToId.get(nameAttr);
       if (vocationId == null) {
