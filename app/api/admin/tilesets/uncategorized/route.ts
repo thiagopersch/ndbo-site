@@ -2,11 +2,9 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/** Lista Ground/WallBrush/DoodadBrush ainda sem `tilesetCategoryId` — usada pela
- * ferramenta "Brushes sem categoria" para fechar a migração de dados legados
- * (criados antes desta feature existir) sem forçar uma migração destrutiva no banco. */
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -17,4 +15,4 @@ export async function GET() {
   ]);
 
   return NextResponse.json({ grounds, walls, doodads });
-}
+});

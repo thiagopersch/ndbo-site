@@ -11,10 +11,11 @@ import {
   reassignTilesetCategories,
   TilesetIntegrityError,
 } from "@/lib/tileset-integrity";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -29,9 +30,9 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ tileset: { ...tilesetToFormInput(tileset), _count: tileset._count } });
-}
+});
 
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -74,9 +75,9 @@ export async function PATCH(request: Request, { params }: Params) {
     }
     throw error;
   }
-}
+});
 
-export async function DELETE(request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -110,4 +111,4 @@ export async function DELETE(request: Request, { params }: Params) {
     }
     throw error;
   }
-}
+});

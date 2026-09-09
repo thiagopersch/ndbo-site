@@ -4,13 +4,11 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { tilesetCategoryToFormInput } from "@/lib/tileset-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Duplica só a categoria (nome/kind/type/descrição) dentro do mesmo tileset, sem
- * copiar os vínculos de brush (Ground/WallBrush/DoodadBrush) nem `TilesetItemEntry` —
- * mesma lógica de "cópia vazia" usada em `Tileset.duplicate`. */
-export async function POST(_request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -46,4 +44,4 @@ export async function POST(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ category: tilesetCategoryToFormInput(category) }, { status: 201 });
-}
+});

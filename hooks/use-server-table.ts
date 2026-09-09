@@ -83,7 +83,11 @@ export function useServerTable(options?: { initialPageSize?: number }) {
   // Lê o `sessionStorage` só depois do mount: a leitura precisa acontecer fora do
   // render inicial (que também roda no SSR, onde `sessionStorage` não existe) — senão
   // a página hidrata com um estado diferente do renderizado no servidor e o React
-  // acusa erro de hydration mismatch.
+  // acusa erro de hydration mismatch. Sincronizar o estado persistido depois de hidratar
+  // exige setState síncrono no corpo do effect (padrão "renderizar conteúdo diferente
+  // após hidratar"), então a regra `set-state-in-effect` é desabilitada neste bloco — mesma
+  // justificativa usada em entity-search-combobox/theme-toggle/admin-shell.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const initial = readPersisted(pathname);
     if (initial.pageIndex != null) setPageIndex(initial.pageIndex);
@@ -93,8 +97,8 @@ export function useServerTable(options?: { initialPageSize?: number }) {
     if (initial.draftFilters != null) setDraftFilters(initial.draftFilters);
     if (initial.appliedFilters != null) setAppliedFilters(initial.appliedFilters);
     setHydrated(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!hydrated) return;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
-import { ImageOff, Plus, Trash2 } from "lucide-react";
+import { ImageOff, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -25,6 +25,7 @@ import {
   type ItemInput,
 } from "@/lib/validations/admin/item";
 import type { SpellFormInput } from "@/lib/validations/admin/spell";
+import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
 import { itemToXml } from "@/lib/item-xml";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,7 @@ import { RecordGridField } from "@/components/shared/record-grid-field";
 import { BooleanGridField } from "@/components/shared/boolean-grid-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { ItemIdField } from "@/components/shared/item-id-field";
+import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
@@ -61,6 +63,15 @@ import { ItemLinkedMovementsPanel } from "@/components/admin/items/item-linked-m
 type ItemFormProps = {
   itemId?: number;
   initialValues?: ItemInput;
+};
+
+type LooktypeRow = {
+  id: number;
+  name: string;
+  looktypeNumber: number | null;
+  frameCount: number;
+  frameDurationsMs: number[];
+  updatedAt: string;
 };
 
 function EnumSelect({
@@ -107,6 +118,8 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+
+  const [looktypeHint, setLooktypeHint] = useState<string | null>(null);
 
   const form = useForm<ItemInput, unknown, ItemInput>({
     resolver: zodResolver(itemSchema),
@@ -156,6 +169,36 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
       return null;
     });
     setPendingImageFile(null);
+  }
+
+  /**
+   * Ao preencher o client id (sprite real do `.otb`/items.xml), tenta localizar automaticamente
+   * a looktype do cadastro cujo nome referencia esse número (convenção `item_{clientId}`) e
+   * vincula em `lookTypeId`. Nunca bloqueia o form: se não encontrar, ou se a busca falhar por
+   * qualquer motivo (rede, erro do servidor), só exibe uma dica pedindo para selecionar/confirmar
+   * a sprite manualmente — o erro em si já é registrado no log de auditoria pelo endpoint.
+   */
+  async function syncLooktypeFromClientId(clientId: number | null) {
+    setLooktypeHint(null);
+    if (clientId == null || clientId < 1) return;
+
+    try {
+      const response = await fetch(`/api/admin/looktypes/by-client-id?clientId=${clientId}`);
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data?.found && data.looktype) {
+        form.setValue("lookTypeId", data.looktype.id, { shouldDirty: true });
+        return;
+      }
+
+      setLooktypeHint(
+        `Nenhuma looktype "item_${clientId}" encontrada no cadastro. Selecione a sprite manualmente ou informe o número da looktype.`
+      );
+    } catch {
+      setLooktypeHint(
+        "Não foi possível buscar a looktype automaticamente agora. Selecione a sprite manualmente."
+      );
+    }
   }
 
   async function uploadPendingImage(id: number, file: File) {
@@ -365,6 +408,92 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                           onChange={field.onChange}
                           options={ITEM_TYPES}
                         />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="clientId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Client ID (sprite no .otb/items.xml)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            name={field.name}
+                            ref={field.ref}
+                            value={(field.value as number | string) ?? ""}
+                            onChange={(event) => {
+                              field.onChange(
+                                event.target.value === "" ? null : Number(event.target.value)
+                              );
+                            }}
+                            onBlur={(event) => {
+                              field.onBlur();
+                              syncLooktypeFromClientId(
+                                event.target.value === "" ? null : Number(event.target.value)
+                              );
+                            }}
+                          />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          Id do sprite no cliente (diferente do server id) — ao preencher, o
+                          portal tenta localizar automaticamente a looktype correspondente.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lookTypeId"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2 lg:col-span-3">
+                        <FormLabel>Sprite vinculada (looktype)</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <EntitySearchCombobox<LooktypeRow>
+                              endpoint="/api/admin/looktypes?category=item"
+                              value={field.value}
+                              placeholder="Buscar looktype..."
+                              formatOption={(lt) => formatLooktypeOption(lt)}
+                              renderOption={(lt) => (
+                                <span className="flex items-center gap-2">
+                                  <LooktypeAnimatedImage
+                                    key={lt.id}
+                                    looktypeId={lt.id}
+                                    frameCount={lt.frameCount}
+                                    frameDurationsMs={lt.frameDurationsMs}
+                                    updatedAt={lt.updatedAt}
+                                    size="sm"
+                                  />
+                                  {formatLooktypeOption(lt)}
+                                </span>
+                              )}
+                              onSelect={(lt) => {
+                                setLooktypeHint(null);
+                                field.onChange(lt?.id ?? null);
+                              }}
+                            />
+                          </div>
+                          {field.value != null && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              title="Remover sprite vinculada"
+                              onClick={() => field.onChange(null)}
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          )}
+                        </div>
+                        {looktypeHint && (
+                          <p className="text-xs text-amber-600 dark:text-amber-500">
+                            {looktypeHint}
+                          </p>
+                        )}
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

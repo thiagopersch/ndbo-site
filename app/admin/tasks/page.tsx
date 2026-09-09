@@ -10,6 +10,8 @@ import { fetcher } from "@/lib/fetcher";
 import type { Category, TaskDefinition } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
 import { TASK_DIFFICULTIES, TASK_DIFFICULTY_COLORS, TASK_DIFFICULTY_LABELS } from "@/lib/task-difficulty";
+import { TASK_TYPE_LABELS } from "@/lib/task-type";
+import { formatThousands } from "@/lib/utils";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -119,8 +121,59 @@ export default function AdminTasksPage() {
         );
       },
     },
-    { accessorKey: "levelRequired", header: "Level mínimo" },
+    {
+      accessorKey: "type",
+      header: "Tipo",
+      cell: ({ row }) => {
+        const label =
+          TASK_TYPE_LABELS[row.original.type as keyof typeof TASK_TYPE_LABELS] ?? row.original.type;
+        return <Badge variant="secondary">{label}</Badge>;
+      },
+    },
+    { accessorKey: "levelRequired", header: "Level mín." },
+    { accessorKey: "rankRequired", header: "Rank mín." },
     { accessorKey: "killsRequired", header: "Kills" },
+    { accessorKey: "points", header: "Pontos" },
+    {
+      accessorKey: "experience",
+      header: "XP de recompensa",
+      cell: ({ row }) => formatThousands(row.original.experience),
+    },
+    {
+      id: "monsters",
+      header: "Monstros",
+      cell: ({ row }) => {
+        const monsters = (row.original.monsters as TaskMonster[] | null) ?? [];
+        if (monsters.length === 0) return <span className="text-muted-foreground">—</span>;
+        if (monsters.length === 1) {
+          return <MonsterThumbByName name={monsters[0].name} />;
+        }
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span className="flex cursor-help gap-1">
+                    {monsters.slice(0, 3).map((m) => (
+                      <MonsterThumbByName key={m.name} name={m.name} size="sm" />
+                    ))}
+                  </span>
+                }
+              />
+              <TooltipContent>
+                <div className="flex flex-col gap-1">
+                  {monsters.map((m) => (
+                    <span key={m.name}>
+                      {m.name} × {m.kills}
+                    </span>
+                  ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      },
+    },
     {
       id: "rewardItems",
       header: "Recompensas",

@@ -12,10 +12,19 @@ import {
   isValidTaskUniverse,
   TASK_VALID_UNIVERSES,
 } from "@/lib/validations/admin/task-definition";
-import { isTaskDifficulty, TASK_DIFFICULTIES } from "@/lib/task-difficulty";
+import { isTaskDifficulty } from "@/lib/task-difficulty";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type TaskMonster = { name: string; kills: number };
 type TaskRewards = { items?: [number, number][] };
+
+/** Ordem exata da dificuldade na listagem: Fácil -> Médio -> Difícil -> Elite (não alfabética). */
+const TASK_DIFFICULTY_ORDER: Record<TaskDefinition["difficulty"], number> = {
+  easy: 0,
+  medium: 1,
+  hard: 2,
+  extreme: 3,
+};
 
 /** `monsters`/`rewards` são JSON (sem FK) — filtrar por monstro/item exige carregar as linhas
  * já filtradas pelas colunas reais e aplicar esses dois filtros em memória (ver comentário no
@@ -38,7 +47,7 @@ function matchesItemFilter(row: TaskDefinition, itemQuery: string, matchingItemI
   return false;
 }
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -77,11 +86,11 @@ export async function GET(request: Request) {
       )
     : null;
 
-  // Sempre carrega tudo que bate com `where` e ordena/pagina em memória — as tasks são
-  // agrupadas por Categoria -> Dificuldade na listagem, e `difficulty` é um enum de string sem
-  // ordem alfabética útil (easy/medium/hard/extreme), então não dá pra usar `orderBy` do Prisma
-  // direto. Aceitável no tamanho esperado desse catálogo (centenas de tasks, não milhões — mesmo
-  // raciocínio já usado no filtro por monstro/item abaixo).
+// Sempre carrega tudo que bate com `where` e ordena/pagina em memória — `difficulty` é um
+  // enum de string sem ordem alfabética útil (easy/medium/hard/extreme), então não dá pra usar
+  // `orderBy` do Prisma direto. Ordena por Categoria -> Dificuldade (Fácil -> Médio -> Difícil ->
+  // Elite) -> Level mínimo. Aceitável no tamanho esperado desse catálogo (centenas de tasks,
+  // não milhões — mesmo raciocínio já usado no filtro por monstro/item abaixo).
   const allMatching = await prisma.taskDefinition.findMany({
     where,
     include: { categoryRef: true },
@@ -98,8 +107,7 @@ export async function GET(request: Request) {
     if (categoryCompare !== 0) return categoryCompare;
 
     const difficultyCompare =
-      TASK_DIFFICULTIES.indexOf(a.difficulty as (typeof TASK_DIFFICULTIES)[number]) -
-      TASK_DIFFICULTIES.indexOf(b.difficulty as (typeof TASK_DIFFICULTIES)[number]);
+      TASK_DIFFICULTY_ORDER[a.difficulty] - TASK_DIFFICULTY_ORDER[b.difficulty];
     if (difficultyCompare !== 0) return difficultyCompare;
 
     return a.levelRequired - b.levelRequired;
@@ -109,9 +117,9 @@ export async function GET(request: Request) {
   const entries = filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
 
   return NextResponse.json(buildPaginatedResult(entries, total, page, pageSize));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -155,4 +163,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ entry }, { status: 201 });
-}
+});

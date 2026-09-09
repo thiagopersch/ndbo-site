@@ -9,6 +9,7 @@ import { groundFormSchema } from "@/lib/validations/admin/ground";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
 import { contentArrayNonEmpty, groundItemIds, idsWithItem } from "@/lib/brush-item-ids";
 import { hasDuplicateName } from "@/lib/unique-name";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 function parseBooleanParam(value: string | null): boolean | undefined {
   if (value === "true") return true;
@@ -16,7 +17,7 @@ function parseBooleanParam(value: string | null): boolean | undefined {
   return undefined;
 }
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -115,9 +116,9 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(buildPaginatedResult(grounds, total, page, pageSize));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -164,4 +165,4 @@ export async function POST(request: Request) {
     }
     throw error;
   }
-}
+});

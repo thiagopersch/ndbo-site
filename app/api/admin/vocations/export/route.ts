@@ -2,8 +2,9 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { vocationsToXmlDocument } from "@/lib/vocation-xml";
 import { vocationToInput } from "@/lib/vocation-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -26,4 +27,4 @@ export async function GET() {
       "Content-Disposition": 'attachment; filename="vocations.xml"',
     },
   });
-}
+});

@@ -7,10 +7,11 @@ import { monsterFormSchema } from "@/lib/validations/admin/monster";
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
 import { hasDuplicateName } from "@/lib/unique-name";
 import { syncAutolootFromMonsterLoot } from "@/lib/autoloot-sync";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -25,9 +26,9 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ monster: monsterRowToFormInput(monster) });
-}
+});
 
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -70,9 +71,9 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ monster: monsterRowToFormInput(monster) });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -87,4 +88,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

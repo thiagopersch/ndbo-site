@@ -2,15 +2,11 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-/**
- * Onde essa looktype está realmente usada — computado a partir de FKs reais (não mais uma tag
- * livre escolhida pelo admin). NPCs/Vocações/Items/Spells/Monstros referenciam o id do registro
- * (`lookTypeId`) — `Monster.lookTypeId` é a mesma FK usada pra gerar `look type="xx"` no XML.
- */
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -38,4 +34,4 @@ export async function GET(_request: Request, { params }: Params) {
     spells,
     total: npcs.length + vocations.length + monsters.length + items.length + spells.length,
   });
-}
+});

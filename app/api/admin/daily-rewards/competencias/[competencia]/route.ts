@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { parseCompetenciaParam, competenciaId } from "@/lib/daily-reward-competencia";
 import { dailyRewardCompetenciaSchema } from "@/lib/validations/admin/daily-reward";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ competencia: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -36,9 +37,9 @@ export async function GET(_request: Request, { params }: Params) {
       count: r.count,
     })),
   });
-}
+});
 
-export async function PUT(request: Request, { params }: Params) {
+export const PUT = withAudit(async function PUT(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -88,9 +89,9 @@ export async function PUT(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ id: competenciaId(year, month), year, month });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -111,4 +112,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

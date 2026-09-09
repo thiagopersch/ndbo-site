@@ -14,7 +14,6 @@ import {
 import { ChevronDown, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 
 import type { MonsterLootItemInput } from "@/lib/validations/admin/monster";
-import { flattenLootItemIds } from "@/lib/monster-loot";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -163,7 +162,7 @@ function LootItemCard<T extends FieldValues>({
 
   return (
     <div className="group relative flex flex-col items-center gap-1.5 rounded-md border p-2 text-center">
-      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="flex w-full items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
         <Button type="button" variant="ghost" size="icon-sm" title="Editar" onClick={onEdit}>
           <Pencil className="size-3.5" />
         </Button>

@@ -5,6 +5,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const assignSchema = z.object({
   brushKind: z.enum(["ground", "wall", "doodad"]),
@@ -23,7 +24,7 @@ function updateBrush(brushKind: "ground" | "wall" | "doodad", id: number, data: 
   }
 }
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -67,4 +68,4 @@ export async function POST(request: Request) {
     }
     throw error;
   }
-}
+});

@@ -4,6 +4,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { parseCompetenciaParam, competenciaId } from "@/lib/daily-reward-competencia";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ competencia: string }> };
 
@@ -30,7 +31,7 @@ async function nextFreeMonthYear(month: number, year: number) {
   throw new Error("Não foi possível encontrar um mês/ano livre para duplicar.");
 }
 
-export async function POST(_request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -76,4 +77,4 @@ export async function POST(_request: Request, { params }: Params) {
     { id: competenciaId(year, month), name: `${String(month).padStart(2, "0")}/${year}` },
     { status: 201 },
   );
-}
+});

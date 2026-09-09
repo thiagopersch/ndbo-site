@@ -6,7 +6,6 @@ import {
   ITEM_SUPPRESS_KEYS,
   type ItemAbsorbKey,
   type ItemElementKey,
-  type ItemFieldAbsorbKey,
   type ItemInput,
   type ItemSkillKey,
   type ItemSuppressKey,
@@ -86,6 +85,7 @@ function pushStr(lines: string[], key: string, value: string) {
 
 export function itemToXml(item: ItemInput): string {
   const rootAttrs = [`id="${item.id}"`];
+  if (item.clientId != null) rootAttrs.push(`client_id="${item.clientId}"`);
   if (item.article) rootAttrs.push(`article="${escapeXml(item.article)}"`);
   rootAttrs.push(`name="${escapeXml(item.name)}"`);
   if (item.plural) rootAttrs.push(`plural="${escapeXml(item.plural)}"`);

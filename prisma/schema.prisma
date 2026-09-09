@@ -717,14 +717,24 @@ model PasswordResetToken {
 
 /// Trilha de auditoria das ações administrativas (quem fez o quê e quando).
 model AuditLog {
-  id        Int      @id @default(autoincrement())
-  accountId Int?     @map("account_id")
-  action    String   @db.VarChar(100)
-  entity    String   @db.VarChar(100)
-  entityId  String?  @map("entity_id") @db.VarChar(100)
-  metadata  Json?
-  ipAddress String?  @map("ip_address") @db.VarChar(45)
-  createdAt DateTime @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  accountId    Int?     @map("account_id")
+  accountName  String?  @map("account_name") @db.VarChar(255)
+  action       String   @db.VarChar(100)
+  entity       String   @db.VarChar(100)
+  entityId     String?  @map("entity_id") @db.VarChar(100)
+  metadata     Json?
+  requestBody  Json?    @map("request_body")
+  responseBody Json?    @map("response_body")
+  statusCode   Int?     @map("status_code")
+  errorMessage String?  @map("error_message") @db.Text
+  durationMs   Int?     @map("duration_ms")
+  method       String?  @db.VarChar(10)
+  route        String?  @db.VarChar(255)
+  pageName     String?  @map("page_name") @db.VarChar(100)
+  area         String?  @db.VarChar(20)
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([accountId])
   @@index([entity, entityId])
@@ -1449,6 +1459,10 @@ model Item {
   /// Sprite vinculada do cadastro de looktypes (/admin/looktypes) — só para a thumbnail do
   /// portal, não é o sprite real do items.xml/.otb (fora de escopo deste model).
   lookTypeId   Int?   @map("look_type_id")
+  /// Client id real do sprite no `.otb`/items.xml (`<item id="server_id" client_id="X">`) —
+  /// usado para localizar a looktype correspondente no cadastro (nome no padrão `item_{clientId}`)
+  /// e persistido no round-trip do items.xml. Distinto de `lookTypeId` (id do registro no portal).
+  clientId     Int?   @map("client_id")
 
   // classificação
   type        String @default("") @db.VarChar(20)
@@ -1693,18 +1707,18 @@ model Looktype {
 /// mês seguinte é clonada automaticamente (missões + recompensas) à meia-noite do último dia do
 /// mês pelo globalevent do servidor caso o admin não tenha criado uma nova manualmente.
 model BattlePassSeason {
-  id            Int      @id @default(autoincrement())
-  month         Int      @db.TinyInt
-  year          Int      @db.SmallInt
-  maxLevel      Int      @default(100) @map("max_level")
-  xpPerLevel    Int      @default(1000) @map("xp_per_level")
-  goldPassItemId Int     @default(0) @map("gold_pass_item_id")
-  goldPassCost  Int      @default(0) @map("gold_pass_cost")
-  levelPurchaseItemId Int @default(0) @map("level_purchase_item_id")
-  levelPurchaseCost   Int @default(0) @map("level_purchase_cost")
-  isActive      Boolean  @default(false) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id                  Int      @id @default(autoincrement())
+  month               Int      @db.TinyInt
+  year                Int      @db.SmallInt
+  maxLevel            Int      @default(100) @map("max_level")
+  xpPerLevel          Int      @default(1000) @map("xp_per_level")
+  goldPassItemId      Int      @default(0) @map("gold_pass_item_id")
+  goldPassCost        Int      @default(0) @map("gold_pass_cost")
+  levelPurchaseItemId Int      @default(0) @map("level_purchase_item_id")
+  levelPurchaseCost   Int      @default(0) @map("level_purchase_cost")
+  isActive            Boolean  @default(false) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   missions BattlePassMission[]
   rewards  BattlePassReward[]
@@ -1715,38 +1729,38 @@ model BattlePassSeason {
 }
 
 model BattlePassMission {
-  id          Int      @id @default(autoincrement())
-  seasonId    Int      @map("season_id")
+  id          Int              @id @default(autoincrement())
+  seasonId    Int              @map("season_id")
   season      BattlePassSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   /// "kill" | "quest" | "spell_kill"
-  type        String   @db.VarChar(20)
+  type        String           @db.VarChar(20)
   /// kill: { monster: string, amount: number } | quest: { questId: number } | spell_kill:
   /// { monster: string, spell: string, amount: number }
   target      Json
-  description String   @db.VarChar(255)
-  xpReward    Int      @default(0) @map("xp_reward")
-  published   Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  description String           @db.VarChar(255)
+  xpReward    Int              @default(0) @map("xp_reward")
+  published   Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
 
   @@index([seasonId])
   @@map("battle_pass_missions")
 }
 
 model BattlePassReward {
-  id       Int    @id @default(autoincrement())
-  seasonId Int    @map("season_id")
+  id       Int              @id @default(autoincrement())
+  seasonId Int              @map("season_id")
   season   BattlePassSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   level    Int
   /// "bronze" | "gold"
-  track    String @db.VarChar(10)
+  track    String           @db.VarChar(10)
   /// "comum" | "incomum" | "raro" | "super_raro" | "lendario" | "mitico"
-  rarity   String @db.VarChar(20)
-  itemId   Int    @map("item_id")
-  count    Int    @default(1)
+  rarity   String           @db.VarChar(20)
+  itemId   Int              @map("item_id")
+  count    Int              @default(1)
   /// Ordem manual de exibição dentro do mesmo level+track (drag and drop no admin) —
   /// múltiplos itens podem ocupar o mesmo level+track+rarity.
-  order    Int    @default(0)
+  order    Int              @default(0)
 
   @@index([seasonId, level, track])
   @@map("battle_pass_rewards")
@@ -1759,8 +1773,8 @@ model PlayerBattlePass {
   playerId Int @map("player_id")
   seasonId Int @map("season_id")
 
-  xp    Int     @default(0)
-  level Int     @default(0)
+  xp          Int     @default(0)
+  level       Int     @default(0)
   hasGoldPass Boolean @default(false) @map("has_gold_pass")
 
   /// { [missionId]: progressCount }
@@ -1781,34 +1795,34 @@ model PlayerBattlePass {
 /// digitado em crystal coin no admin e convertido para gold coin (1 crystal = 10000 gold,
 /// mesmo padrão da moeda do OTServer) na geração do XML.
 model Npc {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique @db.VarChar(255)
+  id              Int        @id @default(autoincrement())
+  name            String     @unique @db.VarChar(255)
   /// looktype vem da tabela `Looktype` (mesmo padrão de Monster/Item)
-  lookTypeId Int      @map("look_type_id")
+  lookTypeId      Int        @map("look_type_id")
   /// "shop" | "quest" | "misc"
-  type       String   @default("misc") @db.VarChar(20)
-  town       String   @default("") @db.VarChar(100)
-  posX       Int      @default(0) @map("pos_x")
-  posY       Int      @default(0) @map("pos_y")
-  posZ       Int      @default(0) @map("pos_z")
-  direction  Int      @default(2)
+  type            String     @default("misc") @db.VarChar(20)
+  town            String     @default("") @db.VarChar(100)
+  posX            Int        @default(0) @map("pos_x")
+  posY            Int        @default(0) @map("pos_y")
+  posZ            Int        @default(0) @map("pos_z")
+  direction       Int        @default(2)
   /// [{ itemId: number, name: string, buyPriceCrystal: number, sellPriceCrystal: number }]
-  shopItems  Json?    @map("shop_items")
+  shopItems       Json?      @map("shop_items")
   /// Script Lua vinculado (gerado automaticamente ou escrito manualmente) — reaproveita o CRUD
   /// existente de `LuaScript` (category = "npc").
-  scriptId   Int?     @map("script_id")
-  script     LuaScript? @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  scriptId        Int?       @map("script_id")
+  script          LuaScript? @relation(fields: [scriptId], references: [id], onDelete: SetNull)
   /// Falas ambiente (ex.: "Ajude-me!" a cada X segundos, Y% de chance) — só usadas quando não
   /// há `scriptId` vinculado (script próprio tem prioridade e não é sobrescrito).
   /// [{ text: string, intervalMs: number, chance: number }]
-  customMessages Json?  @default("[]") @map("custom_messages")
+  customMessages  Json?      @default("[]") @map("custom_messages")
   /// Mensagens padrão do XML nativo (message_greet, message_farewell, ...) — { [key]: value },
   /// só as não-vazias entram no XML/script gerado. Ver `NPC_DEFAULT_MESSAGE_KEYS` em
   /// `lib/validations/admin/npc.ts` pra lista completa e categoria (geral vs loja).
-  defaultMessages Json? @default("{}") @map("default_messages")
-  published  Boolean  @default(true)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  defaultMessages Json?      @default("{}") @map("default_messages")
+  published       Boolean    @default(true)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
 
   @@map("npcs")
 }
@@ -1817,20 +1831,20 @@ model Npc {
 /// + 2 laterais. Cada baú exige consumir `keyItemId` (o jogador precisa possuir o item) e, ao
 /// abrir, sorteia aleatoriamente 1 dentre até 10 itens em `rewards` (JSON: `[{itemId, count}]`).
 model Chest {
-  id        Int      @id @default(autoincrement())
-  name      String   @db.VarChar(100)
-  keyItemId Int      @map("key_item_id")
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(100)
+  keyItemId  Int      @map("key_item_id")
   /// Até 10 opções de recompensa, uma sorteada por vez (peso igual entre elas).
-  rewards   Json
+  rewards    Json
   /// Período de vigência (início/fim, mês+ano) — permite configurar rotação de prêmios ao
   /// longo do tempo (ex.: um baú vale de agosto a novembro, outro só em dezembro).
-  startMonth Int     @default(1) @map("start_month")
-  startYear  Int     @default(2000) @map("start_year")
-  endMonth   Int     @default(12) @map("end_month")
-  endYear    Int     @default(2100) @map("end_year")
-  published Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  startMonth Int      @default(1) @map("start_month")
+  startYear  Int      @default(2000) @map("start_year")
+  endMonth   Int      @default(12) @map("end_month")
+  endYear    Int      @default(2100) @map("end_year")
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("chests")
 }

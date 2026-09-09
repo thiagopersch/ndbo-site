@@ -4,14 +4,9 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { LUA_SCRIPT_CATEGORIES } from "@/lib/validations/admin/lua-script";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/**
- * Import de um ou mais arquivos `.lua` de uma vez — diferente do import de Item/Movement
- * (um XML com várias linhas), aqui cada arquivo enviado vira um `LuaScript` próprio
- * (`name` = nome do arquivo). A categoria é obrigatória e se aplica a todos os arquivos
- * do lote (reflete o fato de que, na prática, se importa uma pasta de scripts por vez).
- */
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -79,4 +74,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ imported, skipped, errors: errors.slice(0, 50) });
-}
+});

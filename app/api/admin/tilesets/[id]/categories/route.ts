@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { tilesetCategoryFormSchema } from "@/lib/validations/admin/tileset";
 import { tilesetCategoryToFormInput } from "@/lib/tileset-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -24,9 +25,9 @@ export async function GET(_request: Request, { params }: Params) {
   return NextResponse.json({
     categories: categories.map((category) => ({ ...tilesetCategoryToFormInput(category), _count: category._count })),
   });
-}
+});
 
-export async function POST(request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -63,4 +64,4 @@ export async function POST(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ category: tilesetCategoryToFormInput(category) }, { status: 201 });
-}
+});

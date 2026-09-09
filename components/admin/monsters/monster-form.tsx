@@ -400,7 +400,7 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
                         <div className="flex items-center gap-3">
                           <div className="flex-1">
                             <EntitySearchCombobox<LooktypeRow>
-                              endpoint="/api/admin/looktypes"
+                              endpoint="/api/admin/looktypes?category=outfit"
                               value={field.value}
                               placeholder="Buscar looktype..."
                               formatOption={(lt) => formatLooktypeOption(lt)}

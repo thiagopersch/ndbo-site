@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { sha1 } from "@/lib/crypto";
 import { accountUpdateSchema } from "@/lib/validations/admin/account";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -31,9 +32,9 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ account: { ...account, password: "" } });
-}
+});
 
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -83,4 +84,4 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ account: { ...account, password: "" } });
-}
+});

@@ -2,6 +2,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { tilesetToXmlDocument, type TilesetCategoryWithEntries } from "@/lib/tileset-mapper";
 import { tilesetsToXmlDocument } from "@/lib/tileset-xml";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const CATEGORY_INCLUDE = {
   grounds: { select: { name: true, tilesetOrder: true, items: true } },
@@ -10,7 +11,7 @@ const CATEGORY_INCLUDE = {
   itemEntries: true,
 } as const;
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -55,4 +56,4 @@ export async function GET(request: Request) {
       "Content-Disposition": 'attachment; filename="tilesets.xml"',
     },
   });
-}
+});

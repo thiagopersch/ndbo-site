@@ -5,12 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { movementSchema } from "@/lib/validations/admin/movement";
 import { movementFormToRow, movementRowToFormInput } from "@/lib/movement-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const MOVEMENT_INCLUDE = { vocations: { select: { vocationId: true } } } as const;
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -25,9 +26,9 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ movement: movementRowToFormInput(movement) });
-}
+});
 
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -63,9 +64,9 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ movement: movementRowToFormInput(movement) });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -80,4 +81,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

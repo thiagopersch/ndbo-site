@@ -88,6 +88,9 @@ function parseLootItem(raw: XmlNode): MonsterLootItemInput {
 
 export type ParseMonsterXmlResult = {
   monster: MonsterFormInput | null;
+  /** `type=` cru do `<look>` do XML importado (`look type="xx"`), usado para auto-vincular a
+   * looktype de outfit cadastrada (`Looktype.looktypeNumber`) na importação sem intervenção manual. */
+  lookTypeNumber: number | null;
   error: string | null;
 };
 
@@ -105,17 +108,21 @@ export function parseMonsterXml(
   try {
     parsed = parser.parse(xml) as XmlNode;
   } catch (error) {
-    return { monster: null, error: `XML inválido: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      monster: null,
+      lookTypeNumber: null,
+      error: `XML inválido: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 
   const raw = parsed.monster as XmlNode | undefined;
   if (!raw) {
-    return { monster: null, error: "Nenhum elemento <monster> encontrado no arquivo." };
+    return { monster: null, lookTypeNumber: null, error: "Nenhum elemento <monster> encontrado no arquivo." };
   }
 
   const name = str(a(raw, "name"));
   if (!name) {
-    return { monster: null, error: "<monster> sem atributo name." };
+    return { monster: null, lookTypeNumber: null, error: "<monster> sem atributo name." };
   }
 
   const look = raw.look as XmlNode | undefined;
@@ -188,8 +195,10 @@ export function parseMonsterXml(
     healthNow: num(a(health, "now")) || 1,
     healthMax: num(a(health, "max")) || 1,
 
-    // `type=` do XML importado não é usado diretamente — o cadastro da looktype (`lookTypeId`)
-    // é quem define `type=` na exportação; o admin vincula a sprite manualmente após importar.
+    // `type=` do XML importado não é usado diretamente no round-trip — o cadastro da looktype
+    // (`lookTypeId`) é quem define `type=` na exportação. Contudo `lookTypeNumber` (o `type=`
+    // cru) é retornado no resultado do parse para auto-vincular a looktype de outfit cadastrada
+    // (`Looktype.looktypeNumber`) na importação, sem o admin precisar vincular manualmente.
     lookTypeEx: a(look, "typeex") != null ? num(a(look, "typeex")) : null,
     lookHead: num(a(look, "head")),
     lookBody: num(a(look, "body")),
@@ -247,8 +256,16 @@ export function parseMonsterXml(
 
   const result = monsterFormSchema.safeParse(candidate);
   if (!result.success) {
-    return { monster: null, error: `"${name}": ${result.error.issues[0]?.message ?? "dados inválidos"}.` };
+    return {
+      monster: null,
+      lookTypeNumber: null,
+      error: `"${name}": ${result.error.issues[0]?.message ?? "dados inválidos"}.`,
+    };
   }
 
-  return { monster: result.data, error: null };
+  return {
+    monster: result.data,
+    lookTypeNumber: a(look, "type") != null ? num(a(look, "type")) : null,
+    error: null,
+  };
 }

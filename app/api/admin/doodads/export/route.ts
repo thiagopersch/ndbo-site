@@ -2,8 +2,9 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { doodadBrushToFormInput } from "@/lib/doodad-mapper";
 import { doodadsToXmlDocument } from "@/lib/doodad-xml";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -16,4 +17,4 @@ export async function GET() {
       "Content-Disposition": 'attachment; filename="doodads.xml"',
     },
   });
-}
+});

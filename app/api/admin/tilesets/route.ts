@@ -9,8 +9,9 @@ import { tilesetFormSchema } from "@/lib/validations/admin/tileset";
 import { tilesetToFormInput } from "@/lib/tileset-mapper";
 import { assertUniqueTilesetName, TilesetIntegrityError } from "@/lib/tileset-integrity";
 import { doodadItemIds, groundItemIds, idsWithItem, wallItemIds } from "@/lib/brush-item-ids";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -90,9 +91,9 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(buildPaginatedResult(tilesets, total, page, pageSize));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -132,4 +133,4 @@ export async function POST(request: Request) {
     }
     throw error;
   }
-}
+});

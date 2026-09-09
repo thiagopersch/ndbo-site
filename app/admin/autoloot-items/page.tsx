@@ -1,20 +1,41 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { CopyPlus, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import type { AutolootItem } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
-import type { AutolootItemInput } from "@/lib/validations/admin/autoloot-item";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
-import { AutolootItemFormDialog } from "@/components/admin/autoloot-items/autoloot-item-form-dialog";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
+
+const filterFields: FilterFieldConfig[] = [
+  {
+    key: "hasImage",
+    label: "Possui imagem",
+    type: "select",
+    options: [
+      { value: "true", label: "Sim" },
+      { value: "false", label: "Não" },
+    ],
+  },
+  {
+    key: "published",
+    label: "Publicado",
+    type: "select",
+    options: [
+      { value: "true", label: "Sim" },
+      { value: "false", label: "Não" },
+    ],
+  },
+];
 
 export default function AdminAutolootItemsPage() {
   const table = useServerTable();
@@ -32,25 +53,6 @@ export default function AdminAutolootItemsPage() {
     }
     toast.success("Item removido do autoloot.");
     mutate();
-  }
-
-  async function createOrUpdate(values: AutolootItemInput, id?: number) {
-    const response = await fetch(
-      id ? `/api/admin/autoloot-items/${id}` : "/api/admin/autoloot-items",
-      {
-        method: id ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      },
-    );
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      toast.error(body.error ?? "Não foi possível salvar.");
-      return false;
-    }
-    mutate();
-    return true;
   }
 
   const columns: ColumnDef<AutolootItem>[] = [
@@ -71,17 +73,6 @@ export default function AdminAutolootItemsPage() {
       header: "Ações",
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <AutolootItemFormDialog
-            title="Duplicar item"
-            defaultValues={{ itemId: 0, name: row.original.name, published: row.original.published }}
-            successMessage="Item duplicado."
-            onSubmit={(values) => createOrUpdate(values)}
-            trigger={
-              <Button variant="ghost" size="icon-sm" title="Duplicar">
-                <CopyPlus className="size-4" />
-              </Button>
-            }
-          />
           <ConfirmDialog
             trigger={
               <Button variant="destructive" size="icon-sm" title="Excluir">
@@ -100,26 +91,12 @@ export default function AdminAutolootItemsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Itens do Autoloot</h1>
-          <p className="text-muted-foreground">
-            Catálogo de itens que podem ser coletados automaticamente — nem todo item do jogo
-            entra aqui, só os publicados aparecem no module do OTC.
-          </p>
-        </div>
-        <AutolootItemFormDialog
-          title="Novo item"
-          defaultValues={{ itemId: 0, name: "", published: true }}
-          successMessage="Item adicionado."
-          onSubmit={(values) => createOrUpdate(values)}
-          trigger={
-            <Button>
-              <Plus className="size-4" />
-              Novo
-            </Button>
-          }
-        />
+      <div>
+        <h1 className="text-2xl font-semibold">Itens do Autoloot</h1>
+        <p className="text-muted-foreground">
+          Catálogo de itens que podem ser coletados automaticamente — nem todo item do jogo
+          entra aqui, só os publicados aparecem no module do OTC.
+        </p>
       </div>
 
       <DataTable
@@ -130,6 +107,11 @@ export default function AdminAutolootItemsPage() {
         searchPlaceholder="Buscar por nome ou ID..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}
@@ -137,6 +119,12 @@ export default function AdminAutolootItemsPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <Button nativeButton={false} render={<Link href="/admin/autoloot-items/new" />}>
+            <Plus className="size-4" />
+            Novo
+          </Button>
+        }
       />
     </div>
   );

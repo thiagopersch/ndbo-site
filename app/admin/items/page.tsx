@@ -20,6 +20,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
+import { OtbSyncDialog } from "@/components/admin/items/otb-sync-dialog";
 import { XmlBundlePanel } from "@/components/shared/xml-bundle-panel";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntityImageUploadDialog } from "@/components/shared/entity-image-upload-dialog";
@@ -390,6 +391,7 @@ export default function AdminItemsPage() {
                 itemLabel="item(ns)"
                 onImported={() => mutate()}
               />
+              <OtbSyncDialog onSynced={() => mutate()} />
               <CopyXmlButton
                 getText={async () => {
                   const response = await fetch("/api/admin/items/export");

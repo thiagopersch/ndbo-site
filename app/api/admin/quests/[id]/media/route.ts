@@ -7,10 +7,11 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { MAX_QUEST_IMAGE_BYTES, detectQuestImage, questMediaStorageDir, questMediaUrl } from "@/lib/quest-media";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -64,9 +65,9 @@ export async function POST(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ imageUrl });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -87,4 +88,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/** Valores distintos de campos livres (categoria/subcategoria) para popular os selects de filtro avançado. */
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -27,4 +27,4 @@ export async function GET() {
     categories: categories.map((row) => row.category),
     subcategories: subcategories.map((row) => row.subcategory),
   });
-}
+});

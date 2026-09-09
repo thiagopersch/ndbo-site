@@ -4,13 +4,11 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { uniqueCopyName } from "@/lib/duplicate-utils";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Duplica o Tileset e suas categorias (nome/kind/type/ordem/descrição), sem copiar os
- * vínculos de brush (Ground/WallBrush/DoodadBrush) nem `TilesetItemEntry` — a cópia
- * nasce com categorias vazias, evitando duplicar brushes reais ou dados de item. */
-export async function POST(_request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -59,4 +57,4 @@ export async function POST(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ id: tileset.id, name: tileset.name }, { status: 201 });
-}
+});

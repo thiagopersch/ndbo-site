@@ -2,12 +2,9 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/** Valores distintos de frames/tamanho/velocidade entre as sprites cadastradas — usado pelos
- * filtros da listagem, que só devem oferecer opções com pelo menos um resultado possível.
- * `frameDurationsMs` é JSON (array), então distinct/velocidade não dá pra expressar no `where`
- * do Prisma — computado em memória a partir da tabela inteira, igual às facets de monstro. */
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -32,4 +29,4 @@ export async function GET() {
   ).sort((a, b) => a - b);
 
   return NextResponse.json({ frameCounts, sizes, speeds });
-}
+});

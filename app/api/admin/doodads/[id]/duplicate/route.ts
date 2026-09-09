@@ -4,12 +4,11 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Duplica o DoodadBrush copiando apenas suas colunas escalares/Json (sem vínculos de
- * relação) e gerando um novo `id` autoincrement. */
-export async function POST(_request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -40,4 +39,4 @@ export async function POST(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ id: created.id, name: created.name }, { status: 201 });
-}
+});

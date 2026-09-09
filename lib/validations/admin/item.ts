@@ -201,6 +201,12 @@ export const itemSchema = z.object({
   plural: z.string().max(255),
   editorSuffix: z.string().max(100),
   description: z.string().max(500),
+  /** Client id real do sprite no `.otb`/items.xml — usado para localizar a looktype
+   * correspondente (nome no padrão `item_{clientId}`) e persistido no `items.xml`. */
+  clientId: z.number().int().min(1).nullable(),
+  /** Sprite vinculada do cadastro de looktypes (/admin/looktypes) — auto-preenchida a partir do
+   * `clientId` quando existe uma looktype com esse número no nome; editável manualmente. */
+  lookTypeId: z.number().int().nullable(),
 
   type: z.enum(ITEM_TYPES),
   weaponType: z.enum(WEAPON_TYPES),
@@ -332,6 +338,8 @@ export const defaultItemValues: ItemInput = {
   plural: "",
   editorSuffix: "",
   description: "",
+  clientId: null,
+  lookTypeId: null,
 
   type: "",
   weaponType: "",

@@ -4,13 +4,11 @@ import { z } from "zod";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const looktypeLinkSchema = z.object({ lookTypeId: z.number().int().nullable() });
 
-/** Endpoint dedicado para vincular/desvincular a sprite (looktype) direto da listagem — evita
- * ter que abrir o form de edição e reenviar a vocação inteira (a rota `[id]` valida o schema
- * completo do form). Mesmo padrão de `publish/route.ts`. */
-export async function PATCH(
+export const PATCH = withAudit(async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -39,4 +37,4 @@ export async function PATCH(
   });
 
   return NextResponse.json({ lookTypeId: vocation.lookTypeId });
-}
+});

@@ -163,7 +163,7 @@ function EntryCard({
 }) {
   return (
     <div className="group relative flex flex-col items-center gap-1.5 rounded-md border p-2 text-center">
-      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="flex w-full items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
         <Button type="button" variant="ghost" size="icon-sm" title="Editar" onClick={onEdit}>
           <Pencil className="size-3.5" />
         </Button>
@@ -182,7 +182,7 @@ function EntryCard({
         </Button>
       </div>
 
-      <button type="button" onClick={onEdit} className="flex flex-col items-center gap-1.5 pt-4">
+      <button type="button" onClick={onEdit} className="flex flex-col items-center gap-1.5">
         <EntityThumb entityType="item" id={entry.itemId} size="lg" zoomOnHover={false} />
         <p className="text-xs font-medium">
           {dayLabel} {entry[dayField]}

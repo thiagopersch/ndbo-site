@@ -16,7 +16,22 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useItemName } from "@/components/shared/use-item-name";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 import { ChestFormDialog } from "@/components/admin/chests/chest-form-dialog";
+
+const filterFields: FilterFieldConfig[] = [
+  { key: "keyItem", label: "Item-chave", type: "text", placeholder: "Nome ou ID do item..." },
+  { key: "reward", label: "Nome ou ID da recompensa", type: "text", placeholder: "Nome ou ID do item..." },
+  {
+    key: "published",
+    label: "Publicado",
+    type: "select",
+    options: [
+      { value: "true", label: "Sim" },
+      { value: "false", label: "Não" },
+    ],
+  },
+];
 
 type ChestRow = Chest & { rewards: { itemId: number; count: number }[] };
 
@@ -33,7 +48,13 @@ export default function AdminChestsPage() {
     fetcher,
   );
 
-  const chestCount = data?.total ?? 0;
+  // Contagem total (sem busca/filtros) — usada só pra desabilitar o botão "Novo" ao
+  // atingir o limite de MAX_CHESTS; `data.total` acima reflete a busca/filtros aplicados.
+  const { data: unfilteredData, mutate: mutateUnfiltered } = useSWR<PaginatedResult<ChestRow>>(
+    "/api/admin/chests?page=1&pageSize=1",
+    fetcher,
+  );
+  const chestCount = unfilteredData?.total ?? 0;
 
   async function handleDelete(id: number) {
     const response = await fetch(`/api/admin/chests/${id}`, { method: "DELETE" });
@@ -43,6 +64,7 @@ export default function AdminChestsPage() {
     }
     toast.success("Baú removido.");
     mutate();
+    mutateUnfiltered();
   }
 
   async function createOrUpdate(values: ChestInput, id?: number) {
@@ -54,6 +76,7 @@ export default function AdminChestsPage() {
 
     if (response.ok) {
       mutate();
+      mutateUnfiltered();
       return true;
     }
 
@@ -117,7 +140,10 @@ export default function AdminChestsPage() {
             endpoint={`/api/admin/chests/${row.original.id}/duplicate`}
             editPathBase="/admin/chests"
             variant="icon"
-            onDuplicated={() => mutate()}
+            onDuplicated={() => {
+              mutate();
+              mutateUnfiltered();
+            }}
           />
           <ConfirmDialog
             trigger={
@@ -137,28 +163,14 @@ export default function AdminChestsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Baús</h1>
-          <p className="text-muted-foreground">
-            Até {MAX_CHESTS} baús exibidos no OTC (1 central + 2 laterais). Cada um exige um
-            item-chave para abrir e sorteia 1 recompensa dentre as configuradas. O período de
-            vigência de cada baú permite ter uma rotação de prêmios ao longo do tempo — vários
-            baús podem ser cadastrados com prêmios diferentes, cada um valendo só no seu período.
-          </p>
-        </div>
-        <ChestFormDialog
-          title="Novo baú"
-          defaultValues={defaultChestValues}
-          successMessage="Criado com sucesso."
-          onSubmit={(values) => createOrUpdate(values)}
-          trigger={
-            <Button disabled={chestCount >= MAX_CHESTS}>
-              <Plus className="size-4" />
-              Novo
-            </Button>
-          }
-        />
+      <div>
+        <h1 className="text-2xl font-semibold">Baús</h1>
+        <p className="text-muted-foreground">
+          Até {MAX_CHESTS} baús exibidos no OTC (1 central + 2 laterais). Cada um exige um
+          item-chave para abrir e sorteia 1 recompensa dentre as configuradas. O período de
+          vigência de cada baú permite ter uma rotação de prêmios ao longo do tempo — vários
+          baús podem ser cadastrados com prêmios diferentes, cada um valendo só no seu período.
+        </p>
       </div>
 
       <DataTable
@@ -166,9 +178,28 @@ export default function AdminChestsPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         isFiltering={!isLoading && isValidating}
-        searchPlaceholder="Buscar..."
+        searchPlaceholder="Buscar por nome..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
+        toolbar={
+          <ChestFormDialog
+            title="Novo baú"
+            defaultValues={defaultChestValues}
+            successMessage="Criado com sucesso."
+            onSubmit={(values) => createOrUpdate(values)}
+            trigger={
+              <Button disabled={chestCount >= MAX_CHESTS}>
+                <Plus className="size-4" />
+                Novo
+              </Button>
+            }
+          />
+        }
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}

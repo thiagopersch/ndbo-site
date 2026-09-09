@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { mutate as mutateGlobal } from "swr";
 import { ImageUp } from "lucide-react";
 
 import type { EntityImageType } from "@/lib/entity-image";
@@ -34,21 +35,35 @@ export function EntityImageUploadDialog({
   onUploaded,
 }: EntityImageUploadDialogProps) {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  function handleClose() {
+    setOpen(false);
+    onUploaded?.();
+    // Revalida o cache batelado de imagens (`useEntityImages`, usado pelo `EntityThumb` nas
+    // tabelas de admin) para o entityType desta instância — sem isso a sprite recém enviada ou
+    // vinculada só aparece atualizada na tabela após um refresh manual da página, já que esse
+    // cache é independente do `onUploaded` (que revalida a listagem em si, não as imagens).
+    mutateGlobal((key) => typeof key === "string" && key.startsWith(`/api/admin/images/${entityType}`));
+  }
 
   return (
     <Dialog
       open={open}
-      // `disablePointerDismissal` bloqueia qualquer fechamento por clique/foco fora do dialog —
-      // o seletor de arquivo nativo do SO tira o foco da janela e o base-ui, dependendo do
-      // timing, pode interpretar isso de formas diferentes (focus-out, outside-press, ou outra
-      // variante interna) como um fechamento, perdendo o upload em andamento. Bloquear a
-      // categoria inteira de fechamento por ponteiro/foco é mais robusto que tentar prever cada
-      // motivo específico (ver também `eventDetails?.reason` abaixo, mantido como reforço).
-      disablePointerDismissal
+      // Bloqueia fechamento por clique/foco fora do dialog só enquanto uma requisição está de
+      // fato em andamento (`busy`, reportado por `EntityImageUpload` via `onBusyChange`) — o
+      // seletor de arquivo nativo do SO tira o foco da janela e o base-ui, dependendo do timing,
+      // pode interpretar isso de formas diferentes (focus-out, outside-press, ou outra variante
+      // interna) como um fechamento, perdendo o upload em andamento. Fora de um upload/vínculo
+      // em voo, clicar fora deve fechar e revalidar normalmente.
+      disablePointerDismissal={busy}
       onOpenChange={(next, eventDetails) => {
-        if (eventDetails?.reason === "focus-out" || eventDetails?.reason === "outside-press") return;
+        if (busy && (eventDetails?.reason === "focus-out" || eventDetails?.reason === "outside-press")) return;
+        if (!next) {
+          handleClose();
+          return;
+        }
         setOpen(next);
-        if (!next) onUploaded?.();
       }}
     >
       <DialogTrigger
@@ -65,7 +80,13 @@ export function EntityImageUploadDialog({
             Envie ou troque a imagem sem precisar abrir a edição completa.
           </DialogDescription>
         </DialogHeader>
-        <EntityImageUpload entityType={entityType} id={id} name={name} currentImage={image} />
+        <EntityImageUpload
+          entityType={entityType}
+          id={id}
+          name={name}
+          currentImage={image}
+          onBusyChange={setBusy}
+        />
       </DialogContent>
     </Dialog>
   );

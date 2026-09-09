@@ -10,6 +10,7 @@ import { wallFormToContent } from "@/lib/wall-mapper";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
 import { idsWithContentArray, idsWithItem, wallItemIds } from "@/lib/brush-item-ids";
 import { hasDuplicateName } from "@/lib/unique-name";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const BOOLEAN_FILTER_KEYS = [
   "draggable",
@@ -26,7 +27,7 @@ function parseBooleanParam(value: string | null): boolean | undefined {
   return undefined;
 }
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -109,9 +110,9 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(buildPaginatedResult(brushes, total, page, pageSize));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -163,4 +164,4 @@ export async function POST(request: Request) {
     }
     throw error;
   }
-}
+});

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { competenciaId } from "@/lib/daily-reward-competencia";
 import { dailyRewardCompetenciaSchema } from "@/lib/validations/admin/daily-reward";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type CompetenciaSummary = {
   year: number;
@@ -14,7 +15,7 @@ type CompetenciaSummary = {
   previewItemIds: number[];
 };
 
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -49,9 +50,9 @@ export async function GET() {
   const competencias = [...byKey.values()].sort((a, b) => b.year - a.year || b.month - a.month);
 
   return NextResponse.json({ competencias });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -92,4 +93,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ id: competenciaId(year, month), year, month }, { status: 201 });
-}
+});

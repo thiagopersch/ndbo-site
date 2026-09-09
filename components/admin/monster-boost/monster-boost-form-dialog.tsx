@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -61,14 +61,14 @@ export function MonsterBoostFormDialog({
     defaultValues,
   });
 
-  useEffect(() => {
-    if (open) {
+  function handleOpenChange(next: boolean) {
+    if (next) {
       form.reset(defaultValues);
       setMonsterId(initialMonsterId);
       setMonsterLookTypeId(initialMonsterLookTypeId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    setOpen(next);
+  }
 
   async function handleSubmit(values: MonsterBoostInput) {
     setIsSubmitting(true);
@@ -85,7 +85,7 @@ export function MonsterBoostFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger as React.ReactElement} />
       <DialogContent>
         <DialogHeader>

@@ -12,6 +12,7 @@ import {
   type TilesetCategoryType,
   type TilesetXmlDocument,
 } from "@/lib/validations/admin/tileset";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 /** Recria as categorias de um tileset já existente: desvincula os brushes (Ground/
  * WallBrush/DoodadBrush) das categorias antigas antes de apagá-las, para não colidir
@@ -137,7 +138,7 @@ async function importTileset(doc: TilesetXmlDocument, tilesetId: number, maps: B
   return { unresolved };
 }
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -211,4 +212,4 @@ export async function POST(request: Request) {
     unresolvedBrushNames: unresolvedBrushNames.slice(0, 100),
     errors: parseErrors.slice(0, 50),
   });
-}
+});

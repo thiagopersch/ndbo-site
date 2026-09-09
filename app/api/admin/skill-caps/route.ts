@@ -10,8 +10,9 @@ import {
   setServerConfig,
 } from "@/lib/server-config";
 import { skillCapsFormSchema } from "@/lib/validations/admin/skill-caps";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -21,9 +22,9 @@ export async function GET() {
   ]);
 
   return NextResponse.json({ dodgeCap: Number(dodgeCap), criticalCap: Number(criticalCap) });
-}
+});
 
-export async function PATCH(request: Request) {
+export const PATCH = withAudit(async function PATCH(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -47,4 +48,4 @@ export async function PATCH(request: Request) {
   });
 
   return NextResponse.json(parsed.data);
-}
+});

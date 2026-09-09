@@ -9,6 +9,7 @@ import { borderFormSchema } from "@/lib/validations/admin/border";
 import { borderItemIds, idsWithItem } from "@/lib/brush-item-ids";
 import type { BorderEdgeItemInput } from "@/lib/validations/admin/border";
 import { hasDuplicateName } from "@/lib/unique-name";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 /** Teto de segurança para `all=true` — bem acima do que `borders.xml` real chega a ter,
  * só para não deixar a query totalmente sem limite. */
@@ -38,7 +39,7 @@ function previewItemId(edges: unknown): number | null {
   return null;
 }
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -118,9 +119,9 @@ export async function GET(request: Request) {
   return NextResponse.json(
     all ? buildPaginatedResult(borders, total, 1, Math.max(total, 1)) : buildPaginatedResult(borders, total, page, pageSize)
   );
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -160,4 +161,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ border }, { status: 201 });
-}
+});

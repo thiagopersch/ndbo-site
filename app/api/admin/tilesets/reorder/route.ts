@@ -4,12 +4,13 @@ import { z } from "zod";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const reorderSchema = z.object({
   items: z.array(z.object({ id: z.number().int(), order: z.number().int() })).min(1),
 });
 
-export async function PATCH(request: Request) {
+export const PATCH = withAudit(async function PATCH(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -32,4 +33,4 @@ export async function PATCH(request: Request) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

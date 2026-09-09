@@ -8,8 +8,9 @@ import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { vocationSchema } from "@/lib/validations/admin/vocation";
 import { vocationInputToPrismaData, vocationToInput } from "@/lib/vocation-mapper";
 import { hasImageIdFilter } from "@/lib/entity-image-filter";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -67,9 +68,9 @@ export async function GET(request: Request) {
       pageSize
     )
   );
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -96,4 +97,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ vocation: vocationToInput(vocation) }, { status: 201 });
-}
+});

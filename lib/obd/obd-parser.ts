@@ -16,6 +16,8 @@
  * Flash. Nenhuma variante Adobe/não-padrão encontrada na prática.
  */
 
+import { ByteReader } from "@/lib/tibia-client/byte-reader";
+
 const OBD_VERSION_2 = 200;
 
 const CATEGORY_BY_VALUE = ["", "item", "outfit", "effect", "missile"] as const;
@@ -56,47 +58,6 @@ export type ObdThingData = {
   /** Índice flat = `getSpriteIndex` do ObjectBuilder — ver `getObdSpriteIndex` abaixo. */
   sprites: Buffer[];
 };
-
-class ByteReader {
-  constructor(
-    private readonly buffer: Buffer,
-    public position = 0
-  ) {}
-
-  u8(): number {
-    return this.buffer[this.position++];
-  }
-
-  u16(): number {
-    const value = this.buffer.readUInt16LE(this.position);
-    this.position += 2;
-    return value;
-  }
-
-  u32(): number {
-    const value = this.buffer.readUInt32LE(this.position);
-    this.position += 4;
-    return value;
-  }
-
-  i32(): number {
-    const value = this.buffer.readInt32LE(this.position);
-    this.position += 4;
-    return value;
-  }
-
-  i8(): number {
-    const value = this.buffer.readInt8(this.position);
-    this.position += 1;
-    return value;
-  }
-
-  bytes(length: number): Buffer {
-    const value = this.buffer.subarray(this.position, this.position + length);
-    this.position += length;
-    return value;
-  }
-}
 
 function skipProperties(reader: ByteReader): void {
   while (true) {

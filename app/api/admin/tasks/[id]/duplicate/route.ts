@@ -4,6 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -21,7 +22,7 @@ async function nextFreeSlug(sourceId: string) {
   return candidate;
 }
 
-export async function POST(_request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -66,4 +67,4 @@ export async function POST(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ id: task.id, name: task.name }, { status: 201 });
-}
+});

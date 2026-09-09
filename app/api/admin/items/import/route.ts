@@ -5,13 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { parseItemsXml } from "@/lib/item-xml-parser";
 import { importItemsBatched } from "@/lib/item-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/**
- * Import em lote (upsert em chunks de `$transaction`, ou `deleteMany`+`createMany` chunked
- * quando `replaceExisting`) — ver `importItemsBatched` em `lib/item-mapper.ts`. Suporta o
- * items.xml real (~4000+ itens após expansão de fromid/toid) sem estourar uma única transação.
- */
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -47,4 +43,4 @@ export async function POST(request: Request) {
     skipped: errors.length,
     errors: errors.slice(0, 50),
   });
-}
+});

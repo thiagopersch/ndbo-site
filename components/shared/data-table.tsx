@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   type ColumnDef,
+  type OnChangeFn,
+  type RowSelectionState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -65,6 +67,15 @@ type DataTableProps<TData, TValue> = {
   totalCount?: number;
   onPageChange?: (pageIndex: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+
+  /** Seleção de linhas (checkbox) — controlada externamente pra sobreviver à troca de página
+   * (paginação no backend troca só os `data`, não desmonta a tabela). `getRowId` é obrigatório
+   * junto com `enableRowSelection` — usar o id real do registro (nunca o índice da linha, que
+   * muda entre páginas). */
+  enableRowSelection?: boolean;
+  rowSelection?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  getRowId?: (row: TData) => string;
 };
 
 export function DataTable<TData, TValue>({
@@ -88,6 +99,10 @@ export function DataTable<TData, TValue>({
   totalCount,
   onPageChange,
   onPageSizeChange,
+  enableRowSelection = false,
+  rowSelection,
+  onRowSelectionChange,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [localGlobalFilter, setLocalGlobalFilter] = useState("");
@@ -97,16 +112,47 @@ export function DataTable<TData, TValue>({
   const isServerSearch = onSearchChange != null;
   const searchInputValue = isServerSearch ? (searchValue ?? "") : localGlobalFilter;
 
+  const effectiveColumns = useMemo<ColumnDef<TData, TValue>[]>(() => {
+    if (!enableRowSelection) return columns;
+    const selectionColumn: ColumnDef<TData, TValue> = {
+      id: "__select",
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          className="size-4"
+          checked={table.getIsAllPageRowsSelected()}
+          ref={(el) => {
+            if (el) el.indeterminate = !table.getIsAllPageRowsSelected() && table.getIsSomePageRowsSelected();
+          }}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          className="size-4"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+        />
+      ),
+    };
+    return [selectionColumn, ...columns];
+  }, [columns, enableRowSelection]);
+
   const table = useReactTable({
     data,
-    columns,
+    columns: effectiveColumns,
+    getRowId,
     state: {
       sorting,
       globalFilter: isServerSearch ? undefined : localGlobalFilter,
       ...(manualPagination ? { pagination: { pageIndex, pageSize } } : {}),
+      ...(enableRowSelection ? { rowSelection: rowSelection ?? {} } : {}),
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: isServerSearch ? undefined : setLocalGlobalFilter,
+    enableRowSelection,
+    onRowSelectionChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: isServerSearch ? undefined : getFilteredRowModel(),
@@ -241,7 +287,7 @@ export function DataTable<TData, TValue>({
             {showLoadingRows ? (
               Array.from({ length: Math.min(effectivePageSize, 10) }).map((_, rowIndex) => (
                 <TableRow key={`skeleton-${rowIndex}`}>
-                  {columns.map((_, colIndex) => (
+                  {effectiveColumns.map((_, colIndex) => (
                     <TableCell key={`skeleton-cell-${colIndex}`}>
                       <Skeleton className="h-5 w-full" />
                     </TableCell>
@@ -260,7 +306,7 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={effectiveColumns.length} className="h-24 text-center text-muted-foreground">
                   Nenhum resultado encontrado.
                 </TableCell>
               </TableRow>

@@ -6,10 +6,11 @@ import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { MAX_POST_MEDIA_BYTES, detectPostMedia, postMediaStorageDir, postMediaUrl } from "@/lib/post-media";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -55,4 +56,4 @@ export async function POST(request: Request, { params }: Params) {
     url: postMediaUrl(postId, filename),
     kind: detected.kind,
   });
-}
+});

@@ -5,27 +5,65 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { chestSchema, MAX_CHESTS } from "@/lib/validations/admin/chest";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET(request: Request) {
+/** Resolve um termo de busca (nome ou id numérico) para uma lista de ids de item —
+ * usado pelos filtros "Item-chave" e "Nome ou ID da recompensa", que precisam casar
+ * contra `keyItemId`/`rewards` (json) a partir de texto livre. */
+async function resolveItemIds(term: string): Promise<number[]> {
+  const numericId = Number(term);
+  const rows = await prisma.item.findMany({
+    where: {
+      OR: [
+        { name: { contains: term } },
+        ...(Number.isFinite(numericId) ? [{ id: numericId }] : []),
+      ],
+    },
+    select: { id: true },
+    take: 500,
+  });
+  return rows.map((row) => row.id);
+}
+
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
   const url = new URL(request.url);
-  const { page, pageSize } = parsePaginationParams(url);
+  const { page, pageSize, search } = parsePaginationParams(url);
+  const publishedParam = url.searchParams.get("published");
+  const keyItemTerm = url.searchParams.get("keyItem");
+  const rewardTerm = url.searchParams.get("reward");
 
-  const [chests, total] = await Promise.all([
-    prisma.chest.findMany({
-      orderBy: { id: "asc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.chest.count(),
+  const [keyItemIds, rewardItemIds] = await Promise.all([
+    keyItemTerm ? resolveItemIds(keyItemTerm) : null,
+    rewardTerm ? resolveItemIds(rewardTerm) : null,
   ]);
 
-  return NextResponse.json(buildPaginatedResult(chests, total, page, pageSize));
-}
+  const where = {
+    ...(search ? { name: { contains: search } } : {}),
+    ...(publishedParam === "true" || publishedParam === "false"
+      ? { published: publishedParam === "true" }
+      : {}),
+    ...(keyItemIds ? { keyItemId: { in: keyItemIds } } : {}),
+  };
 
-export async function POST(request: Request) {
+  const allMatching = await prisma.chest.findMany({ where, orderBy: { id: "asc" } });
+
+  const filtered = rewardItemIds
+    ? allMatching.filter((chest) => {
+        const rewards = chest.rewards as { itemId: number; count: number }[];
+        return rewards.some((reward) => rewardItemIds.includes(reward.itemId));
+      })
+    : allMatching;
+
+  const total = filtered.length;
+  const chests = filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+
+  return NextResponse.json(buildPaginatedResult(chests, total, page, pageSize));
+});
+
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -66,4 +104,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ chest }, { status: 201 });
-}
+});

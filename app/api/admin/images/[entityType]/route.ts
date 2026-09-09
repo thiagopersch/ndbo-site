@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { isEntityImageType, type EntityImageType } from "@/lib/entity-image";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ entityType: string }> };
 
@@ -38,7 +39,7 @@ async function fetchLookTypeIds(entityType: EntityImageType, ids: number[]): Pro
   return map;
 }
 
-export async function GET(request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -101,4 +102,4 @@ export async function GET(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ images: result });
-}
+});

@@ -6,8 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { defaultPostContent, postSchema } from "@/lib/validations/admin/post";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -49,9 +50,9 @@ export async function GET(request: Request) {
       pageSize
     )
   );
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -85,4 +86,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ post }, { status: 201 });
-}
+});

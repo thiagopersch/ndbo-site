@@ -4,8 +4,9 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { parseGroundsXml } from "@/lib/ground-xml-parser";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -55,4 +56,4 @@ export async function POST(request: Request) {
     skipped: errors.length,
     errors: errors.slice(0, 50),
   });
-}
+});

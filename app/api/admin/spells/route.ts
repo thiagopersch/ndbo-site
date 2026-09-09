@@ -9,8 +9,9 @@ import { spellFormSchema } from "@/lib/validations/admin/spell";
 import { spellFormToScalarData } from "@/lib/spell-mapper";
 import { hasDuplicateName } from "@/lib/unique-name";
 import { hasImageIdFilter } from "@/lib/entity-image-filter";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -68,9 +69,9 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(buildPaginatedResult(spells, total, page, pageSize));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -113,4 +114,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ spell }, { status: 201 });
-}
+});

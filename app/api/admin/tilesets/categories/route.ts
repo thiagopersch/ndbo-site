@@ -4,11 +4,9 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { TILESET_CATEGORY_KINDS, TILESET_CATEGORY_TYPES } from "@/lib/validations/admin/tileset";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/** Busca flat de categorias (não aninhada por tileset) — usada pelo combobox
- * "Categoria do Tileset" nos forms de Ground/Wall/Doodad e por telas que precisam
- * listar/filtrar categorias por `type`/`kind` em vez de por tileset. */
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -61,4 +59,4 @@ export async function GET(request: Request) {
       label: `${category.tileset.name} > ${category.name}`,
     })),
   });
-}
+});

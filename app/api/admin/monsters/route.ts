@@ -12,7 +12,7 @@ import {
 import { monsterFormToRow, monsterRowToFormInput } from "@/lib/monster-mapper";
 import { syncAutolootFromMonsterLoot } from "@/lib/autoloot-sync";
 import { hasDuplicateName } from "@/lib/unique-name";
-import { hasImageIdFilter } from "@/lib/entity-image-filter";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const MONSTER_LIST_SELECT = {
   id: true,
@@ -65,7 +65,7 @@ function attacksMatch(
   );
 }
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -89,13 +89,17 @@ export async function GET(request: Request) {
   const expMax = url.searchParams.get("expMax");
   const hpMin = url.searchParams.get("hpMin");
   const hpMax = url.searchParams.get("hpMax");
-  const loot = url.searchParams.get("loot")?.trim().toLowerCase();
+const loot = url.searchParams.get("loot")?.trim().toLowerCase();
   const attacks = url.searchParams.get("attacks")?.trim().toLowerCase();
-  const hasImage = await hasImageIdFilter("monster", url.searchParams.get("hasImage"));
+  const hasImageParam = url.searchParams.get("hasImage");
 
   const where: Prisma.MonsterWhereInput = {
     ...(search ? { name: { contains: search } } : {}),
-    ...(hasImage ? { id: hasImage } : {}),
+    ...(hasImageParam === "true"
+      ? { lookTypeId: { not: null } }
+      : hasImageParam === "false"
+        ? { lookTypeId: null }
+        : {}),
     ...(bestiary ? { bestiary } : {}),
     ...(category ? { category } : {}),
     ...(subcategory ? { subcategory } : {}),
@@ -185,9 +189,9 @@ export async function GET(request: Request) {
       pageSize,
     ),
   );
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -233,4 +237,4 @@ export async function POST(request: Request) {
     { monster: monsterRowToFormInput(monster) },
     { status: 201 },
   );
-}
+});

@@ -2,10 +2,6 @@ import { asArray, bool, createXmlParser, num, str, type XmlNode } from "@/lib/xm
 import {
   FIELD_TYPES,
   ITEM_ABSORB_KEYS,
-  ITEM_ELEMENT_KEYS,
-  ITEM_FIELD_ABSORB_KEYS,
-  ITEM_SKILL_KEYS,
-  ITEM_SUPPRESS_KEYS,
   defaultItemValues,
   itemSchema,
   type FieldType,
@@ -18,7 +14,14 @@ const parser = createXmlParser(["item", "attribute"]);
  * espelha `ItemInput` mas com os grupos JSON como objetos parciais preenchidos incrementalmente. */
 type MutableItem = ItemInput & { extraAttributes: ItemInput["extraAttributes"] };
 
-function newMutableItem(id: number, name: string, article: string, plural: string, editorSuffix: string): MutableItem {
+function newMutableItem(
+  id: number,
+  name: string,
+  article: string,
+  plural: string,
+  editorSuffix: string,
+  clientId: number | null
+): MutableItem {
   return {
     ...defaultItemValues,
     id,
@@ -26,6 +29,7 @@ function newMutableItem(id: number, name: string, article: string, plural: strin
     article,
     plural,
     editorSuffix,
+    clientId,
     flags: { ...defaultItemValues.flags },
     skills: { ...defaultItemValues.skills },
     elements: { ...defaultItemValues.elements },
@@ -375,6 +379,7 @@ export function parseItemsXml(xml: string): ParseItemsXmlResult {
     const article = str(raw.article);
     const plural = str(raw.plural);
     const editorSuffix = str(raw.editorsuffix);
+    const clientId = raw.client_id != null ? num(raw.client_id) : null;
 
     const singleId = raw.id != null ? num(raw.id) : null;
     const fromId = raw.fromid != null ? str(raw.fromid) : null;
@@ -390,7 +395,7 @@ export function parseItemsXml(xml: string): ParseItemsXmlResult {
 
     for (const [from, to] of idRanges) {
       for (let id = from; id <= to; id++) {
-        const item = newMutableItem(id, name, article, plural, editorSuffix);
+        const item = newMutableItem(id, name, article, plural, editorSuffix, clientId);
         applyAttributes(item, raw.attribute);
 
         const result = itemSchema.safeParse(item);

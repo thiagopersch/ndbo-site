@@ -10,6 +10,7 @@ import { MAX_IMAGE_BYTES, detectImageExtension } from "@/lib/entity-image";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
 import { ObdParseError, parseObd } from "@/lib/obd/obd-parser";
 import { clampFrameDurationMs, renderLooktypeFrames, type RenderedLooktypeFrame } from "@/lib/obd/obd-render";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 /** GIFs animados viram 1 PNG estático por página (`sharp` decodifica cada página/quadro do
  * GIF), cada um com a duração declarada no próprio GIF — sempre limitada a
@@ -37,7 +38,7 @@ type Params = { params: Promise<{ id: string }> };
 
 const MAX_OBD_BYTES = 8 * 1024 * 1024;
 
-export async function POST(request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -122,9 +123,9 @@ export async function POST(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ looktype: updated });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -150,4 +151,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ looktype: updated });
-}
+});

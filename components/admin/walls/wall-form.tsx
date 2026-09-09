@@ -35,7 +35,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { NumberField } from "@/components/shared/number-field";
 import { ItemSearchField } from "@/components/shared/item-search-field";
 import { ItemsListField } from "@/components/shared/items-list-field";
 import { CompositeListField } from "@/components/shared/composite-list-field";

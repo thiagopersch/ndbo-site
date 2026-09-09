@@ -2,10 +2,9 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { spellToFormInput } from "@/lib/spell-mapper";
 import { spellsToXmlDocument } from "@/lib/spell-xml";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/** Serve tanto o download (link "Exportar XML") quanto o botão "Copiar XML" (fetch + clipboard,
- * sem baixar arquivo — ver `components/shared/copy-xml-button.tsx`). */
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -22,4 +21,4 @@ export async function GET() {
       "Content-Disposition": 'attachment; filename="spells.xml"',
     },
   });
-}
+});

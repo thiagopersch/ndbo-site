@@ -6,10 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { syncActiveSeason } from "@/lib/battle-pass-season";
 import { battlePassSeasonSchema, validateRewardsOrdering } from "@/lib/validations/admin/battle-pass";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -27,9 +28,9 @@ export async function GET(_request: Request, { params }: Params) {
   }
 
   return NextResponse.json({ season });
-}
+});
 
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -89,9 +90,9 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ season });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -106,4 +107,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

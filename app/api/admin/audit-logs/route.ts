@@ -4,8 +4,9 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -32,4 +33,4 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(buildPaginatedResult(logs, total, page, pageSize));
-}
+});

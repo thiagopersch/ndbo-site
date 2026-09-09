@@ -6,14 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { parseNpcXml } from "@/lib/npc-xml-parser";
 import { writeNpcFiles } from "@/lib/npc-generator";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/**
- * Import de um ou mais arquivos XML de NPC (`data/npc/*.xml`, um único `<npc>` por arquivo —
- * mesmo padrão do import de monstros em `app/api/admin/monsters/import/route.ts`). `lookTypeId`
- * não existe no XML — fica `0` até o admin vincular a sprite manualmente pelo formulário
- * (por isso não passa por `npcSchema.safeParse`, que exige `lookTypeId` positivo).
- */
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -82,4 +77,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ imported, skipped, errors: errors.slice(0, 50) });
-}
+});

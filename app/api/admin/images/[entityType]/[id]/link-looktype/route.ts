@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { entityImageStoragePath, isEntityImageType, type EntityImageType } from "@/lib/entity-image";
 import { looktypeFrameStoragePath } from "@/lib/looktype-storage";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ entityType: string; id: string }> };
 
@@ -65,14 +66,7 @@ async function linkEntityToLooktype(
   }
 }
 
-/**
- * Vincula a entidade a uma sprite já cadastrada em /admin/looktypes — copia o frame 0 do
- * looktype para o slot de imagem da entidade (mesmo storage que o upload manual usa, ver
- * ../route.ts), então `EntityThumb`/tilesets/doodads continuam funcionando exatamente igual,
- * sem saber que a origem foi um looktype. Sistema de imagem por entidade é estático (1 arquivo),
- * então looktypes animados (frameCount > 1) só entram com o primeiro frame.
- */
-export async function POST(request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -148,4 +142,4 @@ export async function POST(request: Request, { params }: Params) {
       },
     },
   });
-}
+});

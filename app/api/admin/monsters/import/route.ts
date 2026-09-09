@@ -3,18 +3,32 @@ import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { parseMonsterXml } from "@/lib/monster-xml-parser";
-import { monsterFormToRow } from "@/lib/monster-mapper";
+import { createJob, getActiveJob, hasActiveJob } from "@/lib/monster/import-job-store";
+import { runMonsterImportJob } from "@/lib/monster/import-runner";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/**
- * Import de um ou mais arquivos XML de monstro (`data/monster/*.xml`, um único `<monster>`
- * por arquivo — diferente de Item/Movement, que bundlam várias linhas num XML só). Aceita
- * múltiplos arquivos no mesmo request (`files`), processando um a um e agregando o
- * resultado — mantém compatibilidade com o campo legado `file` (um único arquivo).
- */
-export async function POST(request: Request) {
+/** Consultado pela UI ao montar a página (sem precisar de um `jobId` salvo localmente) — assim
+ * qualquer admin que abra `/admin/monsters` vê um import de monstros já em andamento, iniciado
+ * por outra aba/sessão. */
+export const GET = withAudit(async function GET() {
+  const { response } = await requireAdminSession();
+  if (response) return response;
+
+  return NextResponse.json({ job: getActiveJob() });
+});
+
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
+
+  const accountId = Number(session.user.id);
+
+  if (hasActiveJob()) {
+    return NextResponse.json(
+      { error: "Já existe um import de monstros em andamento. Aguarde ou feche o outro diálogo." },
+      { status: 409 },
+    );
+  }
 
   const formData = await request.formData();
   const legacyFile = formData.get("file");
@@ -57,53 +71,34 @@ export async function POST(request: Request) {
     );
   }
 
-  let imported = 0;
-  let skipped = 0;
-  const errors: string[] = [];
+  const filesToImport = await Promise.all(
+    files.map(async (file) => ({ name: file.name, xml: await file.text() })),
+  );
 
-  for (const file of files) {
-    const xml = await file.text();
-    const { monster, error } = parseMonsterXml(xml, {
-      category: universe.name,
-      subcategory,
+  const jobId = crypto.randomUUID();
+  createJob(jobId, accountId);
+
+  // Fire-and-forget: o processamento roda fora do ciclo de vida desta requisição HTTP — progresso
+  // via polling em `GET .../[jobId]`, resultado final sempre persistido em auditoria mesmo se
+  // ninguém acompanhar.
+  void runMonsterImportJob(jobId, accountId, filesToImport, {
+    universe: { id: universe.id, name: universe.name },
+    subcategory,
+    updateExisting,
+  });
+
+  await logAudit({
+    accountId,
+    action: "import_start",
+    entity: "monster",
+    metadata: {
+      jobId,
+      fileCount: filesToImport.length,
       universeId: universe.id,
-    });
+      subcategory,
+      updateExisting,
+    },
+  });
 
-    if (!monster) {
-      skipped += 1;
-      errors.push(`${file.name}: ${error ?? "arquivo inválido"}`);
-      continue;
-    }
-
-    const existing = await prisma.monster.findUnique({
-      where: { name: monster.name },
-    });
-
-    if (existing && !updateExisting) {
-      skipped += 1;
-      errors.push(
-        `${file.name}: já existe um monstro chamado "${monster.name}"`,
-      );
-      continue;
-    }
-
-    const saved = existing
-      ? await prisma.monster.update({
-          where: { id: existing.id },
-          data: monsterFormToRow(monster),
-        })
-      : await prisma.monster.create({ data: monsterFormToRow(monster) });
-
-    await logAudit({
-      accountId: Number(session.user.id),
-      action: "import",
-      entity: "monster",
-      entityId: saved.id,
-      metadata: { name: saved.name, updated: Boolean(existing) },
-    });
-
-    imported += 1;
-  }
-
-  return NextResponse.json({ imported, skipped, errors: errors.slice(0, 50) });
-}
+  return NextResponse.json({ jobId }, { status: 202 });
+});

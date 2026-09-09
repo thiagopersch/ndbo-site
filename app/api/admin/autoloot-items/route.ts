@@ -6,22 +6,33 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { autolootItemSchema } from "@/lib/validations/admin/autoloot-item";
+import { withAudit } from "@/lib/api-audit-wrapper";
+import { hasImageIdFilter } from "@/lib/entity-image-filter";
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
   const url = new URL(request.url);
   const { page, pageSize, search } = parsePaginationParams(url);
 
-  const where: Prisma.AutolootItemWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search } },
-          Number.isFinite(Number(search)) ? { itemId: Number(search) } : undefined,
-        ].filter(Boolean) as Prisma.AutolootItemWhereInput[],
-      }
-    : {};
+  const publishedParam = url.searchParams.get("published");
+  const hasImage = await hasImageIdFilter("item", url.searchParams.get("hasImage"));
+
+  const where: Prisma.AutolootItemWhereInput = {
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            Number.isFinite(Number(search)) ? { itemId: Number(search) } : undefined,
+          ].filter(Boolean) as Prisma.AutolootItemWhereInput[],
+        }
+      : {}),
+    ...(publishedParam === "true" || publishedParam === "false"
+      ? { published: publishedParam === "true" }
+      : {}),
+    ...(hasImage ? { itemId: hasImage } : {}),
+  };
 
   const [autolootItems, total] = await Promise.all([
     prisma.autolootItem.findMany({
@@ -34,9 +45,9 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(buildPaginatedResult(autolootItems, total, page, pageSize));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -62,4 +73,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ autolootItem }, { status: 201 });
-}
+});

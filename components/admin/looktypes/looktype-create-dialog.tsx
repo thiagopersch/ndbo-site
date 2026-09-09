@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 
@@ -24,10 +25,14 @@ import {
 } from "@/components/ui/dialog";
 import { LooktypeCategoryFields } from "@/components/admin/looktypes/looktype-category-fields";
 
-const MAX_FILES = 100;
+const MAX_FILES = 10000;
 /** Requisições simultâneas ao criar em lote — cada upload envolve parse/render de OBD no
  * servidor (CPU-bound), então um valor alto satura o processo Node em vez de acelerar. */
-const UPLOAD_CONCURRENCY = 4;
+const UPLOAD_CONCURRENCY = 8;
+/** Altura (px) de cada linha da lista de revisão, incluindo o espaçamento entre linhas — usada
+ * pelo virtualizador (`@tanstack/react-virtual`) para calcular quais linhas renderizar sem
+ * precisar montar as ~10000 linhas possíveis de uma vez (o que travaria o navegador). */
+const REVIEW_ROW_HEIGHT = 44;
 
 type PendingFile = {
   file: File;
@@ -48,11 +53,23 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
   const [frameSpeedMs, setFrameSpeedMs] = useState(DEFAULT_LOOKTYPE_FRAME_SPEED_MS.item);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const reviewScrollRef = useRef<HTMLDivElement>(null);
   // O seletor nativo de arquivos do SO tira o foco da janela; sem essa trava o base-ui pode
   // interpretar isso como um clique/foco fora do dialog e fechá-lo antes do usuário escolher
   // os arquivos. Fica true enquanto o seletor está (provavelmente) aberto.
   const filePickerOpenRef = useRef(false);
+
+  // Renderiza só as linhas visíveis da lista de revisão — com lotes de até `MAX_FILES` (10000)
+  // arquivos, montar uma `<div>` com 2 `<Input>` por linha para todas de uma vez travaria o
+  // navegador.
+  const reviewVirtualizer = useVirtualizer({
+    count: pendingFiles.length,
+    getScrollElement: () => reviewScrollRef.current,
+    estimateSize: () => REVIEW_ROW_HEIGHT,
+    overscan: 8,
+  });
 
   useEffect(() => {
     function handleWindowFocus() {
@@ -70,6 +87,7 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
     setSharedLooktypeNumber(null);
     setFrameSpeedMs(DEFAULT_LOOKTYPE_FRAME_SPEED_MS.item);
     setPendingFiles([]);
+    setOverwriteExisting(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -180,8 +198,21 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
     }
 
     let createdCount = 0;
+    // Cadastros que JÁ existiam no banco e foram atualizados no lugar (mesmo id, ver a flag de
+    // sobrescrita e `POST /api/admin/looktypes`) — contagem à parte pra aparecer nos toasts sem
+    // confundir com criação.
+    let updatedCount = 0;
     let duplicateCount = clientDuplicates.length;
-    let firstError: string | null = null;
+    // Nomes dos arquivos ignorados por já existir uma sprite com o mesmo nome (ou número, nas
+    // categorias que usam número) — mostrados na mensagem final pro admin saber exatamente quais
+    // arquivos precisa revisar, sem precisar abrir a Auditoria.
+    const duplicateFileNames: string[] = clientDuplicates.map((entry) => entry.fileName);
+    // Falhas "de verdade" (arquivo corrompido, tipo inválido etc.) — diferente de duplicateCount,
+    // que já tem sua própria mensagem. Cada uma já fica registrada na Auditoria (action
+    // "import_error", com o nome do arquivo e o motivo) pelo próprio endpoint, então aqui só
+    // precisamos contar quantas deram errado pra avisar o admin — sem parar o restante do lote.
+    let errorCount = 0;
+    const errorFileNames: string[] = [];
 
     async function uploadRow(row: PendingFile) {
       const formData = new FormData();
@@ -191,29 +222,42 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
       formData.append("category", category);
       formData.append("frameSpeedMs", String(frameSpeedMs));
       formData.append("batchId", batchId);
+      formData.append("overwriteExisting", String(overwriteExisting));
       if (row.looktypeNumber !== null) formData.append("looktypeNumber", String(row.looktypeNumber));
 
-      const response = await fetch("/api/admin/looktypes", { method: "POST", body: formData });
+      try {
+        const response = await fetch("/api/admin/looktypes", { method: "POST", body: formData });
 
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        if (data?.skipped) {
-          duplicateCount += 1;
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          if (data?.skipped) {
+            duplicateCount += 1;
+            duplicateFileNames.push(row.file.name);
+          } else {
+            errorCount += 1;
+            errorFileNames.push(row.file.name);
+          }
+        } else {
+          const data = await response.json();
+          onCreated(data.looktype);
+          // `overwritten: true` = o endpoint atualizou um cadastro existente no lugar (flag
+          // marcada); senão, criou um novo.
+          if (data?.overwritten) updatedCount += 1;
+          else createdCount += 1;
         }
-        if (!firstError) {
-          firstError = data?.error ?? `Não foi possível criar "${row.name}".`;
-        }
-      } else {
-        const data = await response.json();
-        onCreated(data.looktype);
-        createdCount += 1;
+      } catch {
+        // Falha de rede (não uma resposta de erro do servidor, que já é tratada acima) — não deve
+        // travar o worker nem o restante do lote, só contar como falha.
+        errorCount += 1;
+        errorFileNames.push(row.file.name);
       }
 
       setProgress((current) => (current ? { ...current, done: current.done + 1 } : current));
     }
 
     // Sobe em lotes com concorrência limitada: paraleliza a rede sem estourar o processo do
-    // servidor, que faz parse/render de OBD (CPU-bound) por requisição.
+    // servidor, que faz parse/render de OBD (CPU-bound) por requisição. `uploadRow` nunca lança
+    // (erros viram contagem), então uma falha isolada nunca interrompe os arquivos restantes.
     let cursor = 0;
     async function worker() {
       while (cursor < toUpload.length) {
@@ -227,15 +271,51 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
     setIsSubmitting(false);
     setProgress(null);
 
-    if (createdCount > 0) toast.success(`${createdCount} looktype(s) criada(s) com sucesso.`);
+    // Registra em auditoria o mesmo resumo mostrado nos toasts abaixo — uma linha única e fácil
+    // de achar (ação "import_summary"), em vez de depender só da mensagem efêmera na tela ou de
+    // juntar manualmente as dezenas de entradas por arquivo (`import_skip`/`import_error`).
+    if (duplicateCount > 0 || errorCount > 0) {
+      await fetch("/api/admin/looktypes/import-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchId,
+          category,
+          createdCount,
+          updatedCount,
+          duplicateCount,
+          errorCount,
+          duplicateFileNames,
+          errorFileNames,
+        }),
+      }).catch(() => null);
+    }
+
+    if (createdCount > 0 || updatedCount > 0) {
+      const summary = [
+        createdCount > 0 ? `${createdCount} looktype(s) criada(s)` : null,
+        updatedCount > 0 ? `${updatedCount} sprite(s) existente(s) atualizada(s) no lugar` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      toast.success(`${summary} com sucesso.`);
+    }
     if (duplicateCount > 0) {
+      const MAX_NAMES_IN_TOAST = 5;
+      const preview = duplicateFileNames.slice(0, MAX_NAMES_IN_TOAST).join(", ");
+      const remaining = duplicateFileNames.length - MAX_NAMES_IN_TOAST;
+      const suffix = remaining > 0 ? ` e mais ${remaining} arquivo(s) (veja todos em Auditoria)` : "";
       toast.error(
-        `${duplicateCount} arquivo(s) ignorado(s) por nome/número duplicado — veja os detalhes em Auditoria.`,
+        `${duplicateCount} arquivo(s) não importado(s) por já existir uma sprite com o mesmo nome/número: ${preview}${suffix}.`,
       );
     }
-    if (firstError && duplicateCount === 0) toast.error(firstError);
+    if (errorCount > 0) {
+      toast.error(
+        `${errorCount} arquivo(s) falharam ao importar — veja o arquivo e o motivo de cada um em Auditoria.`,
+      );
+    }
 
-    if (firstError === null) {
+    if (duplicateCount === 0 && errorCount === 0) {
       reset();
       setOpen(false);
     }
@@ -295,6 +375,23 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
             onLooktypeNumberChange={setSharedLooktypeNumber}
           />
 
+          <div className="flex flex-col gap-1.5 rounded-md border border-border p-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={overwriteExisting}
+                onChange={(event) => setOverwriteExisting(event.target.checked)}
+                className="size-4"
+              />
+              Sobrescrever cadastro existente
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Desmarcado: sprites já existentes com o mesmo nome/número são puladas (ficam
+              preservadas). Marcado: o cadastro existente é atualizado no lugar — mesmo id, com o
+              nome e a sprite do arquivo — evitando cadastros duplicados.
+            </p>
+          </div>
+
           <div className="flex flex-col gap-1.5">
             <Label>Velocidade dos quadros (ms) — só afeta arquivos .obd animados</Label>
             <Input
@@ -309,42 +406,54 @@ export function LooktypeCreateDialog({ trigger, onCreated }: LooktypeCreateDialo
 
           {showReview && (
             <div className="flex flex-col gap-2">
-              <Label>Revisar antes de salvar</Label>
-              <div className="flex max-h-72 flex-col gap-2 overflow-y-auto rounded-md border border-border p-2">
-                {pendingFiles.map((row, index) => (
-                  <div key={`${row.file.name}-${index}`} className="flex items-center gap-2">
-                    <span className="w-40 shrink-0 truncate text-xs text-muted-foreground" title={row.file.name}>
-                      {row.file.name}
-                    </span>
-                    <Input
-                      value={row.name}
-                      onChange={(event) => updatePendingFile(index, { name: event.target.value })}
-                      placeholder="Nome"
-                      className="flex-1"
-                    />
-                    {category !== "item" && (
-                      <Input
-                        type="number"
-                        value={row.looktypeNumber ?? ""}
-                        onChange={(event) =>
-                          updatePendingFile(index, {
-                            looktypeNumber: event.target.value === "" ? null : Number(event.target.value),
-                          })
-                        }
-                        placeholder="Número"
-                        className="w-24 shrink-0"
-                      />
-                    )}
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon-sm"
-                      onClick={() => removePendingFile(index)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </div>
-                ))}
+              <Label>Revisar antes de salvar ({pendingFiles.length})</Label>
+              <div ref={reviewScrollRef} className="h-72 overflow-y-auto rounded-md border border-border p-2">
+                <div className="relative w-full" style={{ height: reviewVirtualizer.getTotalSize() }}>
+                  {reviewVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = pendingFiles[virtualRow.index];
+                    return (
+                      <div
+                        key={`${row.file.name}-${virtualRow.index}`}
+                        className="absolute top-0 left-0 flex w-full items-center gap-2 pb-2"
+                        style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
+                      >
+                        <span
+                          className="w-40 shrink-0 truncate text-xs text-muted-foreground"
+                          title={row.file.name}
+                        >
+                          {row.file.name}
+                        </span>
+                        <Input
+                          value={row.name}
+                          onChange={(event) => updatePendingFile(virtualRow.index, { name: event.target.value })}
+                          placeholder="Nome"
+                          className="flex-1"
+                        />
+                        {category !== "item" && (
+                          <Input
+                            type="number"
+                            value={row.looktypeNumber ?? ""}
+                            onChange={(event) =>
+                              updatePendingFile(virtualRow.index, {
+                                looktypeNumber: event.target.value === "" ? null : Number(event.target.value),
+                              })
+                            }
+                            placeholder="Número"
+                            className="w-24 shrink-0"
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon-sm"
+                          onClick={() => removePendingFile(virtualRow.index)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

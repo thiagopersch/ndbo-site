@@ -2,12 +2,9 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/** Relatório de integridade do sistema de Tilesets: nenhum destes números deveria
- * ser diferente de zero em condições normais, já que o schema (FKs) e as rotas de
- * API já impedem a maior parte dos problemas — isto é uma checagem de segurança
- * extra, principalmente para nomes de brush não resolvidos deixados por imports. */
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -71,4 +68,4 @@ export async function GET() {
     isHealthy:
       uncategorizedGrounds + uncategorizedWalls + uncategorizedDoodads === 0 && unresolvedTotal === 0,
   });
-}
+});

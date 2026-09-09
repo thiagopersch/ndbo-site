@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { parseWallsXml } from "@/lib/wall-xml-parser";
 import { wallFormToContent } from "@/lib/wall-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -61,4 +62,4 @@ export async function POST(request: Request) {
     skipped: errors.length,
     errors: errors.slice(0, 50),
   });
-}
+});

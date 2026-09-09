@@ -7,8 +7,9 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { townFormSchema } from "@/lib/validations/admin/town";
 import { townToFormInput } from "@/lib/town-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -51,9 +52,9 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json(buildPaginatedResult(towns, total, page, pageSize));
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -89,4 +90,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ town: townToFormInput(town) }, { status: 201 });
-}
+});

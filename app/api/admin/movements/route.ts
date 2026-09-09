@@ -7,10 +7,11 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { movementSchema } from "@/lib/validations/admin/movement";
 import { movementFormToRow, movementMatchesItemId, movementRowToFormInput } from "@/lib/movement-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const MOVEMENT_INCLUDE = { vocations: { select: { vocationId: true } } } as const;
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -78,9 +79,9 @@ export async function GET(request: Request) {
       pageSize
     )
   );
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -111,4 +112,4 @@ export async function POST(request: Request) {
   });
 
   return NextResponse.json({ movement: { ...movementRowToFormInput(movement), id: movement.id } }, { status: 201 });
-}
+});

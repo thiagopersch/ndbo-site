@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { tilesetItemEntryFormSchema } from "@/lib/validations/admin/tileset";
 import { tilesetItemEntryToFormInput } from "@/lib/tileset-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ entryId: string }> };
 
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -39,9 +40,9 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ entry: tilesetItemEntryToFormInput(entry) });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -56,4 +57,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

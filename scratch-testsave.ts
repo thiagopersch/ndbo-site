@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { prisma } from "@/lib/prisma";
 import { vocationInputToPrismaData, vocationToInput } from "@/lib/vocation-mapper";
-import { defaultVocationValues } from "@/lib/validations/admin/vocation";
 
 async function main() {
   const before = await prisma.vocation.findFirst({ where: { lookTypeId: null } });
@@ -14,6 +13,7 @@ async function main() {
   const input = { ...vocationToInput(before), lookTypeId: 4 };
   const data = vocationInputToPrismaData(input);
   const { id, ...updateData } = data;
+  void id;
   const updated = await prisma.vocation.update({ where: { id: before.id }, data: updateData });
   console.log("after update, lookTypeId=", updated.lookTypeId);
 

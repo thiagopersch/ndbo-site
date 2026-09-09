@@ -4,12 +4,11 @@ import { z } from "zod";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const publishSchema = z.object({ published: z.boolean() });
 
-/** Endpoint dedicado para o toggle de publicação na listagem — evita ter que reenviar o
- * item inteiro (a rota `[id]` valida o schema completo do form). */
-export async function PATCH(
+export const PATCH = withAudit(async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -38,4 +37,4 @@ export async function PATCH(
   });
 
   return NextResponse.json({ published: item.published });
-}
+});

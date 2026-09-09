@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/** Só os levels que realmente existem entre as spells cadastradas — usado pelo filtro
- * "Level" da lista, que não deve oferecer valores sem nenhum resultado possível. */
-export async function GET() {
+export const GET = withAudit(async function GET() {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -16,4 +15,4 @@ export async function GET() {
   });
 
   return NextResponse.json({ levels: rows.map((row) => row.level) });
-}
+});

@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const PERIODS = ["current_month", "last_month", "last_3_months", "last_6_months", "year", "last_year"] as const;
 type Period = (typeof PERIODS)[number];
@@ -42,7 +43,7 @@ async function sumByDayOfMonth(start: Date, end: Date) {
   return Array.from({ length: 31 }, (_, index) => ({ day: index + 1, total: totals.get(index + 1) ?? 0 }));
 }
 
-export async function GET(request: Request) {
+export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -61,4 +62,4 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json({ currentMonth, compared, period });
-}
+});

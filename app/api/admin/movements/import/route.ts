@@ -5,15 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { parseMovementsXml } from "@/lib/movement-xml-parser";
 import { movementFormToRow } from "@/lib/movement-mapper";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
-/**
- * `movements.xml` real tem ~2245 linhas — sem "um movevent = um arquivo" no engine, então só
- * existe import/export em lote (nunca de uma linha só). `MovementVocation` (filhos
- * `<vocation>`) não passa por `createMany` (Prisma não aceita relação aninhada nesse método),
- * daí o loop de `create` por linha — ainda assim rápido o bastante nessa escala, sem
- * necessidade de `$transaction`/chunking (diferente do import de items, ver Fase C do plano).
- */
-export async function POST(request: Request) {
+export const POST = withAudit(async function POST(request: Request) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -60,4 +54,4 @@ export async function POST(request: Request) {
     skipped: errors.length,
     errors: errors.slice(0, 50),
   });
-}
+});

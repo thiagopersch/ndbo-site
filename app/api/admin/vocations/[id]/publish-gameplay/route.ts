@@ -4,12 +4,11 @@ import { z } from "zod";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 const publishSchema = z.object({ published: z.boolean() });
 
-/** Equivalente a `[id]/publish/route.ts`, mas para `publishedGameplay` (listagem pública
- * `/gameplay/vocations`), independente da publicação para criação de personagem. */
-export async function PATCH(
+export const PATCH = withAudit(async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -38,4 +37,4 @@ export async function PATCH(
   });
 
   return NextResponse.json({ published: vocation.publishedGameplay });
-}
+});

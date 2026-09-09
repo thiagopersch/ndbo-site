@@ -22,6 +22,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { MonsterXmlImportDialog } from "@/components/admin/monsters/monster-xml-import-dialog";
 import { MonsterThumb } from "@/components/shared/monster-thumb";
+import { MonsterLooktypeQuickLink } from "@/components/admin/monsters/monster-looktype-quick-link";
 import { UniverseBadge } from "@/components/shared/universe-badge";
 import { PublishedToggle } from "@/components/shared/published-toggle";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
@@ -204,6 +205,17 @@ export default function AdminMonstersPage() {
     },
     { accessorKey: "experience", header: "Experience" },
     { accessorKey: "healthMax", header: "HP" },
+    {
+      id: "looktype",
+      header: "Sprite",
+      cell: ({ row }) => (
+        <MonsterLooktypeQuickLink
+          monsterId={row.original.id}
+          lookTypeId={row.original.lookTypeId}
+          onLinked={() => mutate()}
+        />
+      ),
+    },
     {
       accessorKey: "published",
       header: "Publicado",

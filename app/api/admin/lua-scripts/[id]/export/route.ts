@@ -1,10 +1,11 @@
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -26,4 +27,4 @@ export async function GET(_request: Request, { params }: Params) {
       "Content-Disposition": `attachment; filename="${luaScript.name}"`,
     },
   });
-}
+});

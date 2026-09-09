@@ -36,10 +36,8 @@ export function ItemIdField<T extends FieldValues>({
         <FormControl>
           <Input
             type="number"
+            {...field}
             disabled={disabled}
-            name={field.name}
-            ref={field.ref}
-            onBlur={field.onBlur}
             value={(rawValue as number | string) ?? ""}
             onChange={(event) => {
               if (event.target.value === "") {

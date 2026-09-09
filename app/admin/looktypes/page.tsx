@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import dayjs from "dayjs";
@@ -23,6 +24,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { LooktypeCreateDialog } from "@/components/admin/looktypes/looktype-create-dialog";
+import { LooktypeImportClientDialog } from "@/components/admin/looktypes/looktype-import-client-dialog";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
 type FacetsResponse = {
@@ -40,6 +42,64 @@ export default function AdminLooktypesPage() {
     `/api/admin/looktypes?${table.buildQueryParams().toString()}`,
     fetcher
   );
+
+  // Ids selecionados atravessando páginas — sobrevive à troca de página sozinho, já que trocar de
+  // página só troca a query do SWR acima (não desmonta a página nem a tabela). A tabela só recebe
+  // (e só sabe alterar) a fatia desse conjunto que corresponde às linhas da página atual.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const rowSelectionForCurrentPage = useMemo(() => {
+    const map: RowSelectionState = {};
+    for (const row of data?.data ?? []) if (selectedIds.has(row.id)) map[String(row.id)] = true;
+    return map;
+  }, [data, selectedIds]);
+
+  function handleRowSelectionChange(updater: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) {
+    const next = typeof updater === "function" ? updater(rowSelectionForCurrentPage) : updater;
+    setSelectedIds((current) => {
+      const merged = new Set(current);
+      const pageIds = new Set((data?.data ?? []).map((row) => row.id));
+      // Só ids da página atual podem ser adicionados/removidos por essa mudança — os de outras
+      // páginas, já guardados em `merged`, ficam intactos.
+      for (const id of pageIds) {
+        if (next[String(id)]) merged.add(id);
+        else merged.delete(id);
+      }
+      return merged;
+    });
+  }
+
+  async function handleBulkDelete() {
+    setIsBulkDeleting(true);
+    try {
+      const response = await fetch("/api/admin/looktypes/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [...selectedIds] }),
+      });
+      const responseData = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        toast.error(responseData?.error ?? "Não foi possível excluir os selecionados.");
+        return;
+      }
+
+      setSelectedIds(new Set());
+      mutate();
+
+      if (responseData.skippedCount > 0) {
+        toast.success(`${responseData.deletedCount} sprite(s) removida(s).`);
+        toast.error(`${responseData.skippedCount} não foram removidas por estarem vinculadas a algo (item/monstro/npc/vocação/spell).`);
+      } else {
+        toast.success(`${responseData.deletedCount} sprite(s) removida(s).`);
+      }
+    } catch {
+      toast.error("Falha de rede ao excluir os selecionados.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
 
   const filterFields: FilterFieldConfig[] = [
     {
@@ -198,8 +258,32 @@ export default function AdminLooktypesPage() {
         onApplyFilters={table.applyFilters}
         onClearFilters={table.clearFilters}
         toolbar={
-          <LooktypeCreateDialog onCreated={() => mutate()} trigger={<Button>Nova sprite / looktype</Button>} />
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <ConfirmDialog
+                trigger={
+                  <Button variant="destructive" disabled={isBulkDeleting}>
+                    <Trash2 className="size-4" />
+                    Excluir selecionados ({selectedIds.size})
+                  </Button>
+                }
+                title="Excluir sprites selecionadas"
+                description={`Isso vai remover ${selectedIds.size} sprite(s) (registro e frames em disco). Looktypes vinculados a algo (item/monstro/npc/vocação/spell) são pulados automaticamente. Esta ação não pode ser desfeita.`}
+                confirmLabel="Excluir"
+                onConfirm={handleBulkDelete}
+              />
+            )}
+            <LooktypeImportClientDialog
+              onImported={() => mutate()}
+              trigger={<Button variant="outline">Importar do cliente</Button>}
+            />
+            <LooktypeCreateDialog onCreated={() => mutate()} trigger={<Button>Nova sprite / looktype</Button>} />
+          </div>
         }
+        enableRowSelection
+        rowSelection={rowSelectionForCurrentPage}
+        onRowSelectionChange={handleRowSelectionChange}
+        getRowId={(row) => String(row.id)}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}

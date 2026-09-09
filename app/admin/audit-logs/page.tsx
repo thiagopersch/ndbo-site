@@ -8,17 +8,20 @@ import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/shared/data-table";
-import { AuditLogDetailsDialog } from "@/components/admin/audit-logs/audit-log-details-dialog";
+import { Badge } from "@/components/ui/badge";
+import {
+  AuditLogDetailsDialog,
+  isAuditLogError,
+  type AuditLogDetailsRow,
+} from "@/components/admin/audit-logs/audit-log-details-dialog";
 
-type AuditLogRow = {
-  id: number;
-  accountId: number | null;
-  action: string;
-  entity: string;
-  entityId: string | null;
-  metadata: unknown;
-  createdAt: string;
-};
+type AuditLogRow = AuditLogDetailsRow;
+
+function statusVariant(status: number | null): "secondary" | "default" | "destructive" {
+  if (status === null) return "secondary";
+  if (status >= 400) return "destructive";
+  return "default";
+}
 
 export default function AdminAuditLogsPage() {
   const table = useServerTable();
@@ -29,21 +32,51 @@ export default function AdminAuditLogsPage() {
   );
 
   const columns: ColumnDef<AuditLogRow>[] = [
-    { accessorKey: "createdAt", header: "Data", cell: ({ row }) => dayjs(row.original.createdAt).format("DD/MM/YYYY HH:mm:ss") },
-    { accessorKey: "accountId", header: "Conta (ID)" },
+    {
+      accessorKey: "createdAt",
+      header: "Data",
+      cell: ({ row }) => dayjs(row.original.createdAt).format("DD/MM/YYYY HH:mm:ss"),
+    },
+    {
+      id: "account",
+      header: "Conta",
+      cell: ({ row }) =>
+        row.original.accountName ??
+        (row.original.accountId != null ? `#${row.original.accountId}` : "—"),
+    },
     { accessorKey: "action", header: "Ação" },
     { accessorKey: "entity", header: "Entidade" },
     { accessorKey: "entityId", header: "ID do registro" },
+    { accessorKey: "pageName", header: "Página" },
+    { accessorKey: "method", header: "Método" },
+    {
+      id: "result",
+      header: "Resultado",
+      cell: ({ row }) => (
+        <Badge variant={isAuditLogError(row.original) ? "destructive" : "default"}>
+          {isAuditLogError(row.original) ? "Erro" : "Sucesso"}
+        </Badge>
+      ),
+    },
+    {
+      id: "statusCode",
+      header: "Status",
+      cell: ({ row }) =>
+        row.original.statusCode != null ? (
+          <Badge variant={statusVariant(row.original.statusCode)}>{row.original.statusCode}</Badge>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      id: "durationMs",
+      header: "Duração",
+      cell: ({ row }) => (row.original.durationMs != null ? `${row.original.durationMs} ms` : "—"),
+    },
     {
       id: "details",
       header: "Detalhes",
-      cell: ({ row }) => (
-        <AuditLogDetailsDialog
-          action={row.original.action}
-          entity={row.original.entity}
-          metadata={row.original.metadata}
-        />
-      ),
+      cell: ({ row }) => <AuditLogDetailsDialog {...row.original} />,
     },
   ];
 

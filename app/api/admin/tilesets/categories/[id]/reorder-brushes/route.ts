@@ -5,6 +5,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { logAudit } from "@/lib/audit";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -40,10 +41,7 @@ function buildBulkUpdateOrder(table: string, items: { id: number; order: number 
   return prisma.$executeRaw`UPDATE ${Prisma.raw(table)} SET tileset_order = CASE id ${cases} END WHERE id IN (${ids})`;
 }
 
-/** Persiste a ordem de exibição/exportação dos brushes (Ground/WallBrush/DoodadBrush)
- * vinculados a uma categoria — `tilesetOrder` é o que `tilesetCategoryToXmlCategory`
- * usa como `order` de cada `<brush>` no XML exportado/copiado. */
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -103,4 +101,4 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { EntityImageType } from "@/lib/entity-image";
@@ -9,6 +9,7 @@ import { LOOKTYPE_CATEGORY_LABELS, formatLooktypeOption, type LooktypeCategory }
 import { Button } from "@/components/ui/button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
+import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import type { EntityImageInfo } from "@/components/shared/use-entity-images";
 
 type EntityImageUploadProps = {
@@ -16,15 +17,24 @@ type EntityImageUploadProps = {
   id: number;
   name?: string;
   currentImage?: EntityImageInfo | null;
+  /** Notifica o caller (ex.: `EntityImageUploadDialog`) sempre que um upload/vínculo entra ou
+   * sai de andamento — usado para só bloquear o fechamento do dialog por clique fora enquanto
+   * uma requisição está de fato em voo. */
+  onBusyChange?: (busy: boolean) => void;
 };
 
 /** Upload imediato (independente do resto do form — a entidade já precisa existir, então esta
  * seção só aparece em modo de edição, nunca em "novo"). */
-export function EntityImageUpload({ entityType, id, name, currentImage }: EntityImageUploadProps) {
+export function EntityImageUpload({ entityType, id, name, currentImage, onBusyChange }: EntityImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [image, setImage] = useState<EntityImageInfo | null | undefined>(currentImage);
   const [isUploading, setIsUploading] = useState(false);
   const [showLooktypePicker, setShowLooktypePicker] = useState(false);
+
+  useEffect(() => {
+    onBusyChange?.(isUploading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage a mudanças de `isUploading`, `onBusyChange` não deve reexecutar o efeito
+  }, [isUploading]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -136,6 +146,19 @@ export function EntityImageUpload({ entityType, id, name, currentImage }: Entity
           formatOption={(lt) =>
             `${formatLooktypeOption(lt)} — ${LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}`
           }
+          renderOption={(lt) => (
+            <span className="flex items-center gap-2">
+              <LooktypeAnimatedImage
+                key={lt.id}
+                looktypeId={lt.id}
+                frameCount={lt.frameCount}
+                frameDurationsMs={lt.frameDurationsMs as number[]}
+                updatedAt={lt.updatedAt}
+                size="sm"
+              />
+              {formatLooktypeOption(lt)} — {LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}
+            </span>
+          )}
           onSelect={handleLinkLooktype}
         />
       )}

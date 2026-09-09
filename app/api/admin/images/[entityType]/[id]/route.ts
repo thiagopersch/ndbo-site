@@ -17,6 +17,7 @@ import type { LooktypeCategory } from "@/lib/validations/admin/looktype";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
 import { ObdParseError, parseObd } from "@/lib/obd/obd-parser";
 import { renderLooktypeFrames } from "@/lib/obd/obd-render";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ entityType: string; id: string }> };
 
@@ -162,7 +163,7 @@ async function clearLookTypeId(entityType: EntityImageType, entityId: number): P
   }
 }
 
-export async function POST(request: Request, { params }: Params) {
+export const POST = withAudit(async function POST(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -269,9 +270,9 @@ export async function POST(request: Request, { params }: Params) {
   return NextResponse.json({
     image: { entityType, entityId, extension: image.extension, updatedAt: image.updatedAt, looktype: null },
   });
-}
+});
 
-export async function DELETE(_request: Request, { params }: Params) {
+export const DELETE = withAudit(async function DELETE(_request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -305,4 +306,4 @@ export async function DELETE(_request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ success: true });
-}
+});

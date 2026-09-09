@@ -4,10 +4,11 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { houseUpdateSchema } from "@/lib/validations/admin/house";
+import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params) {
+export const GET = withAudit(async function GET(_request: Request, { params }: Params) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
@@ -24,9 +25,9 @@ export async function GET(_request: Request, { params }: Params) {
   const owner = house.owner > 0 ? await prisma.player.findUnique({ where: { id: house.owner }, select: { id: true, name: true } }) : null;
 
   return NextResponse.json({ house, owner });
-}
+});
 
-export async function PATCH(request: Request, { params }: Params) {
+export const PATCH = withAudit(async function PATCH(request: Request, { params }: Params) {
   const { session, response } = await requireAdminSession();
   if (response) return response;
 
@@ -67,4 +68,4 @@ export async function PATCH(request: Request, { params }: Params) {
   });
 
   return NextResponse.json({ house });
-}
+});
