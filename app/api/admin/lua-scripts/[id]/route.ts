@@ -42,13 +42,30 @@ export const PATCH = withAudit(async function PATCH(request: Request, { params }
     );
   }
 
-  if (parsed.data.name) {
+  if (parsed.data.name || parsed.data.category) {
+    const current = await prisma.luaScript.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!current) {
+      return NextResponse.json(
+        { error: "Script não encontrado." },
+        { status: 404 },
+      );
+    }
+
+    const effectiveName = parsed.data.name ?? current.name;
+    const effectiveCategory = parsed.data.category ?? current.category;
+
     const duplicate = await prisma.luaScript.findFirst({
-      where: { name: parsed.data.name, NOT: { id: Number(id) } },
+      where: {
+        name: effectiveName,
+        category: effectiveCategory,
+        NOT: { id: Number(id) },
+      },
     });
     if (duplicate) {
       return NextResponse.json(
-        { error: "Já existe um script com esse nome." },
+        { error: "Já existe um script com esse nome nessa categoria." },
         { status: 409 },
       );
     }

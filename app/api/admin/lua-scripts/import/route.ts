@@ -34,44 +34,67 @@ export const POST = withAudit(async function POST(request: Request) {
     );
   }
 
+  const batchId = crypto.randomUUID();
+
   let imported = 0;
   let skipped = 0;
-  const errors: string[] = [];
+  const skippedFiles: { fileName: string; reason: string }[] = [];
 
   for (const file of files) {
     if (!file.name.endsWith(".lua")) {
       skipped += 1;
-      errors.push(`${file.name}: não é um arquivo .lua`);
+      skippedFiles.push({ fileName: file.name, reason: "Não é um arquivo .lua." });
       continue;
     }
 
     const content = await file.text();
     const existing = await prisma.luaScript.findUnique({
-      where: { name: file.name },
+      where: { name_category: { name: file.name, category } },
     });
 
     if (existing && !replaceExisting) {
       skipped += 1;
-      errors.push(
-        `${file.name}: já existe (marque "substituir" para sobrescrever)`,
-      );
+      skippedFiles.push({
+        fileName: file.name,
+        reason: `Já existe um script com esse nome na categoria "${category}" (marque "substituir" para sobrescrever).`,
+      });
       continue;
     }
 
     await prisma.luaScript.upsert({
-      where: { name: file.name },
+      where: { name_category: { name: file.name, category } },
       update: { content, category },
       create: { name: file.name, content, category },
     });
     imported += 1;
   }
 
+  // Uma linha de auditoria por arquivo ignorado, com o motivo estruturado — mesmo padrão do
+  // import de looktypes (`app/api/admin/looktypes/import-log/route.ts`), em lote (`createMany`)
+  // para não abrir N inserts em paralelo por request.
+  if (skippedFiles.length > 0) {
+    await prisma.auditLog.createMany({
+      data: skippedFiles.map((entry) => ({
+        accountId: Number(session.user.id),
+        action: "import_skip",
+        entity: "lua_script",
+        entityId: entry.fileName.slice(0, 100),
+        metadata: { ...entry, category, replaceExisting, batchId },
+      })),
+    });
+  }
+
   await logAudit({
     accountId: Number(session.user.id),
     action: "import",
     entity: "lua_script",
-    metadata: { imported, skipped, category, replaceExisting },
+    metadata: { imported, skipped, category, replaceExisting, batchId },
   });
 
-  return NextResponse.json({ imported, skipped, errors: errors.slice(0, 50) });
+  return NextResponse.json({
+    imported,
+    skipped,
+    skippedFiles: skippedFiles.slice(0, 50),
+    batchId,
+  });
 });

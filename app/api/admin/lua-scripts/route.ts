@@ -51,11 +51,13 @@ export const POST = withAudit(async function POST(request: Request) {
   }
 
   const existing = await prisma.luaScript.findUnique({
-    where: { name: parsed.data.name },
+    where: {
+      name_category: { name: parsed.data.name, category: parsed.data.category },
+    },
   });
   if (existing) {
     return NextResponse.json(
-      { error: "Já existe um script com esse nome." },
+      { error: "Já existe um script com esse nome nessa categoria." },
       { status: 409 },
     );
   }

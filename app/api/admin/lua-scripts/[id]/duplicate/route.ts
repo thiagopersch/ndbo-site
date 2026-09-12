@@ -22,7 +22,10 @@ export const POST = withAudit(async function POST(_request: Request, { params }:
   const name = await uniqueCopyName(
     source.name,
     async (candidate) =>
-      (await prisma.luaScript.findUnique({ where: { name: candidate }, select: { id: true } })) != null,
+      (await prisma.luaScript.findUnique({
+        where: { name_category: { name: candidate, category: source.category } },
+        select: { id: true },
+      })) != null,
   );
 
   const { id: _id, name: _name, createdAt, updatedAt, ...rest } = source;

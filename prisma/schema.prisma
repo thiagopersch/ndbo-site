@@ -1622,8 +1622,10 @@ model Movement {
 /// si nunca lê `content`, é só armazenamento/organização dentro do portal.
 model LuaScript {
   id       Int    @id @default(autoincrement())
-  name     String @unique @db.VarChar(255)
-  content  String @db.Text
+  /// Único por categoria (não globalmente) — o mesmo nome de arquivo pode existir em
+  /// pastas de scripts diferentes (ex.: `login.lua` em "actions" e em "npc").
+  name     String @db.VarChar(255)
+  content  String @db.LongText
   /// Pasta de scripts do OTServer a que pertence (actions, creaturescripts, globalevents,
   /// lib, movements, npc, raids, spells, talkactions, weapons, mods) — obrigatório,
   /// principalmente exigido no import de arquivo `.lua`.
@@ -1635,6 +1637,7 @@ model LuaScript {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([name, category])
   @@index([category])
   @@map("lua_scripts")
 }

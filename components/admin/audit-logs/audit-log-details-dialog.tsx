@@ -93,7 +93,7 @@ function ImportSkipDetails({ metadata }: { metadata: Record<string, unknown> }) 
     ["Número", metadata.looktypeNumber],
     ["Categoria", metadata.category],
     ["Sessão de import", metadata.batchId],
-  ];
+  ].filter((row): row is [string, unknown] => row[1] !== undefined);
 
   return (
     <div className="flex flex-col gap-3 text-sm">

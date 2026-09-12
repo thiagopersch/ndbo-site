@@ -79,8 +79,17 @@ export function LuaScriptImportDialog({
       `${data.imported} script(s) importado(s)${data.skipped ? `, ${data.skipped} ignorado(s)` : ""}.`,
     );
 
-    if (data.errors?.length) {
-      console.warn("Scripts ignorados na importação:", data.errors);
+    const skippedFiles: { fileName: string; reason: string }[] = data.skippedFiles ?? [];
+    if (skippedFiles.length > 0) {
+      const MAX_REASONS_IN_TOAST = 3;
+      const preview = skippedFiles
+        .slice(0, MAX_REASONS_IN_TOAST)
+        .map((entry) => `${entry.fileName}: ${entry.reason}`)
+        .join(" · ");
+      const remaining = skippedFiles.length - MAX_REASONS_IN_TOAST;
+      const suffix =
+        remaining > 0 ? ` e mais ${remaining} arquivo(s) (veja detalhes em Auditoria)` : "";
+      toast.error(`Arquivo(s) ignorado(s): ${preview}${suffix}.`);
     }
 
     setOpen(false);
