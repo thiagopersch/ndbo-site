@@ -36,6 +36,7 @@ export default async function EditNpcPage({
     posY: npc.posY,
     posZ: npc.posZ,
     direction: npc.direction,
+    walkinterval: npc.walkinterval,
     lookHead: npc.lookHead,
     lookBody: npc.lookBody,
     lookLegs: npc.lookLegs,

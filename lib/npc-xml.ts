@@ -26,13 +26,32 @@ function buildShopList(items: NpcInput["shopItems"], direction: "buy" | "sell"):
   return lines.join(";\n               ");
 }
 
+/** Nome do arquivo `.lua` referenciado pelo atributo `script=` do XML (e gravado em disco por
+ * `writeNpcFiles`). Com `scriptId` vinculado, usa o nome real do `LuaScript` selecionado no
+ * combobox (`linkedScriptName`) — não o nome do NPC — pra que o atributo reflita exatamente o
+ * arquivo escolhido pelo admin. Sem `scriptId`: Loja usa o `default.lua` de estoque do servidor;
+ * Quest/Outro usa um `.lua` autogerado com o nome do próprio NPC (`ownScriptFile`). Exportada
+ * pra ser reaproveitada por `lib/npc-generator.ts` (mesma regra pro caminho físico do arquivo). */
+export function resolveScriptFile(
+  npc: Pick<NpcInput, "type" | "scriptId">,
+  linkedScriptName: string | null | undefined,
+  ownScriptFile: string,
+): string {
+  if (npc.scriptId) return linkedScriptName ?? ownScriptFile;
+  return npc.type === "shop" ? "default.lua" : ownScriptFile;
+}
+
 /** Montagem pura do XML (sem I/O) — usada tanto na pré-visualização client-side (`NpcForm`)
  * quanto na gravação real dos arquivos (`lib/npc-generator.ts`).
  * @param looktypeNumber Número da sprite no Object Builder (`Looktype.looktypeNumber`) — não
  * confundir com `npc.lookTypeId`, que é o id do registro no cadastro de looktypes. O jogo/client
  * lê `type=` como esse número, então usar o id do registro faria o NPC aparecer com o outfit
  * errado (mesmo padrão de `looktypeNumber` em `monster-xml.ts`/`monsterToXml`). */
-export function buildNpcXml(npc: NpcInput, looktypeNumber: number | null = null): string {
+export function buildNpcXml(
+  npc: NpcInput,
+  looktypeNumber: number | null = null,
+  linkedScriptName: string | null = null,
+): string {
   const name = xmlEscape(npc.name);
   const lookType = looktypeNumber ?? 0;
 
@@ -41,6 +60,11 @@ export function buildNpcXml(npc: NpcInput, looktypeNumber: number | null = null)
     const sellable = buildShopList(npc.shopItems, "sell");
     const messages = npc.defaultMessages ?? {};
     const greet = xmlEscape(messages.message_greet || DEFAULT_GREET);
+    /** Loja sem script vinculado usa o `default.lua` de estoque do servidor (módulo de loja
+     * nativo); com `scriptId`, referencia o `.lua` do script vinculado — nesse caso o script do
+     * admin é responsável por chamar `NpcSystem.parseParameters(npcHandler)` e adicionar o
+     * `ShopModule` pra manter compra/venda funcionando. */
+    const scriptFile = resolveScriptFile(npc, linkedScriptName, `${name}.lua`);
 
     const extraMessageParams = NPC_DEFAULT_MESSAGE_KEYS.filter((entry) => entry.key !== "message_greet")
       .filter((entry) => messages[entry.key])
@@ -48,7 +72,7 @@ export function buildNpcXml(npc: NpcInput, looktypeNumber: number | null = null)
       .join("");
 
     return `<?xml version="1.0" encoding="UTF-8"?>
-<npc name="${name}" script="default.lua" walkinterval="2000" floorchange="0">
+<npc name="${name}" script="${scriptFile}" walkinterval="${npc.walkinterval}" floorchange="0">
    <health now="100" max="100" />
    <look type="${lookType}" head="${npc.lookHead}" body="${npc.lookBody}" legs="${npc.lookLegs}" feet="${npc.lookFeet}" addons="${npc.lookAddons}" />
    <parameters>
@@ -59,13 +83,38 @@ export function buildNpcXml(npc: NpcInput, looktypeNumber: number | null = null)
 `;
   }
 
-  const scriptFile = `${npc.name}.lua`;
+  const scriptFile = resolveScriptFile(npc, linkedScriptName, `${name}.lua`);
   return `<?xml version="1.0" encoding="UTF-8"?>
-<npc name="${name}" script="${scriptFile}" walkinterval="2000" floorchange="0">
+<npc name="${name}" script="${scriptFile}" walkinterval="${npc.walkinterval}" floorchange="0">
    <health now="100" max="100" />
    <look type="${lookType}" head="${npc.lookHead}" body="${npc.lookBody}" legs="${npc.lookLegs}" feet="${npc.lookFeet}" addons="${npc.lookAddons}" />
 </npc>
 `;
+}
+
+/** NPC precisa de um `.lua` próprio gravado em disco — mesma condição usada por `writeNpcFiles`
+ * (`lib/npc-generator.ts`) e pelo painel de pré-visualização do script em `NpcForm`: todo NPC
+ * não-Loja tem um `.lua` (vinculado ou autogerado), e uma Loja só tem quando vincula um script
+ * customizado (sem isso, usa o `default.lua` de estoque do servidor, sem arquivo próprio). */
+export function needsOwnScript(npc: Pick<NpcInput, "type" | "scriptId">): boolean {
+  return npc.type !== "shop" || npc.scriptId != null;
+}
+
+/** Conteúdo do `.lua` que será gravado em `data/npc/scripts/` — mesma regra usada por
+ * `writeNpcFiles` (`lib/npc-generator.ts`), extraída aqui pra ser reaproveitada também no
+ * preview client-side (`NpcForm`) sem duplicar a lógica. Com `scriptId` vinculado, o conteúdo do
+ * script escolhido é usado *verbatim* — nesse caso as "Mensagens padrão" (`defaultMessages`) e
+ * "Falas ambiente" (`customMessages`) configuradas no formulário não têm efeito nenhum, já que
+ * `buildDefaultNpcScript`/`buildNpcScriptWithMessages` nem chegam a ser chamadas. */
+export function resolveScriptContent(
+  npc: Pick<NpcInput, "type" | "scriptId" | "customMessages" | "defaultMessages">,
+  linkedScriptContent: string | null | undefined,
+): string {
+  if (npc.scriptId) return linkedScriptContent ?? "";
+  if (npc.type === "shop") return "";
+  return npc.customMessages.length > 0
+    ? buildNpcScriptWithMessages(npc.customMessages, npc.defaultMessages)
+    : buildDefaultNpcScript(npc.defaultMessages);
 }
 
 function luaStringLiteral(value: string): string {

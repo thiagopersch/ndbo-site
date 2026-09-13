@@ -80,6 +80,9 @@ export function parseNpcXml(xml: string): ParseNpcXmlResult {
     return Number.isFinite(value) ? value : fallback;
   };
 
+  const walkintervalValue = Number(str(a(raw, "walkinterval")));
+  const walkinterval = Number.isFinite(walkintervalValue) ? walkintervalValue : 2000;
+
   const parametersNode = raw.parameters as XmlNode | undefined;
   const parameters = asArray(parametersNode?.parameter);
   const isShop = findParam(parameters, "module_shop") === "1";
@@ -106,6 +109,7 @@ export function parseNpcXml(xml: string): ParseNpcXmlResult {
     posY: 0,
     posZ: 7,
     direction: 2,
+    walkinterval,
     lookHead: lookInt("head", 0),
     lookBody: lookInt("body", 0),
     lookLegs: lookInt("legs", 0),

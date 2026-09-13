@@ -1820,6 +1820,9 @@ model Npc {
   posY            Int        @default(0) @map("pos_y")
   posZ            Int        @default(0) @map("pos_z")
   direction       Int        @default(2)
+  /// Intervalo (ms) entre passos aleatórios do NPC parado — usado no atributo `walkinterval`
+  /// do XML gerado (`lib/npc-xml.ts`).
+  walkinterval    Int        @default(2000)
   lookHead        Int        @default(0) @map("look_head")
   lookBody        Int        @default(0) @map("look_body")
   lookLegs        Int        @default(0) @map("look_legs")

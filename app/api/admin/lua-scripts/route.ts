@@ -17,7 +17,14 @@ export const GET = withAudit(async function GET(request: Request) {
   const category = url.searchParams.get("category");
 
   const where: Prisma.LuaScriptWhereInput = {
-    ...(search ? { name: { contains: search } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search } },
+            ...(Number.isInteger(Number(search)) ? [{ id: Number(search) }] : []),
+          ],
+        }
+      : {}),
     ...(category ? { category } : {}),
   };
 

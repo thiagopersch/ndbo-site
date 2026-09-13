@@ -6,10 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import useSWR from "swr";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
-import { buildNpcXml } from "@/lib/npc-xml";
+import { buildNpcXml, needsOwnScript, resolveScriptContent } from "@/lib/npc-xml";
 import { npcSchema, NPC_TYPES, type NpcInput, type NpcShopItemInput } from "@/lib/validations/admin/npc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,8 @@ import {
 } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NumberField } from "@/components/shared/number-field";
+import { OptionRadioField } from "@/components/shared/option-radio-field";
+import { TibiaColorPickerField } from "@/components/shared/tibia-color-picker-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { OutfitColorPreview } from "@/components/shared/outfit-color-preview";
@@ -34,6 +37,7 @@ import { NpcCustomMessageListField } from "@/components/admin/npcs/npc-custom-me
 import { NpcDefaultMessageFields } from "@/components/admin/npcs/npc-default-message-fields";
 import { NpcShopItemListField } from "@/components/admin/npcs/npc-shop-item-list-field";
 import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
+import { LuaScriptPreviewCard } from "@/components/shared/lua-script-preview-card";
 import { formatLooktypeOption } from "@/lib/validations/admin/looktype";
 
 type LooktypeRow = {
@@ -49,7 +53,7 @@ type LooktypeRow = {
 };
 
 type TownRow = { id: number; name: string };
-type LuaScriptRow = { id: number; name: string };
+type LuaScriptRow = { id: number; name: string; content: string };
 
 const NPC_TYPE_LABELS: Record<(typeof NPC_TYPES)[number], string> = {
   shop: "Loja (vende/compra itens, sem script customizado)",
@@ -66,6 +70,7 @@ const defaultValues: NpcInput = {
   posY: 0,
   posZ: 7,
   direction: 2,
+  walkinterval: 0,
   lookHead: 0,
   lookBody: 0,
   lookLegs: 0,
@@ -104,6 +109,7 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
   const watched = useWatch({ control: form.control });
   const type = watched.type;
   const lookTypeId = watched.lookTypeId;
+  const scriptId = watched.scriptId;
 
   const { data: selectedLooktypeData } = useSWR<PaginatedResult<LooktypeRow>>(
     lookTypeId ? `/api/admin/looktypes?search=${lookTypeId}&pageSize=5` : null,
@@ -111,10 +117,15 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
   );
   const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === lookTypeId) ?? null;
 
-  const previewXml = buildNpcXml(
-    { ...defaultValues, ...watched } as NpcInput,
-    selectedLooktype?.looktypeNumber ?? null,
+  const { data: selectedScriptData } = useSWR<PaginatedResult<LuaScriptRow>>(
+    scriptId ? `/api/admin/lua-scripts?search=${scriptId}&pageSize=5` : null,
+    fetcher,
   );
+  const selectedScript = selectedScriptData?.data.find((row) => row.id === scriptId) ?? null;
+
+  const previewNpc = { ...defaultValues, ...watched } as NpcInput;
+  const previewXml = buildNpcXml(previewNpc, selectedLooktype?.looktypeNumber ?? null, selectedScript?.name ?? null);
+  const previewScriptContent = resolveScriptContent(previewNpc, selectedScript?.content ?? null);
 
   async function handleSubmit(values: NpcInput) {
     const response = await fetch(npcId ? `/api/admin/npcs/${npcId}` : "/api/admin/npcs", {
@@ -166,194 +177,284 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
             </TabsList>
 
             <TabsContent value="identification" className="flex flex-col gap-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled={Boolean(npcId)} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormItem>
-                  <FormLabel>Looktype (sprite)</FormLabel>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <EntitySearchCombobox<LooktypeRow>
-                        endpoint="/api/admin/looktypes?category=outfit"
-                        value={lookTypeId || null}
-                        placeholder="Buscar looktype..."
-                        formatOption={(lt) => formatLooktypeOption(lt)}
-                        renderOption={(lt) => (
-                          <span className="flex items-center gap-2">
-                            <LooktypeAnimatedImage
-                              key={lt.id}
-                              looktypeId={lt.id}
-                              frameCount={lt.frameCount}
-                              frameDurationsMs={lt.frameDurationsMs}
-                              updatedAt={lt.updatedAt}
-                              size="sm"
-                            />
-                            {formatLooktypeOption(lt)}
-                          </span>
-                        )}
-                        onSelect={(lt) => form.setValue("lookTypeId", lt?.id ?? 0)}
-                      />
-                    </div>
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/20">
-                      {selectedLooktype ? (
-                        <OutfitColorPreview
-                          key={selectedLooktype.id}
-                          looktypeId={selectedLooktype.id}
-                          frameCount={selectedLooktype.frameCount}
-                          frameDurationsMs={selectedLooktype.frameDurationsMs}
-                          updatedAt={selectedLooktype.updatedAt}
-                          directions={selectedLooktype.directions}
-                          hasColorMask={selectedLooktype.hasColorMask}
-                          addonSlots={selectedLooktype.addonSlots}
-                          direction={watched.direction ?? 2}
-                          addons={watched.lookAddons ?? 0}
-                          headColor={watched.lookHead ?? 0}
-                          bodyColor={watched.lookBody ?? 0}
-                          legsColor={watched.lookLegs ?? 0}
-                          feetColor={watched.lookFeet ?? 0}
-                          size="sm"
-                        />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Identificação</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome</FormLabel>
+                          <FormControl>
+                            <Input {...field} disabled={Boolean(npcId)} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                    </div>
-                  </div>
-                </FormItem>
+                    />
 
-                <NumberField
-                  control={form.control}
-                  name="direction"
-                  label="Direção (0-3)"
-                  tooltip="Direção que o NPC olha ao spawnar: 0 = Norte, 1 = Leste, 2 = Sul, 3 = Oeste."
-                  min={0}
-                  max={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-5 gap-2">
-                <NumberField control={form.control} name="lookHead" label="Cabeça (Head)" />
-                <NumberField control={form.control} name="lookBody" label="Corpo (Body)" />
-                <NumberField control={form.control} name="lookLegs" label="Pernas (Legs)" />
-                <NumberField control={form.control} name="lookFeet" label="Pés (Feet)" />
-                <NumberField control={form.control} name="lookAddons" label="Addons" />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-1.5">
-                        Tipo
-                        <FieldTooltip text="Shop: interface de loja nativa, sem script customizado. Quest/Outro: usa o Script Lua abaixo." />
+                        Script Lua
+                        {type === "shop" && (
+                          <FieldTooltip text="Ao vincular um script customizado a um NPC de Loja, seu script substitui o default.lua — inclua NpcSystem.parseParameters(npcHandler) e o módulo de loja (ShopModule) para manter compra/venda funcionando." />
+                        )}
                       </FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Selecione o tipo" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {NPC_TYPES.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {NPC_TYPE_LABELS[t]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
+                      <ScriptLuaField value={watched.scriptId ?? null} onChange={(id) => form.setValue("scriptId", id)} />
                     </FormItem>
-                  )}
-                />
+                  </div>
 
-                <FormItem>
-                  <FormLabel className="flex items-center gap-1.5">
-                    Cidade
-                    <FieldTooltip text="Cidade (town) associada ao spawn do NPC — usado para agrupar NPCs por região no cliente/servidor, não afeta a posição real." />
-                  </FormLabel>
-                  <EntitySearchCombobox<TownRow>
-                    endpoint="/api/admin/towns"
-                    value={null}
-                    placeholder={watched.town || "Buscar cidade..."}
-                    formatOption={(town) => town.name}
-                    onSelect={(town) => form.setValue("town", town?.name ?? "")}
-                  />
-                </FormItem>
-              </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1.5">
+                            Tipo
+                            <FieldTooltip text="Shop: interface de loja nativa, sem script customizado. Quest/Outro: usa o Script Lua acima." />
+                          </FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {NPC_TYPES.map((t) => (
+                                <SelectItem key={t} value={t}>
+                                  {NPC_TYPE_LABELS[t]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-              <div>
-                <p className="mb-2 text-sm font-medium">Posições</p>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <NumberField
+                    <NumberField
+                      control={form.control}
+                      name="walkinterval"
+                      label="Intervalo de passos (ms)"
+                      tooltip="Intervalo (ms) entre passos aleatórios do NPC parado — 2000 é o padrão do Tibia."
+                      min={0}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Aparência (Outfit)</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <FormItem>
+                    <FormLabel>Looktype (sprite)</FormLabel>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <EntitySearchCombobox<LooktypeRow>
+                          endpoint="/api/admin/looktypes?category=outfit"
+                          value={lookTypeId || null}
+                          placeholder="Buscar looktype..."
+                          formatOption={(lt) => formatLooktypeOption(lt)}
+                          renderOption={(lt) => (
+                            <span className="flex items-center gap-2">
+                              <LooktypeAnimatedImage
+                                key={lt.id}
+                                looktypeId={lt.id}
+                                frameCount={lt.frameCount}
+                                frameDurationsMs={lt.frameDurationsMs}
+                                updatedAt={lt.updatedAt}
+                                size="sm"
+                              />
+                              {formatLooktypeOption(lt)}
+                            </span>
+                          )}
+                          onSelect={(lt) => form.setValue("lookTypeId", lt?.id ?? 0)}
+                        />
+                      </div>
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/20">
+                        {selectedLooktype ? (
+                          <OutfitColorPreview
+                            key={selectedLooktype.id}
+                            looktypeId={selectedLooktype.id}
+                            frameCount={selectedLooktype.frameCount}
+                            frameDurationsMs={selectedLooktype.frameDurationsMs}
+                            updatedAt={selectedLooktype.updatedAt}
+                            directions={selectedLooktype.directions}
+                            hasColorMask={selectedLooktype.hasColorMask}
+                            addonSlots={selectedLooktype.addonSlots}
+                            direction={watched.direction ?? 2}
+                            addons={watched.lookAddons ?? 0}
+                            headColor={watched.lookHead ?? 0}
+                            bodyColor={watched.lookBody ?? 0}
+                            legsColor={watched.lookLegs ?? 0}
+                            feetColor={watched.lookFeet ?? 0}
+                            size="sm"
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </div>
+                  </FormItem>
+
+                  <OptionRadioField
                     control={form.control}
-                    name="posX"
-                    label="Posição X"
-                    tooltip="Coordenada X do tile onde o NPC nasce no mapa (mesmo sistema de coordenadas do mapa OTBM)."
+                    name="direction"
+                    label="Direção"
+                    tooltip="Direção que o NPC olha ao spawnar."
+                    orientation="horizontal"
+                    options={[
+                      { value: 0, label: "Norte" },
+                      { value: 1, label: "Leste" },
+                      { value: 2, label: "Sul" },
+                      { value: 3, label: "Oeste" },
+                    ]}
                   />
-                  <NumberField
+
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <TibiaColorPickerField
+                      control={form.control}
+                      name="lookHead"
+                      label="Cabeça (Head)"
+                      tooltip="Cabeça (Head): tinge o cabelo/capacete — cor 'Cabeça' no diálogo de outfit do cliente Tibia."
+                    />
+                    <TibiaColorPickerField
+                      control={form.control}
+                      name="lookBody"
+                      label="Corpo (Body)"
+                      tooltip="Corpo (Body): tinge o torso da sprite — cor 'Primária' no diálogo de outfit do cliente Tibia."
+                    />
+                    <TibiaColorPickerField
+                      control={form.control}
+                      name="lookLegs"
+                      label="Pernas (Legs)"
+                      tooltip="Pernas (Legs): tinge as pernas da sprite — cor 'Secundária' no diálogo de outfit do cliente Tibia."
+                    />
+                    <TibiaColorPickerField
+                      control={form.control}
+                      name="lookFeet"
+                      label="Pés (Feet)"
+                      tooltip="Pés (Feet): tinge os pés/calçado da sprite — cor 'Detalhe' no diálogo de outfit do cliente Tibia."
+                    />
+                  </div>
+
+                  <OptionRadioField
                     control={form.control}
-                    name="posY"
-                    label="Posição Y"
-                    tooltip="Coordenada Y do tile onde o NPC nasce no mapa."
+                    name="lookAddons"
+                    label="Addons"
+                    tooltip="Addons desbloqueados no outfit — não é uma cor, é uma combinação (bitmask) das 2 peças de addon."
+                    orientation="horizontal"
+                    options={[
+                      { value: 0, label: "Nenhum" },
+                      { value: 1, label: "Addon 1" },
+                      { value: 2, label: "Addon 2" },
+                      { value: 3, label: "Ambos" },
+                    ]}
                   />
-                  <NumberField
-                    control={form.control}
-                    name="posZ"
-                    label="Posição Z"
-                    tooltip="Andar/piso (floor) onde o NPC nasce — 7 é o nível do solo padrão; valores menores são andares superiores, maiores são subterrâneos."
-                  />
-                </div>
-              </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Posição</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1.5">
+                      Cidade
+                      <FieldTooltip text="Cidade (town) associada ao spawn do NPC — usado para agrupar NPCs por região no cliente/servidor, não afeta a posição real." />
+                    </FormLabel>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <EntitySearchCombobox<TownRow>
+                          endpoint="/api/admin/towns"
+                          value={null}
+                          placeholder={watched.town || "Buscar cidade..."}
+                          formatOption={(town) => town.name}
+                          onSelect={(town) => form.setValue("town", town?.name ?? "")}
+                        />
+                      </div>
+                      {Boolean(watched.town) && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Limpar cidade"
+                          onClick={() => form.setValue("town", "")}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </FormItem>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <NumberField
+                      control={form.control}
+                      name="posX"
+                      label="Posição X"
+                      tooltip="Coordenada X do tile onde o NPC nasce no mapa (mesmo sistema de coordenadas do mapa OTBM)."
+                    />
+                    <NumberField
+                      control={form.control}
+                      name="posY"
+                      label="Posição Y"
+                      tooltip="Coordenada Y do tile onde o NPC nasce no mapa."
+                    />
+                    <NumberField
+                      control={form.control}
+                      name="posZ"
+                      label="Posição Z"
+                      tooltip="Andar/piso (floor) onde o NPC nasce — 7 é o nível do solo padrão; valores menores são andares superiores, maiores são subterrâneos."
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="messages" className="flex flex-col gap-4">
-              <div className="rounded-md border p-4">
-                <NpcDefaultMessageFields
-                  control={form.control}
-                  name="defaultMessages"
-                  onChange={(key, value) =>
-                    form.setValue("defaultMessages", { ...form.getValues("defaultMessages"), [key]: value })
-                  }
-                />
-              </div>
-
-              {type !== "shop" && (
-                <FormItem>
-                  <FormLabel>Script Lua</FormLabel>
-                  <ScriptLuaField value={watched.scriptId ?? null} onChange={(id) => form.setValue("scriptId", id)} />
-                </FormItem>
-              )}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Mensagens padrão</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NpcDefaultMessageFields
+                    control={form.control}
+                    name="defaultMessages"
+                    onChange={(key, value) =>
+                      form.setValue("defaultMessages", { ...form.getValues("defaultMessages"), [key]: value })
+                    }
+                  />
+                </CardContent>
+              </Card>
 
               {type !== "shop" && !watched.scriptId && (
-                <div className="flex flex-col gap-2 rounded-md border p-4">
-                  <div>
-                    <h3 className="font-medium">Falas ambiente</h3>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Falas ambiente</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-2">
                     <p className="text-sm text-muted-foreground">
                       Mensagens que o NPC diz espontaneamente (independente de conversa), igual aos
                       NPCs do Tibia Global — cada uma com seu próprio intervalo e chance.
                     </p>
-                  </div>
-                  <NpcCustomMessageListField control={form.control} name="customMessages" />
-                </div>
+                    <NpcCustomMessageListField control={form.control} name="customMessages" />
+                  </CardContent>
+                </Card>
               )}
 
               {type === "shop" && (
                 <p className="text-sm text-muted-foreground">
-                  NPCs do tipo Loja usam a interface de loja nativa (sem script customizado) — falas
-                  ambiente e script Lua não se aplicam a esse tipo.
+                  NPCs do tipo Loja usam a interface de loja nativa por padrão — falas ambiente não
+                  se aplicam a esse tipo, mas um script Lua pode ser vinculado na aba Identificador
+                  se desejado.
                 </p>
               )}
             </TabsContent>
@@ -376,6 +477,19 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
 
       <div className="flex flex-col gap-6 lg:sticky lg:top-6">
         <XmlPreviewCard value={previewXml} />
+
+        {needsOwnScript(previewNpc) && (
+          <div className="flex flex-col gap-2">
+            {scriptId && (
+              <p className="text-sm text-muted-foreground">
+                Conteúdo do script vinculado ({selectedScript?.name ?? "carregando..."}) — as
+                Mensagens padrão gerais não têm efeito aqui; inclua suas próprias chamadas{" "}
+                <code>npcHandler:setMessage(...)</code> diretamente no script se precisar delas.
+              </p>
+            )}
+            <LuaScriptPreviewCard value={previewScriptContent} />
+          </div>
+        )}
 
         <Card className="h-fit">
           <CardHeader>

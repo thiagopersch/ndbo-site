@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
 import type { NpcInput } from "@/lib/validations/admin/npc";
-import { buildDefaultNpcScript, buildNpcScriptWithMessages, buildNpcXml } from "@/lib/npc-xml";
+import { buildNpcXml, needsOwnScript, resolveScriptContent, resolveScriptFile } from "@/lib/npc-xml";
 
 export { buildNpcXml };
 
@@ -22,7 +22,8 @@ export function getNpcDataPath(): string {
  * para manter só no banco como o resto do admin (tasks/lua-scripts).
  *
  * O conteúdo do script Lua vem do cadastro de Script Lua (`npc.scriptId`) — o NPC só referencia
- * um script já existente, não escreve conteúdo próprio.
+ * um script já existente, não escreve conteúdo próprio. Exceção: NPCs "shop" sem `scriptId`
+ * usam o `default.lua` de estoque do servidor e não têm arquivo próprio gravado.
  */
 export async function writeNpcFiles(npc: NpcInput): Promise<void> {
   const dataPath = getNpcDataPath();
@@ -30,23 +31,29 @@ export async function writeNpcFiles(npc: NpcInput): Promise<void> {
     where: { id: npc.lookTypeId },
     select: { looktypeNumber: true },
   });
-  const xmlPath = path.join(dataPath, "npc", `${npc.name}.xml`);
-  await fs.writeFile(xmlPath, buildNpcXml(npc, looktype?.looktypeNumber ?? null), "utf-8");
+  const linkedScript = npc.scriptId
+    ? await prisma.luaScript.findUnique({ where: { id: npc.scriptId }, select: { content: true, name: true } })
+    : null;
 
-  if (npc.type !== "shop") {
+  const xmlPath = path.join(dataPath, "npc", `${npc.name}.xml`);
+  await fs.writeFile(
+    xmlPath,
+    buildNpcXml(npc, looktype?.looktypeNumber ?? null, linkedScript?.name ?? null),
+    "utf-8",
+  );
+
+  if (needsOwnScript(npc)) {
     const scriptsDir = path.join(dataPath, "npc", "scripts");
-    const scriptPath = path.join(scriptsDir, `${npc.name}.lua`);
+    // Com `scriptId` vinculado, grava sob o nome real do script (compartilhado entre NPCs que
+    // referenciam o mesmo `LuaScript`, sempre com o mesmo conteúdo) em vez de renomear pro nome
+    // do NPC — `path.basename` sanitiza contra `LuaScript.name` com separadores de diretório
+    // (campo de texto livre no CRUD simples, sem I/O próprio que force essa convenção).
+    const scriptFileName = path.basename(resolveScriptFile(npc, linkedScript?.name, `${npc.name}.lua`));
+    const scriptPath = path.join(scriptsDir, scriptFileName);
     await fs.mkdir(scriptsDir, { recursive: true });
 
-    const linkedScript = npc.scriptId
-      ? await prisma.luaScript.findUnique({ where: { id: npc.scriptId }, select: { content: true } })
-      : null;
-    const scriptContent =
-      linkedScript?.content ??
-      (npc.customMessages.length > 0
-        ? buildNpcScriptWithMessages(npc.customMessages, npc.defaultMessages)
-        : buildDefaultNpcScript(npc.defaultMessages));
-    await fs.writeFile(scriptPath, scriptContent, "utf-8");
+    const scriptContent = resolveScriptContent(npc, linkedScript?.content);
+    if (scriptContent) await fs.writeFile(scriptPath, scriptContent, "utf-8");
   }
 }
 

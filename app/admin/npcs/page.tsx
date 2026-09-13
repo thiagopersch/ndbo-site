@@ -14,6 +14,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { OutfitColorThumbById } from "@/components/shared/outfit-color-thumb-by-id";
 import { NpcXmlImportDialog } from "@/components/admin/npcs/npc-xml-import-dialog";
+import { NpcShopItemsPreview } from "@/components/admin/npcs/npc-shop-items-preview";
 
 type NpcRow = {
   id: number;
@@ -28,6 +29,7 @@ type NpcRow = {
   lookAddons: number;
   town: string;
   published: boolean;
+  shopItems: unknown;
 };
 
 export default function AdminNpcsPage() {
@@ -71,6 +73,16 @@ export default function AdminNpcsPage() {
     { accessorKey: "name", header: "Nome" },
     { accessorKey: "type", header: "Tipo" },
     { accessorKey: "town", header: "Cidade" },
+    {
+      id: "buyItems",
+      header: "Compra",
+      cell: ({ row }) => <NpcShopItemsPreview items={row.original.shopItems} direction="buy" />,
+    },
+    {
+      id: "sellItems",
+      header: "Venda",
+      cell: ({ row }) => <NpcShopItemsPreview items={row.original.shopItems} direction="sell" />,
+    },
     {
       accessorKey: "published",
       header: "Publicado",

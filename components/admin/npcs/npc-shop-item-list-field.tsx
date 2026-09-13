@@ -10,7 +10,7 @@ import {
   type FieldPath,
   type FieldValues,
 } from "react-hook-form";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import type { NpcShopDirection, NpcShopItemInput } from "@/lib/validations/admin/npc";
@@ -73,7 +73,7 @@ export function NpcShopItemListField<T extends FieldValues>({
 
   return (
     <div className="flex flex-col gap-3">
-      <Accordion multiple defaultValue={["buy", "sell"]} className="flex flex-col gap-3">
+      <Accordion multiple defaultValue={[]} className="flex flex-col gap-3">
         {SECTIONS.map((section) => {
           const indexes = (fields ?? [])
             .map((_, index) => index)
@@ -106,6 +106,8 @@ export function NpcShopItemListField<T extends FieldValues>({
                       <ShopItemCard
                         key={fields[index]?.id ?? index}
                         control={control}
+                        name={name}
+                        index={index}
                         basePath={`${name}.${index}`}
                         onEdit={() => setEditing({ index, isNew: false })}
                         onDuplicate={(value) => handleDuplicate(index, value)}
@@ -148,22 +150,51 @@ export function NpcShopItemListField<T extends FieldValues>({
 
 function ShopItemCard<T extends FieldValues>({
   control,
+  name,
+  index,
   basePath,
   onEdit,
   onDuplicate,
   onRemove,
 }: {
   control: Control<T>;
+  name: string;
+  index: number;
   basePath: string;
   onEdit: () => void;
   onDuplicate: (value: NpcShopItemInput) => void;
   onRemove: () => void;
 }) {
   const value = useWatch({ control, name: basePath as FieldPath<T> }) as NpcShopItemInput;
+  const directionController = useController({ control, name: `${basePath}.direction` as FieldPath<T> });
+  const allItems = useWatch({ control, name: name as FieldPath<T> }) as NpcShopItemInput[] | undefined;
+
+  function handleToggleDirection() {
+    const next: NpcShopDirection = value.direction === "buy" ? "sell" : "buy";
+    if (value.itemId) {
+      const duplicate = (allItems ?? []).some(
+        (other, otherIndex) => otherIndex !== index && other.direction === next && other.itemId === value.itemId,
+      );
+      if (duplicate) {
+        toast.error(`"${value.name || `Item #${value.itemId}`}" já está cadastrado em ${next === "buy" ? "Compra" : "Venda"}.`);
+        return;
+      }
+    }
+    directionController.field.onChange(next);
+  }
 
   return (
     <div className="group relative flex flex-col items-center gap-1.5 rounded-md border bg-background p-2 text-center">
       <div className="flex w-full items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          title={value.direction === "buy" ? "Mover para Venda" : "Mover para Compra"}
+          onClick={handleToggleDirection}
+        >
+          <ArrowLeftRight className="size-3.5" />
+        </Button>
         <Button type="button" variant="ghost" size="icon-sm" title="Editar" onClick={onEdit}>
           <Pencil className="size-3.5" />
         </Button>

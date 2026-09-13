@@ -6,6 +6,7 @@ import { useWatch } from "react-hook-form";
 import { NPC_DEFAULT_MESSAGE_KEYS, type NpcDefaultMessagesInput } from "@/lib/validations/admin/npc";
 import { Input } from "@/components/ui/input";
 import { FormItem, FormLabel } from "@/components/ui/form";
+import { FieldTooltip } from "@/components/shared/field-tooltip";
 
 /** Mensagens padrão nativas do XML (`message_greet`, `message_farewell`, ...) — mostradas
  * sempre, independente do Tipo do NPC (mensagens de categoria "shop" só têm efeito quando o
@@ -31,7 +32,10 @@ export function NpcDefaultMessageFields<T extends FieldValues>({
         <div className="grid gap-3 sm:grid-cols-2">
           {general.map((entry) => (
             <FormItem key={entry.key}>
-              <FormLabel>{entry.label}</FormLabel>
+              <FormLabel className="flex items-center gap-1.5">
+                {entry.label}
+                <FieldTooltip text={entry.description} />
+              </FormLabel>
               <Input
                 value={values[entry.key] ?? ""}
                 onChange={(event) => onChange(entry.key, event.target.value)}
@@ -47,7 +51,10 @@ export function NpcDefaultMessageFields<T extends FieldValues>({
         <div className="grid gap-3 sm:grid-cols-2">
           {shop.map((entry) => (
             <FormItem key={entry.key}>
-              <FormLabel>{entry.label}</FormLabel>
+              <FormLabel className="flex items-center gap-1.5">
+                {entry.label}
+                <FieldTooltip text={entry.description} />
+              </FormLabel>
               <Input value={values[entry.key] ?? ""} onChange={(event) => onChange(entry.key, event.target.value)} />
             </FormItem>
           ))}
