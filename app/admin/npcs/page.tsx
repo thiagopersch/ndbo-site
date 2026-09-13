@@ -12,7 +12,7 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
+import { OutfitColorThumbById } from "@/components/shared/outfit-color-thumb-by-id";
 import { NpcXmlImportDialog } from "@/components/admin/npcs/npc-xml-import-dialog";
 
 type NpcRow = {
@@ -20,6 +20,12 @@ type NpcRow = {
   name: string;
   type: string;
   lookTypeId: number;
+  direction: number;
+  lookHead: number;
+  lookBody: number;
+  lookLegs: number;
+  lookFeet: number;
+  lookAddons: number;
   town: string;
   published: boolean;
 };
@@ -48,7 +54,16 @@ export default function AdminNpcsPage() {
       header: "Imagem",
       cell: ({ row }) =>
         row.original.lookTypeId > 0 ? (
-          <LooktypeThumbById looktypeId={row.original.lookTypeId} />
+          <OutfitColorThumbById
+            looktypeId={row.original.lookTypeId}
+            direction={row.original.direction}
+            addons={row.original.lookAddons}
+            headColor={row.original.lookHead}
+            bodyColor={row.original.lookBody}
+            legsColor={row.original.lookLegs}
+            feetColor={row.original.lookFeet}
+            size="md"
+          />
         ) : (
           <span className="text-muted-foreground">—</span>
         ),

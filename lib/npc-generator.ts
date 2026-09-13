@@ -26,8 +26,12 @@ export function getNpcDataPath(): string {
  */
 export async function writeNpcFiles(npc: NpcInput): Promise<void> {
   const dataPath = getNpcDataPath();
+  const looktype = await prisma.looktype.findUnique({
+    where: { id: npc.lookTypeId },
+    select: { looktypeNumber: true },
+  });
   const xmlPath = path.join(dataPath, "npc", `${npc.name}.xml`);
-  await fs.writeFile(xmlPath, buildNpcXml(npc), "utf-8");
+  await fs.writeFile(xmlPath, buildNpcXml(npc, looktype?.looktypeNumber ?? null), "utf-8");
 
   if (npc.type !== "shop") {
     const scriptsDir = path.join(dataPath, "npc", "scripts");

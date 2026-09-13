@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
+import { OutfitColorPreview } from "@/components/shared/outfit-color-preview";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { FieldTooltip } from "@/components/shared/field-tooltip";
 import { NpcCustomMessageListField } from "@/components/admin/npcs/npc-custom-message-list-field";
@@ -42,6 +43,9 @@ type LooktypeRow = {
   frameCount: number;
   frameDurationsMs: number[];
   updatedAt: string;
+  directions: number;
+  hasColorMask: boolean;
+  addonSlots: number;
 };
 
 type TownRow = { id: number; name: string };
@@ -62,6 +66,11 @@ const defaultValues: NpcInput = {
   posY: 0,
   posZ: 7,
   direction: 2,
+  lookHead: 0,
+  lookBody: 0,
+  lookLegs: 0,
+  lookFeet: 0,
+  lookAddons: 3,
   shopItems: [],
   scriptId: null,
   customMessages: [],
@@ -96,13 +105,16 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
   const type = watched.type;
   const lookTypeId = watched.lookTypeId;
 
-  const previewXml = buildNpcXml({ ...defaultValues, ...watched } as NpcInput);
-
   const { data: selectedLooktypeData } = useSWR<PaginatedResult<LooktypeRow>>(
     lookTypeId ? `/api/admin/looktypes?search=${lookTypeId}&pageSize=5` : null,
     fetcher,
   );
   const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === lookTypeId) ?? null;
+
+  const previewXml = buildNpcXml(
+    { ...defaultValues, ...watched } as NpcInput,
+    selectedLooktype?.looktypeNumber ?? null,
+  );
 
   async function handleSubmit(values: NpcInput) {
     const response = await fetch(npcId ? `/api/admin/npcs/${npcId}` : "/api/admin/npcs", {
@@ -174,7 +186,7 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <EntitySearchCombobox<LooktypeRow>
-                        endpoint="/api/admin/looktypes"
+                        endpoint="/api/admin/looktypes?category=outfit"
                         value={lookTypeId || null}
                         placeholder="Buscar looktype..."
                         formatOption={(lt) => formatLooktypeOption(lt)}
@@ -196,12 +208,21 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
                     </div>
                     <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted/20">
                       {selectedLooktype ? (
-                        <LooktypeAnimatedImage
+                        <OutfitColorPreview
                           key={selectedLooktype.id}
                           looktypeId={selectedLooktype.id}
                           frameCount={selectedLooktype.frameCount}
                           frameDurationsMs={selectedLooktype.frameDurationsMs}
                           updatedAt={selectedLooktype.updatedAt}
+                          directions={selectedLooktype.directions}
+                          hasColorMask={selectedLooktype.hasColorMask}
+                          addonSlots={selectedLooktype.addonSlots}
+                          direction={watched.direction ?? 2}
+                          addons={watched.lookAddons ?? 0}
+                          headColor={watched.lookHead ?? 0}
+                          bodyColor={watched.lookBody ?? 0}
+                          legsColor={watched.lookLegs ?? 0}
+                          feetColor={watched.lookFeet ?? 0}
                           size="sm"
                         />
                       ) : (
@@ -216,7 +237,17 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
                   name="direction"
                   label="Direção (0-3)"
                   tooltip="Direção que o NPC olha ao spawnar: 0 = Norte, 1 = Leste, 2 = Sul, 3 = Oeste."
+                  min={0}
+                  max={3}
                 />
+              </div>
+
+              <div className="grid grid-cols-5 gap-2">
+                <NumberField control={form.control} name="lookHead" label="Cabeça (Head)" />
+                <NumberField control={form.control} name="lookBody" label="Corpo (Body)" />
+                <NumberField control={form.control} name="lookLegs" label="Pernas (Legs)" />
+                <NumberField control={form.control} name="lookFeet" label="Pés (Feet)" />
+                <NumberField control={form.control} name="lookAddons" label="Addons" />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -352,12 +383,21 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
           </CardHeader>
           <CardContent className="flex items-center justify-center">
             {selectedLooktype ? (
-              <LooktypeAnimatedImage
+              <OutfitColorPreview
                 key={selectedLooktype.id}
                 looktypeId={selectedLooktype.id}
                 frameCount={selectedLooktype.frameCount}
                 frameDurationsMs={selectedLooktype.frameDurationsMs}
                 updatedAt={selectedLooktype.updatedAt}
+                directions={selectedLooktype.directions}
+                hasColorMask={selectedLooktype.hasColorMask}
+                addonSlots={selectedLooktype.addonSlots}
+                direction={watched.direction ?? 2}
+                addons={watched.lookAddons ?? 0}
+                headColor={watched.lookHead ?? 0}
+                bodyColor={watched.lookBody ?? 0}
+                legsColor={watched.lookLegs ?? 0}
+                feetColor={watched.lookFeet ?? 0}
                 size="lg"
               />
             ) : (

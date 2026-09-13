@@ -8,8 +8,19 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { MAX_IMAGE_BYTES, detectImageExtension } from "@/lib/entity-image";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
+import {
+  outfitFrameFieldsFrom,
+  writeOutfitDirectionalFrames,
+  RESET_OUTFIT_FRAME_FIELDS,
+  type OutfitFrameFields,
+} from "@/lib/outfit-frame-storage";
 import { ObdParseError, parseObd } from "@/lib/obd/obd-parser";
-import { clampFrameDurationMs, renderLooktypeFrames, type RenderedLooktypeFrame } from "@/lib/obd/obd-render";
+import {
+  clampFrameDurationMs,
+  renderLooktypeFrames,
+  renderOutfitDirectionalFrames,
+  type RenderedLooktypeFrame,
+} from "@/lib/obd/obd-render";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 /** GIFs animados viram 1 PNG estático por página (`sharp` decodifica cada página/quadro do
@@ -71,6 +82,13 @@ export const POST = withAudit(async function POST(request: Request, { params }: 
   let frames: { png: Buffer; durationMs: number }[];
   let width = 1;
   let height = 1;
+  // Sem direção/máscara por padrão (imagem estática, ou outfit sem a 2ª layer) — só muda quando
+  // o arquivo é um `.obd` de outfit de verdade (ver `renderOutfitDirectionalFrames`). Ver
+  // `lib/outfit-frame-storage.ts` pro porquê disso ser centralizado: esta rota (substituir o
+  // arquivo de um looktype já existente) foi justamente o ponto que ficou pra trás quando essa
+  // lógica foi adicionada só na rota de criação em lote.
+  let outfitFrameFields: OutfitFrameFields = RESET_OUTFIT_FRAME_FIELDS;
+  let outfitDirectional: ReturnType<typeof renderOutfitDirectionalFrames> | null = null;
 
   if (imageExtension) {
     if (buffer.length > MAX_IMAGE_BYTES) {
@@ -90,6 +108,10 @@ export const POST = withAudit(async function POST(request: Request, { params }: 
       width = thing.width;
       height = thing.height;
       frames = renderLooktypeFrames(thing, frameSpeedMs);
+      if (looktype.category === "outfit") {
+        outfitDirectional = renderOutfitDirectionalFrames(thing, frameSpeedMs);
+        outfitFrameFields = outfitFrameFieldsFrom(outfitDirectional);
+      }
     } catch (error) {
       const message = error instanceof ObdParseError ? error.message : "Não foi possível interpretar o arquivo.";
       return NextResponse.json({ error: message }, { status: 422 });
@@ -104,6 +126,10 @@ export const POST = withAudit(async function POST(request: Request, { params }: 
     frames.map((frame, index) => fs.writeFile(looktypeFrameStoragePath(looktypeId, index), frame.png))
   );
 
+  if (outfitDirectional) {
+    await writeOutfitDirectionalFrames(looktypeId, outfitDirectional);
+  }
+
   const updated = await prisma.looktype.update({
     where: { id: looktypeId },
     data: {
@@ -111,6 +137,9 @@ export const POST = withAudit(async function POST(request: Request, { params }: 
       height,
       frameCount: frames.length,
       frameDurationsMs: frames.map((frame) => frame.durationMs),
+      directions: outfitFrameFields.directions,
+      hasColorMask: outfitFrameFields.hasColorMask,
+      addonSlots: outfitFrameFields.addonSlots,
     },
   });
 
@@ -139,7 +168,15 @@ export const DELETE = withAudit(async function DELETE(_request: Request, { param
 
   const updated = await prisma.looktype.update({
     where: { id: looktypeId },
-    data: { width: 1, height: 1, frameCount: 0, frameDurationsMs: [] },
+    data: {
+      width: 1,
+      height: 1,
+      frameCount: 0,
+      frameDurationsMs: [],
+      directions: RESET_OUTFIT_FRAME_FIELDS.directions,
+      hasColorMask: RESET_OUTFIT_FRAME_FIELDS.hasColorMask,
+      addonSlots: RESET_OUTFIT_FRAME_FIELDS.addonSlots,
+    },
   });
 
   await logAudit({

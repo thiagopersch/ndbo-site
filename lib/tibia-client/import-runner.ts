@@ -23,7 +23,8 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { findLinkedLooktypeIds } from "@/lib/looktype-usage";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
-import { renderLooktypeFrames } from "@/lib/obd/obd-render";
+import { outfitFrameFieldsFrom, writeOutfitDirectionalFrames } from "@/lib/outfit-frame-storage";
+import { renderLooktypeFrames, renderOutfitDirectionalFrames } from "@/lib/obd/obd-render";
 import { DEFAULT_LOOKTYPE_FRAME_SPEED_MS } from "@/lib/validations/admin/looktype";
 import {
   DatParseError,
@@ -312,6 +313,13 @@ async function processCategory(
     try {
       const obdThing = toObdThingData(thing, spr);
       const frames = renderLooktypeFrames(obdThing, DEFAULT_LOOKTYPE_FRAME_SPEED_MS[category]);
+      // Direção/máscara de cor só fazem sentido pra outfit — ver `lib/outfit-frame-storage.ts`
+      // (mesma lógica usada pelo upload manual de `.obd` e pela edição de looktype existente).
+      const outfitDirectional =
+        category === "outfit" ? renderOutfitDirectionalFrames(obdThing, DEFAULT_LOOKTYPE_FRAME_SPEED_MS[category]) : null;
+      const outfitFrameFields = outfitDirectional
+        ? outfitFrameFieldsFrom(outfitDirectional)
+        : { directions: 1, hasColorMask: false, addonSlots: 0 };
 
       let looktypeId: number;
       if (candidates.length > 0) {
@@ -337,6 +345,9 @@ async function processCategory(
             height: thing.height,
             frameCount: frames.length,
             frameDurationsMs: frames.map((frame) => frame.durationMs),
+            directions: outfitFrameFields.directions,
+            hasColorMask: outfitFrameFields.hasColorMask,
+            addonSlots: outfitFrameFields.addonSlots,
           },
         });
         looktypeId = updated.id;
@@ -351,6 +362,9 @@ async function processCategory(
             height: thing.height,
             frameCount: frames.length,
             frameDurationsMs: frames.map((frame) => frame.durationMs),
+            directions: outfitFrameFields.directions,
+            hasColorMask: outfitFrameFields.hasColorMask,
+            addonSlots: outfitFrameFields.addonSlots,
           },
         });
         looktypeId = created.id;
@@ -358,6 +372,7 @@ async function processCategory(
       }
 
       await writeFrames(looktypeId, frames, errorEntries, errorCtx);
+      if (outfitDirectional) await writeOutfitDirectionalFrames(looktypeId, outfitDirectional);
     } catch (error) {
       // Corrida entre o pré-check em lote e a criação (outro processo/aba criou o mesmo
       // nome/número nesse meio-tempo).

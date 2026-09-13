@@ -27,9 +27,14 @@ function buildShopList(items: NpcInput["shopItems"], direction: "buy" | "sell"):
 }
 
 /** Montagem pura do XML (sem I/O) — usada tanto na pré-visualização client-side (`NpcForm`)
- * quanto na gravação real dos arquivos (`lib/npc-generator.ts`). */
-export function buildNpcXml(npc: NpcInput): string {
+ * quanto na gravação real dos arquivos (`lib/npc-generator.ts`).
+ * @param looktypeNumber Número da sprite no Object Builder (`Looktype.looktypeNumber`) — não
+ * confundir com `npc.lookTypeId`, que é o id do registro no cadastro de looktypes. O jogo/client
+ * lê `type=` como esse número, então usar o id do registro faria o NPC aparecer com o outfit
+ * errado (mesmo padrão de `looktypeNumber` em `monster-xml.ts`/`monsterToXml`). */
+export function buildNpcXml(npc: NpcInput, looktypeNumber: number | null = null): string {
   const name = xmlEscape(npc.name);
+  const lookType = looktypeNumber ?? 0;
 
   if (npc.type === "shop") {
     const buyable = buildShopList(npc.shopItems, "buy");
@@ -45,7 +50,7 @@ export function buildNpcXml(npc: NpcInput): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <npc name="${name}" script="default.lua" walkinterval="2000" floorchange="0">
    <health now="100" max="100" />
-   <look type="${npc.lookTypeId}" head="0" body="0" legs="0" feet="0" addons="3" />
+   <look type="${lookType}" head="${npc.lookHead}" body="${npc.lookBody}" legs="${npc.lookLegs}" feet="${npc.lookFeet}" addons="${npc.lookAddons}" />
    <parameters>
       <parameter key="module_shop" value="1" />
       <parameter key="message_greet" value="${greet}" />${extraMessageParams}${buyable ? `\n      <parameter key="shop_buyable" value="\n               ${buyable}" />` : ""}${sellable ? `\n      <parameter key="shop_sellable" value="\n               ${sellable}" />` : ""}
@@ -58,7 +63,7 @@ export function buildNpcXml(npc: NpcInput): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <npc name="${name}" script="${scriptFile}" walkinterval="2000" floorchange="0">
    <health now="100" max="100" />
-   <look type="${npc.lookTypeId}" head="0" body="0" legs="0" feet="0" addons="3" />
+   <look type="${lookType}" head="${npc.lookHead}" body="${npc.lookBody}" legs="${npc.lookLegs}" feet="${npc.lookFeet}" addons="${npc.lookAddons}" />
 </npc>
 `;
 }

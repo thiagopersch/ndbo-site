@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, FolderTree, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
+import { isSiteAdmin } from "@/lib/auth-constants";
 import type { LuaScript } from "@/lib/generated/prisma/client";
 import type { PaginatedResult } from "@/lib/pagination";
 import { LUA_SCRIPT_CATEGORIES } from "@/lib/validations/admin/lua-script";
@@ -39,6 +41,7 @@ function wait(ms: number) {
 }
 
 export default function AdminLuaScriptsPage() {
+  const { data: session } = useSession();
   const table = useServerTable();
 
   const { data, isLoading, isValidating, mutate } = useSWR<
@@ -190,6 +193,16 @@ export default function AdminLuaScriptsPage() {
               <Download className="size-4" />
               Exportar listados
             </Button>
+            {isSiteAdmin(session?.user?.groupId) && (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/admin/lua-scripts/explorer" />}
+              >
+                <FolderTree className="size-4" />
+                Explorador do servidor
+              </Button>
+            )}
             <Button
               nativeButton={false}
               render={<Link href="/admin/lua-scripts/new" />}

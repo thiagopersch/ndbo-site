@@ -47,20 +47,20 @@ function blendOver(dest: Buffer, destOffset: number, src: Buffer, srcOffset: num
   dest[destOffset + 3] = Math.round(outAlpha * 255);
 }
 
-/** Monta um frame completo (todos os tiles de `width`x`height`, com todas as `layerCount`
- * layers empilhadas) em um único buffer RGBA. Convenção do Tibia pra objetos multi-tile: o
+/** Monta um frame completo (todos os tiles de `width`x`height`, com as layers de `layers`
+ * empilhadas nessa ordem) em um único buffer RGBA. Convenção do Tibia pra objetos multi-tile: o
  * tile (w=0,h=0) é o canto inferior-direito da imagem final — os demais se estendem pra cima
  * e pra esquerda a partir dele. */
 function composeFrame(
   thing: ObdThingData,
   selection: { patternX: number; patternY: number; patternZ: number; frame: number },
-  layerCount: number
+  layers: number[]
 ): Buffer {
   const canvasWidth = thing.width * SPRITE_SIZE;
   const canvasHeight = thing.height * SPRITE_SIZE;
   const canvas = Buffer.alloc(canvasWidth * canvasHeight * 4);
 
-  for (let layer = 0; layer < layerCount; layer++) {
+  for (const layer of layers) {
     for (let h = 0; h < thing.height; h++) {
       for (let w = 0; w < thing.width; w++) {
         const index = getObdSpriteIndex(thing, { ...selection, layer, width: w, height: h });
@@ -108,9 +108,10 @@ function toPngBuffer(thing: ObdThingData, rgba: Buffer): Buffer {
 
 /**
  * Renderiza as frames de animação de um `ThingData` já decodificado (ver `obd-parser.ts`):
- * - `outfit`: direção Sul parada (layer 0, sem addon/mount — layers > 0 em outfit são
- *   addon/mount, não fazem parte da animação), iterando `frames` (animação de andar) — pedido
- *   do usuário ("quando for outfit deve ser animado andando para o sul"); duração sempre fixada
+ * - `outfit`: direção Sul parada (só layer 0, a sprite base — layer 1, quando existe, é a
+ *   máscara de cor, não faz parte da pose "normal"; ver `renderOutfitDirectionalFrames` abaixo
+ *   pra direção/cor de verdade), iterando `frames` (animação de andar) — pedido do usuário
+ *   ("quando for outfit deve ser animado andando para o sul"); duração sempre fixada
  *   em 100ms por quadro (ver `DEFAULT_FRAME_DURATION_MS` abaixo) — ignora a duração declarada no
  *   OBD de propósito: alguns arquivos importados (ex.: moedas com patterns) declaram durações
  *   bem menores, o que fazia a pré-visualização/animação passar rápido demais.
@@ -134,7 +135,7 @@ export function renderLooktypeFrames(thing: ObdThingData, speedMs?: number | nul
   if (thing.category === "outfit") {
     const patternX = thing.patternX > SOUTH_DIRECTION_INDEX ? SOUTH_DIRECTION_INDEX : 0;
     for (let frame = 0; frame < thing.frames; frame++) {
-      const rgba = composeFrame(thing, { patternX, patternY: 0, patternZ: 0, frame }, 1);
+      const rgba = composeFrame(thing, { patternX, patternY: 0, patternZ: 0, frame }, [0]);
       frames.push({ png: toPngBuffer(thing, rgba), durationMs });
     }
     return frames;
@@ -144,7 +145,8 @@ export function renderLooktypeFrames(thing: ObdThingData, speedMs?: number | nul
     for (let patternZ = 0; patternZ < thing.patternZ; patternZ++) {
       for (let patternY = 0; patternY < thing.patternY; patternY++) {
         for (let patternX = 0; patternX < thing.patternX; patternX++) {
-          const rgba = composeFrame(thing, { patternX, patternY, patternZ, frame }, thing.layers);
+          const layers = Array.from({ length: thing.layers }, (_, index) => index);
+          const rgba = composeFrame(thing, { patternX, patternY, patternZ, frame }, layers);
           frames.push({ png: toPngBuffer(thing, rgba), durationMs });
         }
       }
@@ -152,4 +154,77 @@ export function renderLooktypeFrames(thing: ObdThingData, speedMs?: number | nul
   }
 
   return frames;
+}
+
+/** Direções na convenção Tibia: 0=North, 1=East, 2=South, 3=West (mesma de `SOUTH_DIRECTION_INDEX`
+ * acima). Usado só pra outfits — os outros `category` não têm noção de direção no jogo. */
+export const OUTFIT_DIRECTION_COUNT = 4;
+
+/** Nº máximo de slots de addon extras (além do corpo base, sempre no slot 0) — bate com o
+ * bitmask de 2 bits do campo `addons` do outfit (0-3: nenhum, addon1, addon2, os dois). Slots
+ * extras são camadas ADITIVAS desenhadas por cima da base (ex.: chapéu, mochila), cada uma com
+ * sua própria layer de cor — não são variantes alternativas do corpo. Confirmado lendo o loop de
+ * addon em `Creature::draw` do OTClient (`src/client/creature.cpp`): `yPattern=0` é sempre
+ * desenhado; `yPattern=1`/`2` só quando o bit correspondente do outfit tá ligado, cada um por
+ * cima do anterior. */
+const OUTFIT_MAX_ADDON_SLOTS = 2;
+
+export type RenderedOutfitLayer = {
+  /** Sprite normal do slot (com sombreamento próprio já embutido). */
+  base: Buffer;
+  /**
+   * Layer 1 crua (sem processamento) quando o outfit tem máscara de cor (`thing.layers >= 2`,
+   * confirmado lendo `ThingType::loadTexture`/`Image::overwriteMask` do OTClient — a máscara é
+   * UMA única sprite com 4 cores planas puras marcando as 4 regiões: vermelho=body, verde=legs,
+   * azul=feet, amarelo=head; fora dessas 4 cores = sem cor). A separação por região e a
+   * recoloração de fato acontecem no client (canvas), não aqui — ver
+   * `components/shared/outfit-color-preview.tsx` e `lib/tibia-outfit-color.ts`.
+   */
+  mask: Buffer | null;
+};
+
+export type RenderedOutfitDirectionFrame = {
+  /** Índice 0 = corpo base (sempre presente); 1 e 2 = addons extras, só presentes até
+   * `RenderedOutfitResult.addonSlots`. */
+  slots: RenderedOutfitLayer[];
+};
+
+export type RenderedOutfitResult = {
+  /** Sempre `OUTFIT_DIRECTION_COUNT` entradas; direções além do que o `.obd` realmente tem
+   * (`patternX`) repetem a única disponível, pra nunca faltar direção no preview. */
+  directions: RenderedOutfitDirectionFrame[][];
+  hasColorMask: boolean;
+  /** 0 = outfit sem addon (só o slot base); 1 ou 2 = quantos slots extras foram renderizados. */
+  addonSlots: number;
+  durationMs: number;
+};
+
+/** Renderiza um outfit com as 4 direções, os slots de addon disponíveis e (quando existir) a
+ * layer de máscara de cor de cada slot — complementar a `renderLooktypeFrames`, que continua
+ * gravando só a pose Sul/corpo base/layer 0 pro preview genérico usado em outros CRUDs
+ * (item/monstro/etc). Só faz sentido pra `category === "outfit"`. */
+export function renderOutfitDirectionalFrames(thing: ObdThingData, speedMs?: number | null): RenderedOutfitResult {
+  const durationMs = clampFrameDurationMs(speedMs ?? DEFAULT_FRAME_DURATION_MS);
+  const hasColorMask = thing.layers >= 2;
+  const availableDirections = Math.min(thing.patternX, OUTFIT_DIRECTION_COUNT) || 1;
+  const addonSlots = Math.max(0, Math.min(thing.patternY, OUTFIT_MAX_ADDON_SLOTS + 1) - 1);
+
+  const directions: RenderedOutfitDirectionFrame[][] = [];
+  for (let direction = 0; direction < OUTFIT_DIRECTION_COUNT; direction++) {
+    const patternX = direction < availableDirections ? direction : 0;
+    const frames: RenderedOutfitDirectionFrame[] = [];
+    for (let frame = 0; frame < thing.frames; frame++) {
+      const slots: RenderedOutfitLayer[] = [];
+      for (let patternY = 0; patternY <= addonSlots; patternY++) {
+        const selection = { patternX, patternY, patternZ: 0, frame };
+        const base = toPngBuffer(thing, composeFrame(thing, selection, [0]));
+        const mask = hasColorMask ? toPngBuffer(thing, composeFrame(thing, selection, [1])) : null;
+        slots.push({ base, mask });
+      }
+      frames.push({ slots });
+    }
+    directions.push(frames);
+  }
+
+  return { directions, hasColorMask, addonSlots, durationMs };
 }

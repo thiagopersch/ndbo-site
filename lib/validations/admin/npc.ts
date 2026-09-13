@@ -70,6 +70,11 @@ export const npcSchema = z.object({
   posY: z.number().int(),
   posZ: z.number().int(),
   direction: z.number().int().min(0).max(3),
+  lookHead: z.number().int().min(0).max(132),
+  lookBody: z.number().int().min(0).max(132),
+  lookLegs: z.number().int().min(0).max(132),
+  lookFeet: z.number().int().min(0).max(132),
+  lookAddons: z.number().int().min(0).max(3),
   shopItems: z.array(npcShopItemSchema),
   /** Script Lua vinculado (cadastro de Script Lua, categoria "npc") — ignorado para "shop". */
   scriptId: z.number().int().nullable(),
@@ -80,6 +85,24 @@ export const npcSchema = z.object({
    * XML/script gerado quando o valor não é vazio. */
   defaultMessages: npcDefaultMessagesSchema,
   published: z.boolean(),
+}).superRefine((data, ctx) => {
+  // Mesmo item não pode aparecer 2x na mesma direção (buy/sell) — categorias diferentes podem
+  // repetir o mesmo item (ex.: comprar E vender a mesma poção). Rede de segurança: a UI
+  // (`NpcShopItemListField`) já impede escolher um item repetido ao selecionar.
+  const seen = new Map<string, number>();
+  data.shopItems.forEach((item, index) => {
+    if (!item.direction || !item.itemId) return;
+    const key = `${item.direction}:${item.itemId}`;
+    if (seen.has(key)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["shopItems", index, "itemId"],
+        message: `Este item já está cadastrado em ${item.direction === "buy" ? "Compra" : "Venda"}.`,
+      });
+    } else {
+      seen.set(key, index);
+    }
+  });
 });
 
 export type NpcInput = z.infer<typeof npcSchema>;

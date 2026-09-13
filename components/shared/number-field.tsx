@@ -22,6 +22,10 @@ type NumberFieldProps<T extends FieldValues> = {
   /** Quando true, campo vazio vira `null` em vez de `0` — para campos numéricos opcionais
    * (ex.: `subtype` do loot) onde `0` e "sem valor" têm significados diferentes no XML. */
   nullable?: boolean;
+  /** Limites aceitos — o valor digitado é travado (clamp) nesse intervalo, não só validado no
+   * submit (ex.: `direction` do NPC, que só pode ser 0-3). */
+  min?: number;
+  max?: number;
 };
 
 export function NumberField<T extends FieldValues>({
@@ -32,6 +36,8 @@ export function NumberField<T extends FieldValues>({
   disabled,
   tooltip,
   nullable = false,
+  min,
+  max,
 }: NumberFieldProps<T>) {
   return (
     <FormField
@@ -49,6 +55,8 @@ export function NumberField<T extends FieldValues>({
             <Input
               type="number"
               step={step}
+              min={min}
+              max={max}
               disabled={disabled}
               name={field.name}
               ref={field.ref}
@@ -59,7 +67,10 @@ export function NumberField<T extends FieldValues>({
                   field.onChange(nullable ? null : 0);
                   return;
                 }
-                field.onChange(Number(event.target.value));
+                let next = Number(event.target.value);
+                if (min !== undefined) next = Math.max(min, next);
+                if (max !== undefined) next = Math.min(max, next);
+                field.onChange(next);
               }}
             />
           </FormControl>

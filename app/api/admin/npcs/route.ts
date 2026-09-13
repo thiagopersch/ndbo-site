@@ -22,7 +22,7 @@ export const GET = withAudit(async function GET(request: Request) {
     prisma.npc.findMany({
       where,
       include: { script: true },
-      orderBy: { id: "desc" },
+      orderBy: { name: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

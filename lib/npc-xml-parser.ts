@@ -74,6 +74,12 @@ export function parseNpcXml(xml: string): ParseNpcXmlResult {
     return { npc: null, error: "<npc> sem atributo name." };
   }
 
+  const lookNode = raw.look as XmlNode | undefined;
+  const lookInt = (key: string, fallback: number): number => {
+    const value = Number(str(a(lookNode, key)));
+    return Number.isFinite(value) ? value : fallback;
+  };
+
   const parametersNode = raw.parameters as XmlNode | undefined;
   const parameters = asArray(parametersNode?.parameter);
   const isShop = findParam(parameters, "module_shop") === "1";
@@ -100,6 +106,11 @@ export function parseNpcXml(xml: string): ParseNpcXmlResult {
     posY: 0,
     posZ: 7,
     direction: 2,
+    lookHead: lookInt("head", 0),
+    lookBody: lookInt("body", 0),
+    lookLegs: lookInt("legs", 0),
+    lookFeet: lookInt("feet", 0),
+    lookAddons: lookInt("addons", 3),
     shopItems,
     scriptId: null,
     customMessages: [],

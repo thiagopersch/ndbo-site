@@ -1694,6 +1694,17 @@ model Looktype {
   frameDurationsMs Json     @map("frame_durations_ms")
   width            Int      @default(1)
   height           Int      @default(1)
+  /// Nº de direções renderizadas em disco pra outfits (4 = North/East/South/West; outras
+  /// categorias e outfits ainda não reprocessados pelo pipeline atual ficam em 1 = só Sul).
+  directions       Int      @default(1) @map("directions")
+  /// true quando o `.obd` do outfit tem a 2ª layer de máscara de cor (region mask) e o pipeline
+  /// gravou os PNGs de máscara por direção — usado pelo preview (`OutfitColorPreview`) pra saber
+  /// se pode recolorir ou só mostrar a sprite base.
+  hasColorMask     Boolean  @default(false) @map("has_color_mask")
+  /// Nº de slots de addon extras gravados além do corpo base (0 = sem addon; 1 ou 2 = quantos
+  /// addons o outfit tem) — cada slot é uma camada aditiva desenhada por cima da base (ex.:
+  /// chapéu, mochila), não uma variante alternativa. Ver `renderOutfitDirectionalFrames`.
+  addonSlots       Int      @default(0) @map("addon_slots")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
@@ -1809,6 +1820,11 @@ model Npc {
   posY            Int        @default(0) @map("pos_y")
   posZ            Int        @default(0) @map("pos_z")
   direction       Int        @default(2)
+  lookHead        Int        @default(0) @map("look_head")
+  lookBody        Int        @default(0) @map("look_body")
+  lookLegs        Int        @default(0) @map("look_legs")
+  lookFeet        Int        @default(0) @map("look_feet")
+  lookAddons      Int        @default(3) @map("look_addons")
   /// [{ itemId: number, name: string, buyPriceCrystal: number, sellPriceCrystal: number }]
   shopItems       Json?      @map("shop_items")
   /// Script Lua vinculado (gerado automaticamente ou escrito manualmente) — reaproveita o CRUD

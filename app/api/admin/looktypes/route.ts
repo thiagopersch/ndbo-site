@@ -10,9 +10,10 @@ import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { LOOKTYPE_CATEGORIES } from "@/lib/validations/admin/looktype";
 import { MAX_IMAGE_BYTES, detectImageExtension } from "@/lib/entity-image";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
+import { outfitFrameFieldsFrom, writeOutfitDirectionalFrames, type OutfitFrameFields } from "@/lib/outfit-frame-storage";
 import { findLinkedLooktypeIds } from "@/lib/looktype-usage";
 import { ObdParseError, parseObd } from "@/lib/obd/obd-parser";
-import { renderLooktypeFrames } from "@/lib/obd/obd-render";
+import { renderLooktypeFrames, renderOutfitDirectionalFrames, type RenderedOutfitResult } from "@/lib/obd/obd-render";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 const MAX_OBD_BYTES = 8 * 1024 * 1024;
@@ -214,6 +215,10 @@ export const POST = withAudit(async function POST(request: Request) {
   let frames: { png: Buffer; durationMs: number }[];
   let width = 1;
   let height = 1;
+  // Só preenchidos quando `category === "outfit"` e o arquivo é um `.obd` de verdade (upload de
+  // imagem estática não tem direção/máscara) — ver `renderOutfitDirectionalFrames`.
+  let outfitDirectional: RenderedOutfitResult | null = null;
+  let outfitFrameFields: OutfitFrameFields | null = null;
 
   if (imageExtension) {
     if (buffer.length > MAX_IMAGE_BYTES) {
@@ -231,6 +236,10 @@ export const POST = withAudit(async function POST(request: Request) {
       width = thing.width;
       height = thing.height;
       frames = renderLooktypeFrames(thing, frameSpeedMs);
+      if (category === "outfit") {
+        outfitDirectional = renderOutfitDirectionalFrames(thing, frameSpeedMs);
+        outfitFrameFields = outfitFrameFieldsFrom(outfitDirectional);
+      }
     } catch (error) {
       const message = error instanceof ObdParseError ? error.message : "Não foi possível interpretar o arquivo.";
       await logImportError(message);
@@ -253,6 +262,9 @@ export const POST = withAudit(async function POST(request: Request) {
     await Promise.all(
       frames.map((frame, index) => fs.writeFile(looktypeFrameStoragePath(looktypeId, index), frame.png)),
     );
+
+    if (!outfitDirectional) return;
+    await writeOutfitDirectionalFrames(looktypeId, outfitDirectional);
   }
 
   // Sobrescreve candidatos equivalentes NO LUGAR (mesmo id), preservando as referências de quem
@@ -282,6 +294,9 @@ export const POST = withAudit(async function POST(request: Request) {
         height,
         frameCount: frames.length,
         frameDurationsMs: frames.map((frame) => frame.durationMs),
+        directions: outfitFrameFields?.directions ?? 1,
+        hasColorMask: outfitFrameFields?.hasColorMask ?? false,
+        addonSlots: outfitFrameFields?.addonSlots ?? 0,
       },
     });
 
@@ -323,6 +338,9 @@ export const POST = withAudit(async function POST(request: Request) {
         height,
         frameCount: frames.length,
         frameDurationsMs: frames.map((frame) => frame.durationMs),
+        directions: outfitFrameFields?.directions ?? 1,
+        hasColorMask: outfitFrameFields?.hasColorMask ?? false,
+        addonSlots: outfitFrameFields?.addonSlots ?? 0,
       },
     });
   } catch (error) {

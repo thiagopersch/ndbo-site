@@ -15,8 +15,9 @@ import {
 } from "@/lib/entity-image";
 import type { LooktypeCategory } from "@/lib/validations/admin/looktype";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
+import { outfitFrameFieldsFrom, writeOutfitDirectionalFrames } from "@/lib/outfit-frame-storage";
 import { ObdParseError, parseObd } from "@/lib/obd/obd-parser";
-import { renderLooktypeFrames } from "@/lib/obd/obd-render";
+import { renderLooktypeFrames, renderOutfitDirectionalFrames } from "@/lib/obd/obd-render";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ entityType: string; id: string }> };
@@ -84,31 +85,47 @@ async function createLooktypeFromObd(
   let frames: { png: Buffer; durationMs: number }[];
   let width = 1;
   let height = 1;
+  const category = ENTITY_TYPE_TO_LOOKTYPE_CATEGORY[entityType];
+  // Direção/máscara de cor só fazem sentido pra outfit (monster/vocation) — ver
+  // `lib/outfit-frame-storage.ts` (mesma lógica usada pelo upload manual de `.obd` no CRUD de
+  // Looktype e pelo import em lote do cliente).
+  let outfitDirectional: ReturnType<typeof renderOutfitDirectionalFrames> | null = null;
   try {
     const thing = await parseObd(buffer);
     width = thing.width;
     height = thing.height;
     frames = renderLooktypeFrames(thing);
+    if (category === "outfit") {
+      outfitDirectional = renderOutfitDirectionalFrames(thing);
+    }
   } catch (error) {
     const message = error instanceof ObdParseError ? error.message : "Não foi possível interpretar o arquivo.";
     return { error: message, status: 422 };
   }
 
+  const outfitFrameFields = outfitDirectional
+    ? outfitFrameFieldsFrom(outfitDirectional)
+    : { directions: 1, hasColorMask: false, addonSlots: 0 };
+
   const looktype = await prisma.looktype.create({
     data: {
       name: entityName ? `${entityName} (${entityType} #${entityId})` : `${entityType} #${entityId}`,
-      category: ENTITY_TYPE_TO_LOOKTYPE_CATEGORY[entityType],
+      category,
       looktypeNumber: null,
       width,
       height,
       frameCount: 0,
       frameDurationsMs: [],
+      directions: outfitFrameFields.directions,
+      hasColorMask: outfitFrameFields.hasColorMask,
+      addonSlots: outfitFrameFields.addonSlots,
     },
   });
 
   const frameDir = looktypeFrameDirPath(looktype.id);
   await fs.mkdir(frameDir, { recursive: true });
   await Promise.all(frames.map((frame, index) => fs.writeFile(looktypeFrameStoragePath(looktype.id, index), frame.png)));
+  if (outfitDirectional) await writeOutfitDirectionalFrames(looktype.id, outfitDirectional);
 
   const updated = await prisma.looktype.update({
     where: { id: looktype.id },
