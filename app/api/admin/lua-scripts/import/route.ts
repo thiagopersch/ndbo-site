@@ -61,9 +61,13 @@ export const POST = withAudit(async function POST(request: Request) {
       continue;
     }
 
+    // `update` também limpa `deletedAt` — sem isso, importar por cima de um script
+    // soft-deleted (com "substituir" marcado) atualizaria o conteúdo mas o script continuaria
+    // não aparecendo em lugar nenhum (mesmo problema resolvido em `server-files/content` e em
+    // `POST /api/admin/lua-scripts`).
     await prisma.luaScript.upsert({
       where: { name_category: { name: file.name, category } },
-      update: { content, category },
+      update: { content, category, deletedAt: null },
       create: { name: file.name, content, category },
     });
     imported += 1;

@@ -21,7 +21,7 @@ export default async function EditLuaScriptPage({
     where: { id: Number(id) },
   });
 
-  if (!luaScript) {
+  if (!luaScript || luaScript.deletedAt) {
     notFound();
   }
 

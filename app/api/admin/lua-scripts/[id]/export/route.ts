@@ -14,7 +14,7 @@ export const GET = withAudit(async function GET(_request: Request, { params }: P
     where: { id: Number(id) },
   });
 
-  if (!luaScript) {
+  if (!luaScript || luaScript.deletedAt) {
     return NextResponse.json(
       { error: "Script não encontrado." },
       { status: 404 },

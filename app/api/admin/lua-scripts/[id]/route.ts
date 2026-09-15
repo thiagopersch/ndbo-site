@@ -17,7 +17,7 @@ export const GET = withAudit(async function GET(_request: Request, { params }: P
     where: { id: Number(id) },
   });
 
-  if (!luaScript) {
+  if (!luaScript || luaScript.deletedAt) {
     return NextResponse.json(
       { error: "Script não encontrado." },
       { status: 404 },
@@ -92,7 +92,14 @@ export const DELETE = withAudit(async function DELETE(_request: Request, { param
   if (response) return response;
 
   const { id } = await params;
-  await prisma.luaScript.delete({ where: { id: Number(id) } });
+
+  // Soft delete — zera os vínculos que antes o `onDelete: SetNull` das relations cuidava
+  // sozinho (não dispara em soft delete, precisa ser feito explicitamente).
+  await prisma.$transaction([
+    prisma.movement.updateMany({ where: { luaScriptId: Number(id) }, data: { luaScriptId: null } }),
+    prisma.npc.updateMany({ where: { scriptId: Number(id) }, data: { scriptId: null } }),
+    prisma.luaScript.update({ where: { id: Number(id) }, data: { deletedAt: new Date() } }),
+  ]);
 
   await logAudit({
     accountId: Number(session.user.id),

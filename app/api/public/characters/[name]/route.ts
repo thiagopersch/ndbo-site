@@ -165,6 +165,7 @@ export async function GET(_request: Request, { params }: Params) {
             description: true,
             weight: true,
             skills: true,
+            lookTypeId: true,
           },
         })
       : Promise.resolve([]),
@@ -178,6 +179,17 @@ export async function GET(_request: Request, { params }: Params) {
   const itemById = new Map(items.map((item) => [item.id, item]));
   const imageByItemId = new Map(images.map((image) => [image.entityId, image]));
 
+  const lookTypeIds = Array.from(
+    new Set(items.map((item) => item.lookTypeId).filter((id): id is number => id != null)),
+  );
+  const looktypes = lookTypeIds.length
+    ? await prisma.looktype.findMany({
+        where: { id: { in: lookTypeIds } },
+        select: { id: true, frameCount: true, frameDurationsMs: true, updatedAt: true },
+      })
+    : [];
+  const looktypeById = new Map(looktypes.map((lt) => [lt.id, lt]));
+
   const equipment = Object.fromEntries(
     EQUIPMENT_SLOTS.map(({ pid, key }) => {
       const itemId = itemIdByPid.get(pid);
@@ -185,6 +197,7 @@ export async function GET(_request: Request, { params }: Params) {
 
       const item = itemById.get(itemId);
       const image = imageByItemId.get(itemId);
+      const looktype = item?.lookTypeId != null ? looktypeById.get(item.lookTypeId) : undefined;
       const skills = (item?.skills as Record<string, number> | null) ?? {};
       return [
         key,
@@ -198,6 +211,14 @@ export async function GET(_request: Request, { params }: Params) {
           ),
           image: image
             ? { extension: image.extension, updatedAt: image.updatedAt }
+            : null,
+          looktype: looktype
+            ? {
+                id: looktype.id,
+                frameCount: looktype.frameCount,
+                frameDurationsMs: looktype.frameDurationsMs as number[],
+                updatedAt: looktype.updatedAt,
+              }
             : null,
         },
       ];

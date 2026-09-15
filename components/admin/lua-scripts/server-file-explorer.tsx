@@ -16,6 +16,16 @@ type FileState = {
   luaScriptId: number | null;
 };
 
+function isPathAffectedByDeletion(
+  filePath: string,
+  deletedPath: string,
+  deletedType: "file" | "directory",
+): boolean {
+  if (filePath === deletedPath) return true;
+  if (deletedType !== "directory") return false;
+  return filePath.startsWith(`${deletedPath}/`) || filePath.startsWith(`${deletedPath}\\`);
+}
+
 /** Explorador de arquivos do servidor (`/admin/lua-scripts/explorer`, só Admin Master) —
  * árvore à esquerda lendo direto da raiz real do servidor no disco (`lib/server-files.ts`),
  * editor de código à direita. Salvar grava no arquivo em disco e, quando o arquivo é um
@@ -75,10 +85,20 @@ export function ServerFileExplorer() {
     }
   }
 
+  function handleDeleted(path: string, type: "file" | "directory") {
+    if (file && isPathAffectedByDeletion(file.path, path, type)) {
+      setFile(null);
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-14rem)] min-h-[500px] gap-4">
       <div className="w-72 shrink-0 overflow-y-auto rounded-md border p-2">
-        <ServerFileTree selectedPath={file?.path ?? null} onSelectFile={handleSelectFile} />
+        <ServerFileTree
+          selectedPath={file?.path ?? null}
+          onSelectFile={handleSelectFile}
+          onDeleted={handleDeleted}
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">

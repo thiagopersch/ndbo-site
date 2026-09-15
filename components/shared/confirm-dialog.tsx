@@ -15,11 +15,15 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type ConfirmDialogProps = {
-  trigger: ReactNode;
+  /** Omitido para uso controlado (ver `open`/`onOpenChange`) — sem trigger próprio, quem abre
+   * o diálogo é o chamador (ex.: um item de menu de contexto). */
+  trigger?: ReactNode;
   title: string;
   description: string;
   onConfirm: () => void;
   confirmLabel?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function ConfirmDialog({
@@ -28,10 +32,12 @@ export function ConfirmDialog({
   description,
   onConfirm,
   confirmLabel = "Confirmar",
+  open,
+  onOpenChange,
 }: ConfirmDialogProps) {
   return (
-    <AlertDialog>
-      <AlertDialogTrigger render={trigger as React.ReactElement} />
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <AlertDialogTrigger render={trigger as React.ReactElement} />}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

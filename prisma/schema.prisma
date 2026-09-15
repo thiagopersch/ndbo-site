@@ -1630,6 +1630,9 @@ model LuaScript {
   /// lib, movements, npc, raids, spells, talkactions, weapons, mods) — obrigatório,
   /// principalmente exigido no import de arquivo `.lua`.
   category String @default("actions") @db.VarChar(20)
+  /// Soft delete — excluir pela listagem ou pelo Explorador do servidor só marca esta data,
+  /// nunca remove a linha (o Explorador também apaga o arquivo real do disco, a listagem não).
+  deletedAt DateTime? @map("deleted_at")
 
   movements Movement[]
   npcs      Npc[]

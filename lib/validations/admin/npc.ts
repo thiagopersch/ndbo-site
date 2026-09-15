@@ -216,6 +216,53 @@ export const npcSchema = z.object({
   });
 });
 
+/** Mapeia uma linha do banco (`prisma.npc.findUnique`/reconciliada por `reconcileNpcFromDisk`)
+ * pro formato de formulário — usado tanto pela página de edição quanto pelo polling de
+ * live-update do `NpcForm` (ambos precisam produzir o mesmo `NpcInput` a partir da mesma linha). */
+export function toNpcInput(npc: {
+  name: string;
+  lookTypeId: number;
+  type: string;
+  town: string;
+  posX: number;
+  posY: number;
+  posZ: number;
+  direction: number;
+  walkinterval: number;
+  lookHead: number;
+  lookBody: number;
+  lookLegs: number;
+  lookFeet: number;
+  lookAddons: number;
+  shopItems: unknown;
+  scriptId: number | null;
+  customMessages: unknown;
+  defaultMessages: unknown;
+  published: boolean;
+}): NpcInput {
+  return {
+    name: npc.name,
+    lookTypeId: npc.lookTypeId,
+    type: npc.type as NpcInput["type"],
+    town: npc.town,
+    posX: npc.posX,
+    posY: npc.posY,
+    posZ: npc.posZ,
+    direction: npc.direction,
+    walkinterval: npc.walkinterval,
+    lookHead: npc.lookHead,
+    lookBody: npc.lookBody,
+    lookLegs: npc.lookLegs,
+    lookFeet: npc.lookFeet,
+    lookAddons: npc.lookAddons,
+    shopItems: normalizeShopItems(npc.shopItems),
+    scriptId: npc.scriptId,
+    customMessages: normalizeCustomMessages(npc.customMessages),
+    defaultMessages: normalizeDefaultMessages(npc.defaultMessages),
+    published: npc.published,
+  };
+}
+
 export type NpcInput = z.infer<typeof npcSchema>;
 export type NpcShopItemInput = z.infer<typeof npcShopItemSchema>;
 export type NpcCustomMessageInput = z.infer<typeof npcCustomMessageSchema>;

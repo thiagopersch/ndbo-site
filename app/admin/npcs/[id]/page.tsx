@@ -3,12 +3,8 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { NpcForm } from "@/components/admin/npcs/npc-form";
-import {
-  normalizeCustomMessages,
-  normalizeDefaultMessages,
-  normalizeShopItems,
-  type NpcInput,
-} from "@/lib/validations/admin/npc";
+import { toNpcInput } from "@/lib/validations/admin/npc";
+import { reconcileNpcFromDisk } from "@/lib/npc-file-sync";
 import { BackToListButton } from "@/components/shared/back-to-list-button";
 
 export const metadata: Metadata = {
@@ -21,33 +17,16 @@ export default async function EditNpcPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const npc = await prisma.npc.findUnique({ where: { id: Number(id) } });
+  const found = await prisma.npc.findUnique({ where: { id: Number(id) } });
 
-  if (!npc) {
+  if (!found) {
     notFound();
   }
 
-  const initialValues: NpcInput = {
-    name: npc.name,
-    lookTypeId: npc.lookTypeId,
-    type: npc.type as NpcInput["type"],
-    town: npc.town,
-    posX: npc.posX,
-    posY: npc.posY,
-    posZ: npc.posZ,
-    direction: npc.direction,
-    walkinterval: npc.walkinterval,
-    lookHead: npc.lookHead,
-    lookBody: npc.lookBody,
-    lookLegs: npc.lookLegs,
-    lookFeet: npc.lookFeet,
-    lookAddons: npc.lookAddons,
-    shopItems: normalizeShopItems(npc.shopItems),
-    scriptId: npc.scriptId,
-    customMessages: normalizeCustomMessages(npc.customMessages),
-    defaultMessages: normalizeDefaultMessages(npc.defaultMessages),
-    published: npc.published,
-  };
+  // Reconcilia com `data/npc/{nome}.xml` antes de exibir — pega edições feitas direto no arquivo
+  // (manuais ou pelo Explorador) que ainda não foram refletidas no banco.
+  const npc = await reconcileNpcFromDisk(found);
+  const initialValues = toNpcInput(npc);
 
   return (
     <div className="flex flex-col gap-6">

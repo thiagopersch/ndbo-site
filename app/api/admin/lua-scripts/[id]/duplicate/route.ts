@@ -15,7 +15,7 @@ export const POST = withAudit(async function POST(_request: Request, { params }:
   const { id } = await params;
   const source = await prisma.luaScript.findUnique({ where: { id: Number(id) } });
 
-  if (!source) {
+  if (!source || source.deletedAt) {
     return NextResponse.json({ error: "Script não encontrado." }, { status: 404 });
   }
 

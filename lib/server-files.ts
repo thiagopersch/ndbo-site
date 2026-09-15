@@ -155,3 +155,50 @@ export async function writeServerFile(relativePath: string, content: string): Pr
 
   await fs.writeFile(absolutePath, content, "utf-8");
 }
+
+/** Apaga um arquivo ou pasta (recursivamente) dentro da raiz do servidor — usado pela exclusão
+ * no Explorador do servidor. Nunca permite apagar a raiz em si. */
+export async function deleteServerFile(relativePath: string): Promise<void> {
+  const { absolutePath, root } = resolveServerPath(relativePath);
+
+  if (absolutePath === root) {
+    throw new InvalidServerPathError("Não é possível excluir a raiz do servidor.");
+  }
+
+  const stat = await fs.stat(absolutePath);
+
+  if (stat.isDirectory()) {
+    await fs.rm(absolutePath, { recursive: true });
+  } else if (stat.isFile()) {
+    if (!isAllowedServerFile(absolutePath)) {
+      throw new InvalidServerPathError("Extensão de arquivo não permitida.");
+    }
+    await fs.unlink(absolutePath);
+  } else {
+    throw new InvalidServerPathError("Caminho inválido.");
+  }
+}
+
+/** Percorre recursivamente uma pasta (mesma raiz/regras de `listServerDirectory`, ignorando
+ * symlinks) coletando o caminho relativo de todo `.lua` encontrado — usado para descobrir quais
+ * `LuaScript` soft-deletar antes de apagar uma pasta inteira do disco. */
+export async function collectLuaFilesRecursive(relativePath: string): Promise<string[]> {
+  const { absolutePath } = resolveServerPath(relativePath);
+  const dirents = await fs.readdir(absolutePath, { withFileTypes: true });
+
+  const luaFiles: string[] = [];
+
+  for (const dirent of dirents) {
+    if (dirent.isSymbolicLink()) continue;
+
+    const entryRelativePath = path.join(relativePath, dirent.name);
+
+    if (dirent.isDirectory()) {
+      luaFiles.push(...(await collectLuaFilesRecursive(entryRelativePath)));
+    } else if (dirent.isFile() && path.extname(dirent.name).toLowerCase() === ".lua") {
+      luaFiles.push(entryRelativePath);
+    }
+  }
+
+  return luaFiles;
+}

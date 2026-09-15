@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
 import { npcSchema } from "@/lib/validations/admin/npc";
 import { writeNpcFiles } from "@/lib/npc-generator";
+import { reconcileNpcsFromDisk } from "@/lib/npc-file-sync";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 export const GET = withAudit(async function GET(request: Request) {
@@ -18,7 +19,7 @@ export const GET = withAudit(async function GET(request: Request) {
 
   const where: Prisma.NpcWhereInput = search ? { name: { contains: search } } : {};
 
-  const [npcs, total] = await Promise.all([
+  const [found, total] = await Promise.all([
     prisma.npc.findMany({
       where,
       include: { script: true },
@@ -28,6 +29,10 @@ export const GET = withAudit(async function GET(request: Request) {
     }),
     prisma.npc.count({ where }),
   ]);
+
+  // Reconcilia com data/npc/{nome}.xml antes de responder — pega edições feitas direto no
+  // arquivo (manuais ou pelo Explorador de arquivos) sem depender de importação manual.
+  const npcs = await reconcileNpcsFromDisk(found);
 
   return NextResponse.json(buildPaginatedResult(npcs, total, page, pageSize));
 });

@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Backpack } from "lucide-react";
 
 import { entityImageUrl } from "@/lib/entity-image";
+import { looktypeFrameUrl } from "@/lib/looktype-storage";
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +19,7 @@ export type EquipmentSlotItem = {
   weight: number;
   skills: Record<string, number>;
   image: { extension: string; updatedAt: string } | null;
+  looktype: { id: number; frameCount: number; frameDurationsMs: number[]; updatedAt: string } | null;
 } | null;
 
 export type Equipment = {
@@ -89,6 +92,32 @@ function InfoBox({ label, value }: { label: string; value: string }) {
   );
 }
 
+type LooktypeInfo = NonNullable<EquipmentSlotItem>["looktype"];
+
+/** Cicla os frames da looktype (mesma lógica de `LooktypeAnimatedImage`, sem o tooltip próprio
+ * dele — este slot já tem seu próprio tooltip com nome/peso/skills do item). */
+function useLooktypeFrame(looktype: LooktypeInfo) {
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the looktype identity changes, not every tick
+  useEffect(() => {
+    setFrameIndex(0);
+  }, [looktype?.id]);
+
+  useEffect(() => {
+    if (!looktype || looktype.frameCount <= 1) return;
+
+    const duration = Math.min(looktype.frameDurationsMs[frameIndex] || 100, 1000);
+    const timeout = setTimeout(() => {
+      setFrameIndex((current) => (current + 1) % looktype.frameCount);
+    }, duration);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameIndex, looktype?.id, looktype?.frameCount]);
+
+  return frameIndex;
+}
+
 function EquipmentSlot({
   item,
   placeholder,
@@ -96,14 +125,18 @@ function EquipmentSlot({
   item: EquipmentSlotItem;
   placeholder: string;
 }) {
-  const imageSrc = item?.image
-    ? entityImageUrl(
-        "item",
-        item.itemId,
-        item.image.extension,
-        new Date(item.image.updatedAt),
-      )
-    : placeholder;
+  const frameIndex = useLooktypeFrame(item?.looktype ?? null);
+
+  const imageSrc = item?.looktype
+    ? looktypeFrameUrl(item.looktype.id, frameIndex, new Date(item.looktype.updatedAt))
+    : item?.image
+      ? entityImageUrl(
+          "item",
+          item.itemId,
+          item.image.extension,
+          new Date(item.image.updatedAt),
+        )
+      : placeholder;
 
   const skillEntries = item ? Object.entries(item.skills) : [];
 

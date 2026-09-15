@@ -54,40 +54,40 @@ export function buildNpcXml(
 ): string {
   const name = xmlEscape(npc.name);
   const lookType = looktypeNumber ?? 0;
-
-  if (npc.type === "shop") {
-    const buyable = buildShopList(npc.shopItems, "buy");
-    const sellable = buildShopList(npc.shopItems, "sell");
-    const messages = npc.defaultMessages ?? {};
-    const greet = xmlEscape(messages.message_greet || DEFAULT_GREET);
-    /** Loja sem script vinculado usa o `default.lua` de estoque do servidor (módulo de loja
-     * nativo); com `scriptId`, referencia o `.lua` do script vinculado — nesse caso o script do
-     * admin é responsável por chamar `NpcSystem.parseParameters(npcHandler)` e adicionar o
-     * `ShopModule` pra manter compra/venda funcionando. */
-    const scriptFile = resolveScriptFile(npc, linkedScriptName, `${name}.lua`);
-
-    const extraMessageParams = NPC_DEFAULT_MESSAGE_KEYS.filter((entry) => entry.key !== "message_greet")
-      .filter((entry) => messages[entry.key])
-      .map((entry) => `\n      <parameter key="${entry.key}" value="${xmlEscape(messages[entry.key])}" />`)
-      .join("");
-
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<npc name="${name}" script="${scriptFile}" walkinterval="${npc.walkinterval}" floorchange="0">
-   <health now="100" max="100" />
-   <look type="${lookType}" head="${npc.lookHead}" body="${npc.lookBody}" legs="${npc.lookLegs}" feet="${npc.lookFeet}" addons="${npc.lookAddons}" />
-   <parameters>
-      <parameter key="module_shop" value="1" />
-      <parameter key="message_greet" value="${greet}" />${extraMessageParams}${buyable ? `\n      <parameter key="shop_buyable" value="\n               ${buyable}" />` : ""}${sellable ? `\n      <parameter key="shop_sellable" value="\n               ${sellable}" />` : ""}
-   </parameters>
-</npc>
-`;
-  }
-
+  const isShop = npc.type === "shop";
+  const messages = npc.defaultMessages ?? {};
+  /** Confirmado direto no motor (`server/src/source/npc.cpp` + `NpcSystem.parseParameters` em
+   * `server/data/npc/lib/npcsystem/main.lua`): `<parameter key="message_x">` não é exclusivo do
+   * módulo de loja — todo `.lua` que chama `NpcSystem.parseParameters(npcHandler)` (gerado ou
+   * customizado) lê essas chaves do XML incondicionalmente, independente de `module_shop`. Por
+   * isso o bloco de mensagens sai igual pra Loja e Quest/Outro; só os parâmetros de loja em si
+   * (`module_shop`/`shop_buyable`/`shop_sellable`) continuam exclusivos do tipo "shop". */
+  const greet = xmlEscape(messages.message_greet || (isShop ? DEFAULT_GREET : "Hello, |PLAYERNAME|!"));
+  const extraMessageParams = NPC_DEFAULT_MESSAGE_KEYS.filter((entry) => entry.key !== "message_greet")
+    .filter((entry) => messages[entry.key])
+    .map((entry) => `\n      <parameter key="${entry.key}" value="${xmlEscape(messages[entry.key])}" />`)
+    .join("");
+  /** Loja sem script vinculado usa o `default.lua` de estoque do servidor (módulo de loja
+   * nativo); com `scriptId`, referencia o `.lua` do script vinculado — nesse caso o script do
+   * admin é responsável por chamar `NpcSystem.parseParameters(npcHandler)` (e, se for loja,
+   * adicionar o `ShopModule`) pra manter tudo funcionando. */
   const scriptFile = resolveScriptFile(npc, linkedScriptName, `${name}.lua`);
+
+  const shopParams = isShop
+    ? (() => {
+        const buyable = buildShopList(npc.shopItems, "buy");
+        const sellable = buildShopList(npc.shopItems, "sell");
+        return `\n      <parameter key="module_shop" value="1" />${buyable ? `\n      <parameter key="shop_buyable" value="\n               ${buyable}" />` : ""}${sellable ? `\n      <parameter key="shop_sellable" value="\n               ${sellable}" />` : ""}`;
+      })()
+    : "";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <npc name="${name}" script="${scriptFile}" walkinterval="${npc.walkinterval}" floorchange="0">
    <health now="100" max="100" />
    <look type="${lookType}" head="${npc.lookHead}" body="${npc.lookBody}" legs="${npc.lookLegs}" feet="${npc.lookFeet}" addons="${npc.lookAddons}" />
+   <parameters>${shopParams}
+      <parameter key="message_greet" value="${greet}" />${extraMessageParams}
+   </parameters>
 </npc>
 `;
 }

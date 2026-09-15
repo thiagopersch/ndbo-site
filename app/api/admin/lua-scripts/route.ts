@@ -17,6 +17,7 @@ export const GET = withAudit(async function GET(request: Request) {
   const category = url.searchParams.get("category");
 
   const where: Prisma.LuaScriptWhereInput = {
+    deletedAt: null,
     ...(search
       ? {
           OR: [
@@ -62,14 +63,21 @@ export const POST = withAudit(async function POST(request: Request) {
       name_category: { name: parsed.data.name, category: parsed.data.category },
     },
   });
-  if (existing) {
+  if (existing && !existing.deletedAt) {
     return NextResponse.json(
       { error: "Já existe um script com esse nome nessa categoria." },
       { status: 409 },
     );
   }
 
-  const luaScript = await prisma.luaScript.create({ data: parsed.data });
+  // Reaproveita a linha soft-deleted em vez de criar uma nova — a constraint única
+  // [name, category] continua ocupada por ela mesmo depois do soft delete.
+  const luaScript = existing
+    ? await prisma.luaScript.update({
+        where: { id: existing.id },
+        data: { ...parsed.data, deletedAt: null },
+      })
+    : await prisma.luaScript.create({ data: parsed.data });
 
   await logAudit({
     accountId: Number(session.user.id),
