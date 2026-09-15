@@ -189,6 +189,9 @@ export const npcSchema = z.object({
   shopItems: z.array(npcShopItemSchema),
   /** Script Lua vinculado (cadastro de Script Lua, categoria "npc") — ignorado para "shop". */
   scriptId: z.number().int().nullable(),
+  /** Categoria organizacional (cadastro de `NpcCategory`) — puramente do admin, não existe no
+   * XML nativo do OTServer. */
+  categoryId: z.number().int().nullable(),
   /** Falas ambiente geradas no script padrão — ignoradas quando `scriptId` está vinculado
    * (o script do admin tem prioridade e não é sobrescrito). */
   customMessages: z.array(npcCustomMessageSchema),
@@ -217,8 +220,7 @@ export const npcSchema = z.object({
 });
 
 /** Mapeia uma linha do banco (`prisma.npc.findUnique`/reconciliada por `reconcileNpcFromDisk`)
- * pro formato de formulário — usado tanto pela página de edição quanto pelo polling de
- * live-update do `NpcForm` (ambos precisam produzir o mesmo `NpcInput` a partir da mesma linha). */
+ * pro formato de formulário — usado pela página de edição pra montar `initialValues`. */
 export function toNpcInput(npc: {
   name: string;
   lookTypeId: number;
@@ -236,6 +238,7 @@ export function toNpcInput(npc: {
   lookAddons: number;
   shopItems: unknown;
   scriptId: number | null;
+  categoryId: number | null;
   customMessages: unknown;
   defaultMessages: unknown;
   published: boolean;
@@ -257,6 +260,7 @@ export function toNpcInput(npc: {
     lookAddons: npc.lookAddons,
     shopItems: normalizeShopItems(npc.shopItems),
     scriptId: npc.scriptId,
+    categoryId: npc.categoryId,
     customMessages: normalizeCustomMessages(npc.customMessages),
     defaultMessages: normalizeDefaultMessages(npc.defaultMessages),
     published: npc.published,

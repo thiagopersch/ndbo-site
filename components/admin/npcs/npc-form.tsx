@@ -11,10 +11,13 @@ import { X } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import { buildNpcXml, needsOwnScript, resolveScriptContent } from "@/lib/npc-xml";
+import { textColorFor } from "@/lib/color-utils";
 import { npcSchema, NPC_TYPES, type NpcInput, type NpcShopItemInput } from "@/lib/validations/admin/npc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CollapsibleSectionCard } from "@/components/shared/collapsible-section-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
@@ -54,6 +57,7 @@ type LooktypeRow = {
 
 type TownRow = { id: number; name: string };
 type LuaScriptRow = { id: number; name: string; content: string };
+type NpcCategoryRow = { id: number; name: string; color: string };
 
 const NPC_TYPE_LABELS: Record<(typeof NPC_TYPES)[number], string> = {
   shop: "Loja (vende/compra itens, sem script customizado)",
@@ -78,6 +82,7 @@ const defaultValues: NpcInput = {
   lookAddons: 3,
   shopItems: [],
   scriptId: null,
+  categoryId: null,
   customMessages: [],
   /** Modelo comum pré-preenchido pra novos NPCs — admin edita/apaga à vontade; NPCs já
    * existentes sempre carregam o que está salvo (ver `normalizeDefaultMessages`). */
@@ -245,6 +250,28 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
                       min={0}
                     />
                   </div>
+
+                  <FormItem>
+                    <FormLabel>Categoria</FormLabel>
+                    <EntitySearchCombobox<NpcCategoryRow>
+                      endpoint="/api/admin/npc-categories"
+                      value={watched.categoryId ?? null}
+                      placeholder="Buscar categoria..."
+                      formatOption={(cat) => cat.name}
+                      renderOption={(cat) => (
+                        <Badge
+                          style={{
+                            backgroundColor: cat.color,
+                            color: textColorFor(cat.color),
+                            borderColor: cat.color,
+                          }}
+                        >
+                          {cat.name}
+                        </Badge>
+                      )}
+                      onSelect={(cat) => form.setValue("categoryId", cat?.id ?? null)}
+                    />
+                  </FormItem>
                 </CardContent>
               </Card>
 
@@ -521,30 +548,25 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
         </Card>
 
         {type === "shop" && (
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle>Items/recompensas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(watched.shopItems ?? []).filter((item) => item?.itemId && item.itemId > 0).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum item de compra/venda ainda.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {(watched.shopItems ?? [])
-                    .filter((item): item is NpcShopItemInput => Boolean(item?.itemId && item.itemId > 0))
-                    .map((item, index) => (
-                      <EntityThumb
-                        key={`${item.itemId}-${index}`}
-                        entityType="item"
-                        id={item.itemId as number}
-                        name={item.name}
-                        size="32"
-                      />
-                    ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <CollapsibleSectionCard title="Items/recompensas" defaultOpen={false} className="h-fit">
+            {(watched.shopItems ?? []).filter((item) => item?.itemId && item.itemId > 0).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum item de compra/venda ainda.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {(watched.shopItems ?? [])
+                  .filter((item): item is NpcShopItemInput => Boolean(item?.itemId && item.itemId > 0))
+                  .map((item, index) => (
+                    <EntityThumb
+                      key={`${item.itemId}-${index}`}
+                      entityType="item"
+                      id={item.itemId as number}
+                      name={item.name}
+                      size="32"
+                    />
+                  ))}
+              </div>
+            )}
+          </CollapsibleSectionCard>
         )}
       </div>
     </div>

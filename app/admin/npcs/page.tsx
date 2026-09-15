@@ -8,13 +8,18 @@ import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
+import { NPC_TYPES } from "@/lib/validations/admin/npc";
+import { textColorFor } from "@/lib/color-utils";
 import { useServerTable } from "@/hooks/use-server-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { OutfitColorThumbById } from "@/components/shared/outfit-color-thumb-by-id";
-import { NpcXmlImportDialog } from "@/components/admin/npcs/npc-xml-import-dialog";
 import { NpcShopItemsPreview } from "@/components/admin/npcs/npc-shop-items-preview";
+import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
+
+type NpcCategoryRow = { id: number; name: string; color: string };
 
 type NpcRow = {
   id: number;
@@ -30,6 +35,7 @@ type NpcRow = {
   town: string;
   published: boolean;
   shopItems: unknown;
+  category: { id: number; name: string; color: string } | null;
 };
 
 export default function AdminNpcsPage() {
@@ -37,6 +43,11 @@ export default function AdminNpcsPage() {
 
   const { data, isLoading, isValidating, mutate } = useSWR<PaginatedResult<NpcRow>>(
     `/api/admin/npcs?${table.buildQueryParams().toString()}`,
+    fetcher,
+  );
+
+  const { data: categoriesData } = useSWR<PaginatedResult<NpcCategoryRow>>(
+    "/api/admin/npc-categories?pageSize=200",
     fetcher,
   );
 
@@ -49,6 +60,52 @@ export default function AdminNpcsPage() {
     toast.success("NPC removido.");
     mutate();
   }
+
+  const filterFields: FilterFieldConfig[] = [
+    {
+      key: "type",
+      label: "Tipo",
+      type: "select",
+      options: NPC_TYPES.map((type) => ({ value: type, label: type })),
+    },
+    {
+      key: "direction",
+      label: "Direção",
+      type: "select",
+      options: [
+        { value: "0", label: "Norte" },
+        { value: "1", label: "Leste" },
+        { value: "2", label: "Sul" },
+        { value: "3", label: "Oeste" },
+      ],
+    },
+    {
+      key: "lookAddons",
+      label: "Addons",
+      type: "select",
+      options: [
+        { value: "0", label: "Nenhum" },
+        { value: "1", label: "Addon 1" },
+        { value: "2", label: "Addon 2" },
+        { value: "3", label: "Ambos" },
+      ],
+    },
+    {
+      key: "categoryId",
+      label: "Categoria",
+      type: "select",
+      options: (categoriesData?.data ?? []).map((cat) => ({ value: String(cat.id), label: cat.name })),
+    },
+    {
+      key: "published",
+      label: "Publicado",
+      type: "select",
+      options: [
+        { value: "true", label: "Sim" },
+        { value: "false", label: "Não" },
+      ],
+    },
+  ];
 
   const columns: ColumnDef<NpcRow>[] = [
     {
@@ -72,6 +129,24 @@ export default function AdminNpcsPage() {
     },
     { accessorKey: "name", header: "Nome" },
     { accessorKey: "type", header: "Tipo" },
+    {
+      id: "category",
+      header: "Categoria",
+      cell: ({ row }) =>
+        row.original.category ? (
+          <Badge
+            style={{
+              backgroundColor: row.original.category.color,
+              color: textColorFor(row.original.category.color),
+              borderColor: row.original.category.color,
+            }}
+          >
+            {row.original.category.name}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
     { accessorKey: "town", header: "Cidade" },
     {
       id: "buyItems",
@@ -123,15 +198,6 @@ export default function AdminNpcsPage() {
             Gera data/npc/{"{nome}"}.xml (+ script quando aplicável) no servidor.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <NpcXmlImportDialog onImported={() => mutate()} />
-          <Link href="/admin/npcs/new">
-            <Button>
-              <Plus className="size-4" />
-              Novo
-            </Button>
-          </Link>
-        </div>
       </div>
 
       <DataTable
@@ -139,9 +205,14 @@ export default function AdminNpcsPage() {
         data={data?.data ?? []}
         isLoading={isLoading}
         isFiltering={!isLoading && isValidating}
-        searchPlaceholder="Buscar NPC..."
+        searchPlaceholder="Nome, looktype, item (nome ou id)..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
+        filters={filterFields}
+        filterValues={table.draftFilters}
+        onFilterValuesChange={table.setDraftFilters}
+        onApplyFilters={table.applyFilters}
+        onClearFilters={table.clearFilters}
         manualPagination
         pageIndex={table.pageIndex}
         pageSize={table.pageSize}
@@ -149,6 +220,14 @@ export default function AdminNpcsPage() {
         totalCount={data?.total}
         onPageChange={table.setPageIndex}
         onPageSizeChange={table.setPageSize}
+        toolbar={
+          <Link href="/admin/npcs/new">
+            <Button>
+              <Plus className="size-4" />
+              Novo
+            </Button>
+          </Link>
+        }
       />
     </div>
   );

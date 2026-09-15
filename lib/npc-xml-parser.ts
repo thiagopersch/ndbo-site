@@ -117,6 +117,7 @@ export function parseNpcXml(xml: string): ParseNpcXmlResult {
     lookAddons: lookInt("addons", 3),
     shopItems,
     scriptId: null,
+    categoryId: null,
     customMessages: [],
     defaultMessages,
     published: true,

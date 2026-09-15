@@ -113,6 +113,7 @@ const adminSections: AdminSection[] = [
         icon: Ghost,
       },
       { label: "NPCs", href: "/admin/npcs", icon: MessageSquare },
+      { label: "Categorias de NPC", href: "/admin/npc-categories", icon: FolderTree },
     ],
   },
   {

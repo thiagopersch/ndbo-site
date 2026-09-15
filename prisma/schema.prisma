@@ -1621,15 +1621,15 @@ model Movement {
 /// `vocation_change_tile.lua`), usado como `actionValue` no XML exportado — o export em
 /// si nunca lê `content`, é só armazenamento/organização dentro do portal.
 model LuaScript {
-  id       Int    @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   /// Único por categoria (não globalmente) — o mesmo nome de arquivo pode existir em
   /// pastas de scripts diferentes (ex.: `login.lua` em "actions" e em "npc").
-  name     String @db.VarChar(255)
-  content  String @db.LongText
+  name      String    @db.VarChar(255)
+  content   String    @db.LongText
   /// Pasta de scripts do OTServer a que pertence (actions, creaturescripts, globalevents,
   /// lib, movements, npc, raids, spells, talkactions, weapons, mods) — obrigatório,
   /// principalmente exigido no import de arquivo `.lua`.
-  category String @default("actions") @db.VarChar(20)
+  category  String    @default("actions") @db.VarChar(20)
   /// Soft delete — excluir pela listagem ou pelo Explorador do servidor só marca esta data,
   /// nunca remove a linha (o Explorador também apaga o arquivo real do disco, a listagem não).
   deletedAt DateTime? @map("deleted_at")
@@ -1812,44 +1812,61 @@ model PlayerBattlePass {
 /// digitado em crystal coin no admin e convertido para gold coin (1 crystal = 10000 gold,
 /// mesmo padrão da moeda do OTServer) na geração do XML.
 model Npc {
-  id              Int        @id @default(autoincrement())
-  name            String     @unique @db.VarChar(255)
+  id              Int          @id @default(autoincrement())
+  name            String       @unique @db.VarChar(255)
   /// looktype vem da tabela `Looktype` (mesmo padrão de Monster/Item)
-  lookTypeId      Int        @map("look_type_id")
+  lookTypeId      Int          @map("look_type_id")
   /// "shop" | "quest" | "misc"
-  type            String     @default("misc") @db.VarChar(20)
-  town            String     @default("") @db.VarChar(100)
-  posX            Int        @default(0) @map("pos_x")
-  posY            Int        @default(0) @map("pos_y")
-  posZ            Int        @default(0) @map("pos_z")
-  direction       Int        @default(2)
+  type            String       @default("misc") @db.VarChar(20)
+  town            String       @default("") @db.VarChar(100)
+  posX            Int          @default(0) @map("pos_x")
+  posY            Int          @default(0) @map("pos_y")
+  posZ            Int          @default(0) @map("pos_z")
+  direction       Int          @default(2)
   /// Intervalo (ms) entre passos aleatórios do NPC parado — usado no atributo `walkinterval`
   /// do XML gerado (`lib/npc-xml.ts`).
-  walkinterval    Int        @default(2000)
-  lookHead        Int        @default(0) @map("look_head")
-  lookBody        Int        @default(0) @map("look_body")
-  lookLegs        Int        @default(0) @map("look_legs")
-  lookFeet        Int        @default(0) @map("look_feet")
-  lookAddons      Int        @default(3) @map("look_addons")
+  walkinterval    Int          @default(2000)
+  lookHead        Int          @default(0) @map("look_head")
+  lookBody        Int          @default(0) @map("look_body")
+  lookLegs        Int          @default(0) @map("look_legs")
+  lookFeet        Int          @default(0) @map("look_feet")
+  lookAddons      Int          @default(3) @map("look_addons")
   /// [{ itemId: number, name: string, buyPriceCrystal: number, sellPriceCrystal: number }]
-  shopItems       Json?      @map("shop_items")
+  shopItems       Json?        @map("shop_items")
   /// Script Lua vinculado (gerado automaticamente ou escrito manualmente) — reaproveita o CRUD
   /// existente de `LuaScript` (category = "npc").
-  scriptId        Int?       @map("script_id")
-  script          LuaScript? @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  scriptId        Int?         @map("script_id")
+  script          LuaScript?   @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  /// Categoria puramente organizacional do admin (não existe no XML nativo do OTServer).
+  categoryId      Int?         @map("category_id")
+  category        NpcCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   /// Falas ambiente (ex.: "Ajude-me!" a cada X segundos, Y% de chance) — só usadas quando não
   /// há `scriptId` vinculado (script próprio tem prioridade e não é sobrescrito).
   /// [{ text: string, intervalMs: number, chance: number }]
-  customMessages  Json?      @default("[]") @map("custom_messages")
+  customMessages  Json?        @default("[]") @map("custom_messages")
   /// Mensagens padrão do XML nativo (message_greet, message_farewell, ...) — { [key]: value },
   /// só as não-vazias entram no XML/script gerado. Ver `NPC_DEFAULT_MESSAGE_KEYS` em
   /// `lib/validations/admin/npc.ts` pra lista completa e categoria (geral vs loja).
-  defaultMessages Json?      @default("{}") @map("default_messages")
-  published       Boolean    @default(true)
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  defaultMessages Json?        @default("{}") @map("default_messages")
+  published       Boolean      @default(true)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   @@map("npcs")
+}
+
+/// Categoria organizacional de NPCs (nome + descrição + cor) — badge nos selects/listagem do
+/// admin de NPCs, sem equivalente no formato `data/npc/*.xml` do OTServer (metadado só do banco).
+model NpcCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String   @db.VarChar(7)
+  npcs        Npc[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("npc_categories")
 }
 
 /// Sistema de baús do OTC (module game_chest): até 3 baús configuráveis, exibidos como 1 central
