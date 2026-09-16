@@ -27,14 +27,34 @@ import { FormItem, FormLabel } from "@/components/ui/form";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 const SECTIONS: { direction: NpcShopDirection; label: string; badgeClassName: string }[] = [
   { direction: "buy", label: "Compra", badgeClassName: "bg-emerald-500/10" },
   { direction: "sell", label: "Venda", badgeClassName: "bg-amber-500/10" },
 ];
 
+function oppositeDirection(direction: NpcShopDirection): NpcShopDirection {
+  return direction === "buy" ? "sell" : "buy";
+}
+
+function directionLabel(direction: NpcShopDirection): string {
+  return direction === "buy" ? "Compra" : "Venda";
+}
+
 function emptyShopItem(direction: NpcShopDirection): NpcShopItemInput {
   return { direction, itemId: null, name: "", valueCrystal: 0 };
+}
+
+function hasDuplicate(
+  items: NpcShopItemInput[] | undefined,
+  direction: NpcShopDirection,
+  itemId: number,
+  skipIndex: number,
+): boolean {
+  return (items ?? []).some(
+    (other, otherIndex) => otherIndex !== skipIndex && other.direction === direction && other.itemId === itemId,
+  );
 }
 
 /** Itens que o NPC compra/vende — separados em 2 seções (accordion), uma por direção, cada uma
@@ -53,6 +73,7 @@ export function NpcShopItemListField<T extends FieldValues>({
   });
   const allItems = useWatch({ control, name: name as FieldPath<T> }) as NpcShopItemInput[] | undefined;
   const [editing, setEditing] = useState<{ index: number; isNew: boolean } | null>(null);
+  const [confirmDuplicateSection, setConfirmDuplicateSection] = useState<NpcShopDirection | null>(null);
 
   function handleAdd(direction: NpcShopDirection) {
     const index = fields.length;
@@ -71,6 +92,26 @@ export function NpcShopItemListField<T extends FieldValues>({
     setEditing(null);
   }
 
+  function handleDuplicateSection(from: NpcShopDirection) {
+    const to = oppositeDirection(from);
+    const source = (allItems ?? []).filter(
+      (item): item is NpcShopItemInput & { itemId: number } => item.direction === from && item.itemId != null,
+    );
+    const existingIds = new Set(
+      (allItems ?? []).filter((item) => item.direction === to).map((item) => item.itemId),
+    );
+    const toAdd = source
+      .filter((item) => !existingIds.has(item.itemId))
+      .map((item) => ({ ...structuredClone(item), direction: to }));
+
+    if (toAdd.length === 0) {
+      toast.info("Nenhum item novo para duplicar.");
+      return;
+    }
+    append(toAdd as never);
+    toast.success(`${toAdd.length} item(ns) duplicado(s) para ${directionLabel(to)}.`);
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <Accordion multiple defaultValue={[]} className="flex flex-col gap-3">
@@ -87,16 +128,27 @@ export function NpcShopItemListField<T extends FieldValues>({
                 </span>
               </AccordionTrigger>
               <AccordionPanel>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="self-start"
-                  onClick={() => handleAdd(section.direction)}
-                >
-                  <Plus className="size-4" />
-                  Adicionar item
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAdd(section.direction)}
+                  >
+                    <Plus className="size-4" />
+                    Adicionar item
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={indexes.length === 0}
+                    onClick={() => setConfirmDuplicateSection(section.direction)}
+                  >
+                    <Copy className="size-4" />
+                    Duplicar tudo para {directionLabel(oppositeDirection(section.direction))}
+                  </Button>
+                </div>
 
                 {indexes.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum item ainda.</p>
@@ -128,7 +180,13 @@ export function NpcShopItemListField<T extends FieldValues>({
             <DialogHeader>
               <DialogTitle>{editing.isNew ? "Adicionar item" : "Editar item"}</DialogTitle>
             </DialogHeader>
-            <ShopItemFields control={control} name={name} basePath={`${name}.${editing.index}`} index={editing.index} />
+            <ShopItemFields
+              control={control}
+              name={name}
+              basePath={`${name}.${editing.index}`}
+              index={editing.index}
+              canMove={!editing.isNew}
+            />
             <DialogFooter className="sm:justify-between">
               {editing.isNew ? (
                 <Button type="button" variant="outline" onClick={handleCancelNew}>
@@ -144,6 +202,22 @@ export function NpcShopItemListField<T extends FieldValues>({
           </DialogContent>
         </Dialog>
       )}
+
+      <ConfirmDialog
+        open={confirmDuplicateSection !== null}
+        onOpenChange={(next) => !next && setConfirmDuplicateSection(null)}
+        title="Duplicar todos os itens"
+        description={
+          confirmDuplicateSection
+            ? `Todos os itens de ${directionLabel(confirmDuplicateSection)} serão duplicados para ${directionLabel(oppositeDirection(confirmDuplicateSection))}. Itens já cadastrados no destino serão mantidos como estão e não serão duplicados.`
+            : ""
+        }
+        confirmLabel="Duplicar"
+        onConfirm={() => {
+          if (confirmDuplicateSection) handleDuplicateSection(confirmDuplicateSection);
+          setConfirmDuplicateSection(null);
+        }}
+      />
     </div>
   );
 }
@@ -170,15 +244,10 @@ function ShopItemCard<T extends FieldValues>({
   const allItems = useWatch({ control, name: name as FieldPath<T> }) as NpcShopItemInput[] | undefined;
 
   function handleToggleDirection() {
-    const next: NpcShopDirection = value.direction === "buy" ? "sell" : "buy";
-    if (value.itemId) {
-      const duplicate = (allItems ?? []).some(
-        (other, otherIndex) => otherIndex !== index && other.direction === next && other.itemId === value.itemId,
-      );
-      if (duplicate) {
-        toast.error(`"${value.name || `Item #${value.itemId}`}" já está cadastrado em ${next === "buy" ? "Compra" : "Venda"}.`);
-        return;
-      }
+    const next = oppositeDirection(value.direction as NpcShopDirection);
+    if (value.itemId && hasDuplicate(allItems, next, value.itemId, index)) {
+      toast.error(`"${value.name || `Item #${value.itemId}`}" já está cadastrado em ${directionLabel(next)}.`);
+      return;
     }
     directionController.field.onChange(next);
   }
@@ -215,7 +284,9 @@ function ShopItemCard<T extends FieldValues>({
 
       <button type="button" onClick={onEdit} className="flex flex-col items-center gap-1.5">
         <EntityThumb entityType="item" id={value.itemId ?? 0} name={value.name} size="lg" zoomOnHover={false} />
-        <p className="line-clamp-1 text-xs font-medium">{value.name || (value.itemId ? `Item #${value.itemId}` : "Sem item")}</p>
+        <p className="line-clamp-1 text-xs font-medium">
+          {value.itemId ? `${value.name || "Sem nome"} (#${value.itemId})` : "Sem item"}
+        </p>
         <p className="text-[11px] text-muted-foreground">{value.valueCrystal} crystal</p>
       </button>
     </div>
@@ -227,35 +298,50 @@ function ShopItemFields<T extends FieldValues>({
   name,
   basePath,
   index,
+  canMove,
 }: {
   control: Control<T>;
   name: string;
   basePath: string;
   index: number;
+  canMove: boolean;
 }) {
   const directionController = useController({ control, name: `${basePath}.direction` as FieldPath<T> });
   const idController = useController({ control, name: `${basePath}.itemId` as FieldPath<T> });
   const nameController = useController({ control, name: `${basePath}.name` as FieldPath<T> });
   const itemId = idController.field.value as number | null | undefined;
+  const itemName = nameController.field.value as string | undefined;
   const direction = directionController.field.value as NpcShopDirection | null;
   const allItems = useWatch({ control, name: name as FieldPath<T> }) as NpcShopItemInput[] | undefined;
 
   function handleSelectItem(item: { id: number; name: string } | null) {
-    if (item) {
-      const duplicate = (allItems ?? []).some(
-        (other, otherIndex) => otherIndex !== index && other.direction === direction && other.itemId === item.id,
-      );
-      if (duplicate) {
-        toast.error(`"${item.name}" já está cadastrado em ${direction === "buy" ? "Compra" : "Venda"}.`);
-        return;
-      }
+    if (item && direction && hasDuplicate(allItems, direction, item.id, index)) {
+      toast.error(`"${item.name}" já está cadastrado em ${directionLabel(direction)}.`);
+      return;
     }
     idController.field.onChange(item?.id ?? null);
     nameController.field.onChange(item?.name ?? "");
   }
 
+  function handleMoveDirection() {
+    if (!direction) return;
+    const next = oppositeDirection(direction);
+    if (itemId && hasDuplicate(allItems, next, itemId, index)) {
+      toast.error(`"${itemName || `Item #${itemId}`}" já está cadastrado em ${directionLabel(next)}.`);
+      return;
+    }
+    directionController.field.onChange(next);
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {canMove && direction && (
+        <Button type="button" variant="outline" size="sm" className="self-start" onClick={handleMoveDirection}>
+          <ArrowLeftRight className="size-4" />
+          Mover para {directionLabel(oppositeDirection(direction))}
+        </Button>
+      )}
+
       <FormItem>
         <FormLabel>Item</FormLabel>
         <div className="flex items-center gap-2">
