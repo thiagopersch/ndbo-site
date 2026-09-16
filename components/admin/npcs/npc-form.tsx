@@ -547,27 +547,44 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
           </CardContent>
         </Card>
 
-        {type === "shop" && (
-          <CollapsibleSectionCard title="Items/recompensas" defaultOpen={false} className="h-fit">
-            {(watched.shopItems ?? []).filter((item) => item?.itemId && item.itemId > 0).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum item de compra/venda ainda.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {(watched.shopItems ?? [])
-                  .filter((item): item is NpcShopItemInput => Boolean(item?.itemId && item.itemId > 0))
-                  .map((item, index) => (
-                    <EntityThumb
-                      key={`${item.itemId}-${index}`}
-                      entityType="item"
-                      id={item.itemId as number}
-                      name={item.name}
-                      size="32"
-                    />
-                  ))}
-              </div>
-            )}
-          </CollapsibleSectionCard>
-        )}
+        {type === "shop" &&
+          (() => {
+            const uniqueShopItems = Array.from(
+              (watched.shopItems ?? [])
+                .filter((item): item is NpcShopItemInput => Boolean(item?.itemId && item.itemId > 0))
+                .reduce((map, item) => {
+                  if (!map.has(item.itemId as number)) {
+                    map.set(item.itemId as number, item);
+                  }
+                  return map;
+                }, new Map<number, NpcShopItemInput>())
+                .values(),
+            );
+
+            return (
+              <CollapsibleSectionCard
+                title="Items/recompensas"
+                defaultOpen={false}
+                className="h-fit"
+              >
+                {uniqueShopItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum item de compra/venda ainda.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {uniqueShopItems.map((item) => (
+                      <EntityThumb
+                        key={item.itemId}
+                        entityType="item"
+                        id={item.itemId as number}
+                        name={item.name}
+                        size="32"
+                      />
+                    ))}
+                  </div>
+                )}
+              </CollapsibleSectionCard>
+            );
+          })()}
       </div>
     </div>
   );

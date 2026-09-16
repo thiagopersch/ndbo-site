@@ -341,12 +341,7 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       </div>
                     </>
                   ) : (
-                    <NumberField
-                      control={form.control}
-                      name="id"
-                      label="ID (server id)"
-                      disabled={isEditing}
-                    />
+                    <NumberField control={form.control} name="id" label="ID (server id)" />
                   )}
                   <FormField
                     control={form.control}

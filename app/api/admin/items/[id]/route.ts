@@ -43,7 +43,10 @@ export const PATCH = withAudit(async function PATCH(request: Request, { params }
     where: { id: parsed.data.id, NOT: { id: Number(id) } },
   });
   if (duplicate) {
-    return NextResponse.json({ error: "Já existe um item com esse id." }, { status: 409 });
+    return NextResponse.json(
+      { error: `Já existe um item com o id ${parsed.data.id} ("${duplicate.name}").` },
+      { status: 409 },
+    );
   }
 
   const data = itemFormToRow(parsed.data);

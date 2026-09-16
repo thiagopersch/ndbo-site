@@ -6,16 +6,6 @@ import { CopyPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 type DuplicatedRecord = { id: number | string; name: string };
 
@@ -25,9 +15,9 @@ type DuplicateButtonProps = {
   /** Base da rota de edição do módulo, ex.: `/admin/vocations` (navega para `${editPathBase}/${id}`). */
   editPathBase: string;
   /**
-   * "icon": botão compacto para a coluna de ações da listagem — duplica e permanece na lista.
-   * "header": botão com rótulo para o cabeçalho do CRUD em edição — duplica e pergunta se o
-   * usuário quer ir para o novo registro ou permanecer no atual.
+   * "icon": botão compacto para a coluna de ações da listagem.
+   * "header": botão com rótulo para o cabeçalho do CRUD em edição.
+   * Em ambos, duplicar navega automaticamente para o registro recém-criado.
    */
   variant?: "icon" | "header";
   /** Chamado após duplicar com sucesso, ex.: `mutate()` para atualizar a listagem. */
@@ -42,7 +32,6 @@ export function DuplicateButton({
 }: DuplicateButtonProps) {
   const router = useRouter();
   const [isDuplicating, setIsDuplicating] = useState(false);
-  const [duplicated, setDuplicated] = useState<DuplicatedRecord | null>(null);
 
   async function handleDuplicate() {
     setIsDuplicating(true);
@@ -58,68 +47,24 @@ export function DuplicateButton({
     const record: DuplicatedRecord = body;
     toast.success(`Duplicado como "${record.name}".`);
     onDuplicated?.(record);
-
-    if (variant === "header") {
-      setDuplicated(record);
-    }
+    router.push(`${editPathBase}/${record.id}`);
   }
 
-  return (
-    <>
-      {variant === "icon" ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleDuplicate}
-          disabled={isDuplicating}
-          title="Duplicar"
-        >
-          <CopyPlus className="size-4" />
-        </Button>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleDuplicate}
-          disabled={isDuplicating}
-        >
-          <CopyPlus className="size-4" />
-          Duplicar
-        </Button>
-      )}
-
-      {variant === "header" ? (
-        <AlertDialog
-          open={duplicated != null}
-          onOpenChange={(open) => {
-            if (!open) setDuplicated(null);
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Registro duplicado</AlertDialogTitle>
-              <AlertDialogDescription>
-                {duplicated
-                  ? `Foi criado um novo registro ("${duplicated.name}"). Deseja ir para o novo registro duplicado ou permanecer editando o registro atual?`
-                  : null}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setDuplicated(null)}>
-                Permanecer aqui
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (duplicated) router.push(`${editPathBase}/${duplicated.id}`);
-                }}
-              >
-                Ir para o novo registro
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      ) : null}
-    </>
+  return variant === "icon" ? (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      onClick={handleDuplicate}
+      disabled={isDuplicating}
+      title="Duplicar"
+    >
+      <CopyPlus className="size-4" />
+    </Button>
+  ) : (
+    <Button type="button" variant="outline" onClick={handleDuplicate} disabled={isDuplicating}>
+      <CopyPlus className="size-4" />
+      Duplicar
+    </Button>
   );
 }
