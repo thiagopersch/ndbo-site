@@ -3,8 +3,9 @@ import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
 import { itemFormToRow, itemRowToFormInput } from "@/lib/item-mapper";
-import { itemsToXmlDocument } from "@/lib/item-xml";
+import { itemToXml, itemsToXmlDocument } from "@/lib/item-xml";
 import { parseItemsXml } from "@/lib/item-xml-parser";
+import type { ItemInput } from "@/lib/validations/admin/item";
 
 /** Margem de tolerância entre o `mtime` do arquivo e o `updatedAt` mais recente do banco — mesmo
  * raciocínio de `RECONCILE_SKEW_MS` em `lib/npc-file-sync.ts`: evita reconciliar de novo só por
@@ -115,4 +116,61 @@ export async function reconcileItemsFromDisk(): Promise<void> {
   } catch (error) {
     console.warn("[items-xml-sync] Erro ao reconciliar items.xml:", error);
   }
+}
+
+export type SyncItemsXmlResult = {
+  added: number;
+  updated: number;
+  unchanged: number;
+  total: number;
+};
+
+/**
+ * Ação manual (botão "Sincronizar items.xml" na listagem): leva o estado atual da tabela `items`
+ * (a fonte que o CRUD edita) pro arquivo, com diff — ao contrário de `writeAllItemsToXml`, que
+ * reescreve tudo cegamente. Item cuja serialização já bate com o banco é pulado, item desatualizado
+ * é atualizado no lugar, item que só existe no banco é adicionado respeitando a ordem de id. Nunca
+ * remove do arquivo uma entrada que não está no banco (preserva itens só-arquivo intocados). Ao
+ * contrário das duas funções acima, deixa erro subir — é uma ação de clique, não um efeito
+ * colateral silencioso, então a rota deve poder reportar falha ao usuário.
+ */
+export async function syncItemsXmlFromDatabase(): Promise<SyncItemsXmlResult> {
+  const dbItems = (await prisma.item.findMany({ orderBy: { id: "asc" } })).map(itemRowToFormInput);
+
+  const xmlPath = getItemsXmlPath();
+  let fileItems: ItemInput[] = [];
+  try {
+    const xml = await fs.readFile(xmlPath, "utf-8");
+    fileItems = parseItemsXml(xml).items;
+  } catch {
+    fileItems = [];
+  }
+
+  const finalById = new Map(fileItems.map((item) => [item.id, item]));
+
+  let added = 0;
+  let updated = 0;
+  let unchanged = 0;
+
+  for (const dbItem of dbItems) {
+    const fileItem = finalById.get(dbItem.id);
+
+    if (!fileItem) {
+      added += 1;
+      finalById.set(dbItem.id, dbItem);
+    } else if (itemToXml(fileItem) !== itemToXml(dbItem)) {
+      updated += 1;
+      finalById.set(dbItem.id, dbItem);
+    } else {
+      unchanged += 1;
+    }
+  }
+
+  if (added > 0 || updated > 0) {
+    const finalItems = [...finalById.values()].sort((a, b) => a.id - b.id);
+    await fs.mkdir(path.dirname(xmlPath), { recursive: true });
+    await fs.writeFile(xmlPath, itemsToXmlDocument(finalItems), "utf-8");
+  }
+
+  return { added, updated, unchanged, total: dbItems.length };
 }

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionPanel } from "@/components/ui/accordion";
 import { FormItem, FormLabel } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { NumberField } from "@/components/shared/number-field";
 import { EntitySearchCombobox } from "@/components/shared/entity-search-combobox";
 import { EntityThumb } from "@/components/shared/entity-thumb";
@@ -74,6 +75,7 @@ export function NpcShopItemListField<T extends FieldValues>({
   const allItems = useWatch({ control, name: name as FieldPath<T> }) as NpcShopItemInput[] | undefined;
   const [editing, setEditing] = useState<{ index: number; isNew: boolean } | null>(null);
   const [confirmDuplicateSection, setConfirmDuplicateSection] = useState<NpcShopDirection | null>(null);
+  const [search, setSearch] = useState<Record<NpcShopDirection, string>>({ buy: "", sell: "" });
 
   function handleAdd(direction: NpcShopDirection) {
     const index = fields.length;
@@ -120,6 +122,18 @@ export function NpcShopItemListField<T extends FieldValues>({
             .map((_, index) => index)
             .filter((index) => (allItems?.[index]?.direction ?? null) === section.direction);
 
+          const query = search[section.direction].trim().toLowerCase();
+          const filteredIndexes = query
+            ? indexes.filter((index) => {
+                const item = allItems?.[index];
+                if (!item) return false;
+                return (
+                  item.name?.toLowerCase().includes(query) ||
+                  String(item.itemId ?? "").includes(query)
+                );
+              })
+            : indexes;
+
           return (
             <AccordionItem key={section.direction} value={section.direction} className={section.badgeClassName}>
               <AccordionTrigger>
@@ -150,11 +164,24 @@ export function NpcShopItemListField<T extends FieldValues>({
                   </Button>
                 </div>
 
+                {indexes.length > 0 && (
+                  <Input
+                    value={search[section.direction]}
+                    onChange={(event) =>
+                      setSearch((prev) => ({ ...prev, [section.direction]: event.target.value }))
+                    }
+                    placeholder="Buscar por nome ou id..."
+                    className="max-w-xs"
+                  />
+                )}
+
                 {indexes.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum item ainda.</p>
+                ) : filteredIndexes.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum item encontrado.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                    {indexes.map((index) => (
+                    {filteredIndexes.map((index) => (
                       <ShopItemCard
                         key={fields[index]?.id ?? index}
                         control={control}

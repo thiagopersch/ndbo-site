@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Info, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Info, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -15,12 +15,18 @@ import {
 } from "@/lib/validations/admin/item";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { OtbSyncDialog } from "@/components/admin/items/otb-sync-dialog";
+import { ItemsXmlSyncButton } from "@/components/admin/items/items-xml-sync-button";
 import { XmlBundlePanel } from "@/components/shared/xml-bundle-panel";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntityImageUploadDialog } from "@/components/shared/entity-image-upload-dialog";
@@ -376,37 +382,50 @@ export default function AdminItemsPage() {
           onPageSizeChange={table.setPageSize}
           toolbar={
             <>
-              <XmlImportDialog
-                endpoint="/api/admin/items/import"
-                title="Importar items.xml"
-                description={
-                  <>
-                    Envie um arquivo no formato do <code>items.xml</code> do
-                    OTServer. Entradas com <code>fromid</code>/<code>toid</code>{" "}
-                    são expandidas em um item por id. Atributos não reconhecidos
-                    são preservados em &quot;Atributos extras&quot;.
-                  </>
-                }
-                replaceLabel="Substituir todos os items existentes antes de importar"
-                itemLabel="item(ns)"
-                onImported={() => mutate()}
-              />
-              <OtbSyncDialog onSynced={() => mutate()} />
-              <CopyXmlButton
-                getText={async () => {
-                  const response = await fetch("/api/admin/items/export");
-                  return response.text();
-                }}
-              />
-              <Button
-                variant="outline"
-                nativeButton={false}
-                render={exportXmlLink}
-              >
-                <Download className="size-4" />
-                Exportar XML
-              </Button>
-              <XmlBundlePanel onImported={() => mutate()} />
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="outline" />}>
+                  <MoreVertical className="size-4" />
+                  Processos
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="flex min-w-56 flex-col gap-1 p-1 [&_a]:w-full [&_button]:w-full [&_button]:justify-start"
+                >
+                  <XmlImportDialog
+                    endpoint="/api/admin/items/import"
+                    title="Importar items.xml"
+                    description={
+                      <>
+                        Envie um arquivo no formato do <code>items.xml</code>{" "}
+                        do OTServer. Entradas com{" "}
+                        <code>fromid</code>/<code>toid</code> são expandidas
+                        em um item por id. Atributos não reconhecidos são
+                        preservados em &quot;Atributos extras&quot;.
+                      </>
+                    }
+                    replaceLabel="Substituir todos os items existentes antes de importar"
+                    itemLabel="item(ns)"
+                    onImported={() => mutate()}
+                  />
+                  <ItemsXmlSyncButton onSynced={() => mutate()} />
+                  <OtbSyncDialog onSynced={() => mutate()} />
+                  <CopyXmlButton
+                    getText={async () => {
+                      const response = await fetch("/api/admin/items/export");
+                      return response.text();
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    nativeButton={false}
+                    render={exportXmlLink}
+                  >
+                    <Download className="size-4" />
+                    Exportar XML
+                  </Button>
+                  <XmlBundlePanel onImported={() => mutate()} />
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 nativeButton={false}
                 render={<Link href="/admin/items/new" />}
