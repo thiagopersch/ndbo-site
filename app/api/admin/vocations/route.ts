@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { vocationSchema } from "@/lib/validations/admin/vocation";
 import { vocationInputToPrismaData, vocationToInput } from "@/lib/vocation-mapper";
 import { hasImageIdFilter } from "@/lib/entity-image-filter";
@@ -15,6 +15,13 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const vocationsById = await prisma.vocation.findMany({ where: { id: { in: ids } } });
+    return NextResponse.json(buildPaginatedResult(vocationsById, vocationsById.length, 1, vocationsById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
   const archetypeId = url.searchParams.get("archetypeId");
   const typeUniverseId = url.searchParams.get("typeUniverseId");

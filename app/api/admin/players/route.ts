@@ -3,18 +3,48 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 function parseUnlockedVocations(value: string): number[] {
   return [...value.matchAll(/\d+/g)].map((match) => Number(match[0]));
 }
 
+const PLAYER_LIST_SELECT = {
+  id: true,
+  name: true,
+  level: true,
+  experience: true,
+  vocation: true,
+  groupId: true,
+  online: true,
+  deleted: true,
+  accountId: true,
+  sex: true,
+  resets: true,
+  health: true,
+  healthmax: true,
+  mana: true,
+  manamax: true,
+  cap: true,
+  townId: true,
+  age: true,
+  balance: true,
+  unlockedVocations: true,
+} as const;
+
 export const GET = withAudit(async function GET(request: Request) {
   const { response } = await requireAdminSession();
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const playersById = await prisma.player.findMany({ where: { id: { in: ids } }, select: PLAYER_LIST_SELECT });
+    return NextResponse.json(buildPaginatedResult(playersById, playersById.length, 1, playersById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
 
   const where: Prisma.PlayerWhereInput = search ? { name: { contains: search } } : {};
@@ -23,28 +53,7 @@ export const GET = withAudit(async function GET(request: Request) {
     prisma.player.findMany({
       where,
       orderBy: [{ level: "desc" }, { experience: "desc" }],
-      select: {
-        id: true,
-        name: true,
-        level: true,
-        experience: true,
-        vocation: true,
-        groupId: true,
-        online: true,
-        deleted: true,
-        accountId: true,
-        sex: true,
-        resets: true,
-        health: true,
-        healthmax: true,
-        mana: true,
-        manamax: true,
-        cap: true,
-        townId: true,
-        age: true,
-        balance: true,
-        unlockedVocations: true,
-      },
+      select: PLAYER_LIST_SELECT,
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

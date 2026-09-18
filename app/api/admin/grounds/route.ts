@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { groundFormSchema } from "@/lib/validations/admin/ground";
 import { assertCategoryForBrush, TilesetIntegrityError } from "@/lib/tileset-integrity";
 import { contentArrayNonEmpty, groundItemIds, idsWithItem } from "@/lib/brush-item-ids";
@@ -22,6 +22,13 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const groundsById = await prisma.ground.findMany({ where: { id: { in: ids } } });
+    return NextResponse.json(buildPaginatedResult(groundsById, groundsById.length, 1, groundsById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
 
   const soloOptional = parseBooleanParam(url.searchParams.get("soloOptional"));

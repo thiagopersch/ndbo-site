@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { universeSchema } from "@/lib/validations/admin/universe";
 import { hasDuplicateName } from "@/lib/unique-name";
 import { withAudit } from "@/lib/api-audit-wrapper";
@@ -14,6 +14,13 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const universesById = await prisma.universe.findMany({ where: { id: { in: ids } } });
+    return NextResponse.json(buildPaginatedResult(universesById, universesById.length, 1, universesById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
 
   const where: Prisma.UniverseWhereInput = search

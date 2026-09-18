@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
@@ -13,7 +13,8 @@ import type { MonsterBoostInput } from "@/lib/validations/admin/monster-boost";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { LooktypeThumbById } from "@/components/shared/looktype-thumb-by-id";
 import { MonsterBoostFormDialog } from "@/components/admin/monster-boost/monster-boost-form-dialog";
 
@@ -86,7 +87,7 @@ export default function AdminMonsterBoostPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <RowActionsMenu>
           <MonsterBoostFormDialog
             title="Editar monstro impulsionado"
             defaultValues={{
@@ -99,23 +100,19 @@ export default function AdminMonsterBoostPage() {
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
+              <DropdownMenuItem>
                 <Pencil className="size-4" />
-              </Button>
+                Editar
+              </DropdownMenuItem>
             }
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

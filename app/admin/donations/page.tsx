@@ -2,7 +2,6 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
@@ -12,7 +11,7 @@ import type { DonationInput } from "@/lib/validations/admin/donation";
 import { getDonateTier } from "@/lib/donate-tier";
 import { useServerTable } from "@/hooks/use-server-table";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { Button } from "@/components/ui/button";
 import { DonationFormDialog } from "@/components/admin/donations/donation-form-dialog";
 
@@ -66,17 +65,14 @@ export default function AdminDonationsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <ConfirmDialog
-          trigger={
-            <Button variant="destructive" size="icon-sm" title="Excluir">
-              <Trash2 className="size-4" />
-            </Button>
-          }
-          title="Remover doação"
-          description="Esta ação não pode ser desfeita e pode afetar o tier de donate da conta."
-          confirmLabel="Remover"
-          onConfirm={() => handleDelete(row.original.id)}
-        />
+        <RowActionsMenu>
+          <DeleteRowMenuItem
+            title="Remover doação"
+            description="Esta ação não pode ser desfeita e pode afetar o tier de donate da conta."
+            confirmLabel="Remover"
+            onConfirm={() => handleDelete(row.original.id)}
+          />
+        </RowActionsMenu>
       ),
     },
   ];

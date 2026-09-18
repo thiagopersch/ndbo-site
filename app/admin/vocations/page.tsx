@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -14,7 +14,8 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
@@ -215,38 +216,29 @@ export default function AdminVocationsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            nativeButton={false}
-            render={<Link href={`/admin/vocations/${row.original.id}`} />}
-            title="Editar"
-          >
+        <RowActionsMenu>
+          <DropdownMenuItem render={<Link href={`/admin/vocations/${row.original.id}`} />}>
             <Pencil className="size-4" />
-          </Button>
+            Editar
+          </DropdownMenuItem>
           <DuplicateButton
             endpoint={`/api/admin/vocations/${row.original.id}/duplicate`}
             editPathBase="/admin/vocations"
             onDuplicated={() => mutate()}
+            variant="menuitem"
           />
           <CopyXmlButton
-            variant="icon"
+            variant="menuitem"
             label="Copiar XML desta vocação"
             getText={() => vocationToXml(row.original)}
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover vocação"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

@@ -6,6 +6,7 @@ import { CopyPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 type DuplicatedRecord = { id: number | string; name: string };
 
@@ -17,9 +18,10 @@ type DuplicateButtonProps = {
   /**
    * "icon": botão compacto para a coluna de ações da listagem.
    * "header": botão com rótulo para o cabeçalho do CRUD em edição.
-   * Em ambos, duplicar navega automaticamente para o registro recém-criado.
+   * "menuitem": item de menu para o dropdown "3 pontinhos" da coluna de ações.
+   * Em todos, duplicar navega automaticamente para o registro recém-criado.
    */
-  variant?: "icon" | "header";
+  variant?: "icon" | "header" | "menuitem";
   /** Chamado após duplicar com sucesso, ex.: `mutate()` para atualizar a listagem. */
   onDuplicated?: (record: DuplicatedRecord) => void;
 };
@@ -48,6 +50,15 @@ export function DuplicateButton({
     toast.success(`Duplicado como "${record.name}".`);
     onDuplicated?.(record);
     router.push(`${editPathBase}/${record.id}`);
+  }
+
+  if (variant === "menuitem") {
+    return (
+      <DropdownMenuItem onClick={handleDuplicate} disabled={isDuplicating}>
+        <CopyPlus className="size-4" />
+        Duplicar
+      </DropdownMenuItem>
+    );
   }
 
   return variant === "icon" ? (

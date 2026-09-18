@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { LooktypeCreateDialog } from "@/components/admin/looktypes/looktype-create-dialog";
 import { LooktypeImportClientDialog } from "@/components/admin/looktypes/looktype-import-client-dialog";
@@ -207,28 +209,18 @@ export default function AdminLooktypesPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Editar"
-            nativeButton={false}
-            render={<Link href={`/admin/looktypes/${row.original.id}`} />}
-          >
+        <RowActionsMenu>
+          <DropdownMenuItem render={<Link href={`/admin/looktypes/${row.original.id}`} />}>
             <Pencil className="size-4" />
-          </Button>
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+            Editar
+          </DropdownMenuItem>
+          <DeleteRowMenuItem
             title="Remover"
             description="Esta ação não pode ser desfeita e remove os frames em disco."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

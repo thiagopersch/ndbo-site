@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
@@ -13,7 +13,8 @@ import type { LotteryInput } from "@/lib/validations/admin/lottery";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { LotteryFormDialog } from "@/components/admin/lottery/lottery-form-dialog";
 import { ItemThumbByName } from "@/components/shared/item-thumb-by-name";
 
@@ -66,30 +67,26 @@ export default function AdminLotteryPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <RowActionsMenu>
           <LotteryFormDialog
             title="Editar prêmio"
             defaultValues={{ name: row.original.name, item: row.original.item }}
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
+              <DropdownMenuItem>
                 <Pencil className="size-4" />
-              </Button>
+                Editar
+              </DropdownMenuItem>
             }
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover prêmio"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

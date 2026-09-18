@@ -5,6 +5,7 @@ import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 type CopyXmlButtonProps = {
   /**
@@ -20,8 +21,9 @@ type CopyXmlButtonProps = {
   /**
    * "header": botão com rótulo, para o cabeçalho de telas de listagem ou de edição.
    * "icon": botão compacto para a coluna de ações da listagem, copia o XML de um registro específico.
+   * "menuitem": item de menu para o dropdown "3 pontinhos" da coluna de ações.
    */
-  variant?: "header" | "icon";
+  variant?: "header" | "icon" | "menuitem";
 };
 
 /** Botão genérico "Copiar XML": copia direto pro clipboard sem precisar baixar o arquivo. */
@@ -50,6 +52,15 @@ export function CopyXmlButton({
     } finally {
       setIsCopying(false);
     }
+  }
+
+  if (variant === "menuitem") {
+    return (
+      <DropdownMenuItem onClick={handleClick} disabled={isCopying}>
+        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+        {label}
+      </DropdownMenuItem>
+    );
   }
 
   if (variant === "icon") {

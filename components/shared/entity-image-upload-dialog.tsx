@@ -23,6 +23,9 @@ type EntityImageUploadDialogProps = {
   name?: string;
   image?: EntityImageInfo | null;
   onUploaded?: () => void;
+  /** Elemento customizado para abrir o dialog (ex.: um `DropdownMenuItem` no menu de ações da
+   * listagem). Se omitido, usa o botão padrão de ícone. */
+  trigger?: React.ReactNode;
 };
 
 /** Upload de imagem sem sair da listagem — usado na coluna de ações das tabelas de admin
@@ -33,6 +36,7 @@ export function EntityImageUploadDialog({
   name,
   image,
   onUploaded,
+  trigger,
 }: EntityImageUploadDialogProps) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -68,9 +72,11 @@ export function EntityImageUploadDialog({
     >
       <DialogTrigger
         render={
-          <Button variant="ghost" size="icon-sm" title="Enviar/trocar imagem">
-            <ImageUp className="size-4" />
-          </Button>
+          (trigger as React.ReactElement) ?? (
+            <Button variant="ghost" size="icon-sm" title="Enviar/trocar imagem">
+              <ImageUp className="size-4" />
+            </Button>
+          )
         }
       />
       <DialogContent>

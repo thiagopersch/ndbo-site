@@ -95,13 +95,13 @@ export function MonsterForm({ monsterId, initialValues }: MonsterFormProps) {
   );
 
   const { data: selectedLooktypeData } = useSWR<PaginatedResult<LooktypeRow>>(
-    watched.lookTypeId ? `/api/admin/looktypes?search=${watched.lookTypeId}&pageSize=5` : null,
+    watched.lookTypeId ? `/api/admin/looktypes?id=${watched.lookTypeId}` : null,
     fetcher,
   );
   const selectedLooktype = selectedLooktypeData?.data.find((lt) => lt.id === watched.lookTypeId) ?? null;
 
   const { data: selectedUniverseData } = useSWR<PaginatedResult<{ id: number; name: string }>>(
-    watched.universeId ? `/api/admin/universes?search=${watched.universeId}&pageSize=5` : null,
+    watched.universeId ? `/api/admin/universes?id=${watched.universeId}` : null,
     fetcher,
   );
   const selectedUniverse = selectedUniverseData?.data.find((u) => u.id === watched.universeId) ?? null;

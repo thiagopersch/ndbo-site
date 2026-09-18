@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -13,7 +13,8 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { CategoryFormDialog } from "@/components/admin/categories/category-form-dialog";
 
 export default function AdminCategoriesPage() {
@@ -67,30 +68,26 @@ export default function AdminCategoriesPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <RowActionsMenu>
           <CategoryFormDialog
             title="Editar categoria"
             defaultValues={{ name: row.original.name, color: row.original.color }}
             successMessage="Atualizada com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
+              <DropdownMenuItem>
                 <Pencil className="size-4" />
-              </Button>
+                Editar
+              </DropdownMenuItem>
             }
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover categoria"
             description="Quests e tasks vinculadas ficam sem categoria (o texto salvo não muda retroativamente)."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -12,7 +12,7 @@ import type { PaginatedResult } from "@/lib/pagination";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
@@ -72,19 +72,14 @@ export default function AdminAutolootItemsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+        <RowActionsMenu>
+          <DeleteRowMenuItem
             title="Remover"
             description="Remove o item da lista de autoloot disponível."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

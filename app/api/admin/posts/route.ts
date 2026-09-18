@@ -4,7 +4,7 @@ import { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { defaultPostContent, postSchema } from "@/lib/validations/admin/post";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
@@ -13,6 +13,13 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const idsParam = parseIdsParam(url);
+  if (idsParam) {
+    const postsById = await prisma.post.findMany({ where: { id: { in: idsParam } } });
+    return NextResponse.json(buildPaginatedResult(postsById, postsById.length, 1, postsById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
   const pageFilter = url.searchParams.get("postPage");
   const published = url.searchParams.get("published");

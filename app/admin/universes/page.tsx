@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -12,7 +12,8 @@ import { universeSchema, type UniverseInput } from "@/lib/validations/admin/univ
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
 import { UniverseBadge } from "@/components/shared/universe-badge";
@@ -64,7 +65,7 @@ export default function AdminUniversesPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <RowActionsMenu>
           <SimpleFormDialog
             title="Editar universo"
             schema={universeSchema}
@@ -73,28 +74,25 @@ export default function AdminUniversesPage() {
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
+              <DropdownMenuItem>
                 <Pencil className="size-4" />
-              </Button>
+                Editar
+              </DropdownMenuItem>
             }
           />
           <DuplicateButton
             endpoint={`/api/admin/universes/${row.original.id}/duplicate`}
             editPathBase="/admin/universes"
             onDuplicated={() => mutate()}
+            variant="menuitem"
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover universo"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

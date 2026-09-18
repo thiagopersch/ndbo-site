@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -14,7 +14,8 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { OutfitColorThumbById } from "@/components/shared/outfit-color-thumb-by-id";
 import { NpcShopItemsPreview } from "@/components/admin/npcs/npc-shop-items-preview";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
@@ -167,24 +168,18 @@ export default function AdminNpcsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Link href={`/admin/npcs/${row.original.id}`}>
-            <Button variant="ghost" size="icon-sm" title="Editar">
-              <Pencil className="size-4" />
-            </Button>
-          </Link>
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+        <RowActionsMenu>
+          <DropdownMenuItem render={<Link href={`/admin/npcs/${row.original.id}`} />}>
+            <Pencil className="size-4" />
+            Editar
+          </DropdownMenuItem>
+          <DeleteRowMenuItem
             title="Remover"
             description="Remove o NPC do banco e os arquivos gerados (data/npc/{nome}.xml)."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

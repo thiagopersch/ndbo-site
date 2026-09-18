@@ -35,7 +35,7 @@ export function MonsterLooktypeQuickLink({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: selectedData } = useSWR<PaginatedResult<LooktypeRow>>(
-    lookTypeId ? `/api/admin/looktypes?search=${lookTypeId}&pageSize=5` : null,
+    lookTypeId ? `/api/admin/looktypes?id=${lookTypeId}` : null,
     fetcher,
   );
   const selected = selectedData?.data.find((lt) => lt.id === lookTypeId) ?? null;

@@ -3,7 +3,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 export const GET = withAudit(async function GET(request: Request) {
@@ -11,6 +11,13 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const accountsById = await prisma.account.findMany({ where: { id: { in: ids } } });
+    return NextResponse.json(buildPaginatedResult(accountsById, accountsById.length, 1, accountsById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
   const groupId = url.searchParams.get("groupId");
   const blocked = url.searchParams.get("blocked");

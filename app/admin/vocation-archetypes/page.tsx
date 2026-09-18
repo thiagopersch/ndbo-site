@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -12,7 +12,8 @@ import { vocationTypeSchema, type VocationTypeInput } from "@/lib/validations/ad
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { SimpleFormDialog, type SimpleField } from "@/components/shared/simple-form-dialog";
 
@@ -56,7 +57,7 @@ export default function AdminVocationArchetypesPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <RowActionsMenu>
           <SimpleFormDialog
             title="Editar arquétipo"
             schema={vocationTypeSchema}
@@ -65,28 +66,25 @@ export default function AdminVocationArchetypesPage() {
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
+              <DropdownMenuItem>
                 <Pencil className="size-4" />
-              </Button>
+                Editar
+              </DropdownMenuItem>
             }
           />
           <DuplicateButton
             endpoint={`/api/admin/vocation-archetypes/${row.original.id}/duplicate`}
             editPathBase="/admin/vocation-archetypes"
             onDuplicated={() => mutate()}
+            variant="menuitem"
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover arquétipo"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

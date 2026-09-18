@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { luaScriptSchema } from "@/lib/validations/admin/lua-script";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
@@ -13,6 +13,13 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const scriptsById = await prisma.luaScript.findMany({ where: { id: { in: ids }, deletedAt: null } });
+    return NextResponse.json(buildPaginatedResult(scriptsById, scriptsById.length, 1, scriptsById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
   const category = url.searchParams.get("category");
 

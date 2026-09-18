@@ -2,13 +2,13 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 import type { Ban } from "@/lib/generated/prisma/client";
 import { BAN_TYPES, PLAYER_BAN_PARAMS, uint32ToIp } from "@/lib/validations/admin/ban";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { BanFormDialog } from "@/components/admin/bans/ban-form-dialog";
 
 export function getBanColumns(refresh: () => void, onDelete: (id: number) => void): ColumnDef<Ban>[] {
@@ -62,28 +62,24 @@ export function getBanColumns(refresh: () => void, onDelete: (id: number) => voi
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <RowActionsMenu>
           <BanFormDialog
             ban={row.original}
             onSaved={refresh}
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
+              <DropdownMenuItem>
                 <Pencil className="size-4" />
-              </Button>
+                Editar
+              </DropdownMenuItem>
             }
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover banimento"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => onDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

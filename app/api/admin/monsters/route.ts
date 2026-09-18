@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams, shouldSkipCount } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams, shouldSkipCount } from "@/lib/pagination";
 import {
   monsterFormSchema,
   type MonsterFormInput,
@@ -70,6 +70,12 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const monstersById = await prisma.monster.findMany({ where: { id: { in: ids } }, select: MONSTER_LIST_SELECT });
+    return NextResponse.json(buildPaginatedResult(monstersById, monstersById.length, 1, monstersById.length || 1));
+  }
 
   if (url.searchParams.get("all") === "true") {
     const monsters = await prisma.monster.findMany({

@@ -10,8 +10,9 @@ import type { PaginatedResult } from "@/lib/pagination";
 import { ACCOUNT_GROUPS, getAccountGroupName } from "@/lib/account-groups";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu } from "@/components/shared/row-actions-menu";
 import { AccountBlockedToggle } from "@/components/admin/accounts/account-blocked-toggle";
 import type { FilterFieldConfig } from "@/components/shared/advanced-filter-panel";
 
@@ -98,15 +99,12 @@ export default function AdminAccountsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          nativeButton={false}
-          render={<Link href={`/admin/accounts/${row.original.id}`} />}
-          title="Editar"
-        >
-          <Pencil className="size-4" />
-        </Button>
+        <RowActionsMenu>
+          <DropdownMenuItem render={<Link href={`/admin/accounts/${row.original.id}`} />}>
+            <Pencil className="size-4" />
+            Editar
+          </DropdownMenuItem>
+        </RowActionsMenu>
       ),
     },
   ];

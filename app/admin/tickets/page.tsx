@@ -9,8 +9,9 @@ import { fetcher } from "@/lib/fetcher";
 import type { PaginatedResult } from "@/lib/pagination";
 import { useServerTable } from "@/hooks/use-server-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu } from "@/components/shared/row-actions-menu";
 
 type TicketRow = {
   id: number;
@@ -58,14 +59,11 @@ export default function AdminTicketsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<Link href={`/admin/tickets/${row.original.id}`} />}
-        >
-          Ver
-        </Button>
+        <RowActionsMenu>
+          <DropdownMenuItem render={<Link href={`/admin/tickets/${row.original.id}`} />}>
+            Ver
+          </DropdownMenuItem>
+        </RowActionsMenu>
       ),
     },
   ];

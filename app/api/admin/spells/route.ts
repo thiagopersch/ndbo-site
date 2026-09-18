@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { spellFormSchema } from "@/lib/validations/admin/spell";
 import { spellFormToScalarData } from "@/lib/spell-mapper";
 import { hasDuplicateName } from "@/lib/unique-name";
@@ -16,6 +16,13 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const spellsById = await prisma.spell.findMany({ where: { id: { in: ids } } });
+    return NextResponse.json(buildPaginatedResult(spellsById, spellsById.length, 1, spellsById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
   const kind = url.searchParams.get("kind");
   const level = url.searchParams.get("level");

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -11,7 +11,8 @@ import { competenciaId } from "@/lib/daily-reward-competencia";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 
@@ -89,34 +90,24 @@ export default function AdminDailyRewardsPage() {
       cell: ({ row }) => {
         const id = competenciaId(row.original.year, row.original.month);
         return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              title="Editar"
-              nativeButton={false}
-              render={<Link href={`/admin/daily-rewards/${id}`} />}
-            >
+          <RowActionsMenu>
+            <DropdownMenuItem render={<Link href={`/admin/daily-rewards/${id}`} />}>
               <Pencil className="size-4" />
-            </Button>
+              Editar
+            </DropdownMenuItem>
             <DuplicateButton
               endpoint={`/api/admin/daily-rewards/competencias/${id}/duplicate`}
               editPathBase="/admin/daily-rewards"
-              variant="icon"
+              variant="menuitem"
               onDuplicated={() => mutate()}
             />
-            <ConfirmDialog
-              trigger={
-                <Button variant="destructive" size="icon-sm" title="Excluir">
-                  <Trash2 className="size-4" />
-                </Button>
-              }
+            <DeleteRowMenuItem
               title="Remover"
               description="Esta ação não pode ser desfeita. Todas as recompensas diárias e bonus dessa competência serão removidas."
               confirmLabel="Remover"
               onConfirm={() => handleDelete(id)}
             />
-          </div>
+          </RowActionsMenu>
         );
       },
     },

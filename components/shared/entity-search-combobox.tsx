@@ -75,14 +75,13 @@ export function EntitySearchCombobox<Row extends { id: number }>({
 
   // A opção já selecionada (vinda de um registro existente, ex.: form de edição) pode não estar
   // na primeira página da busca em branco em catálogos grandes (items, looktypes) — sem isso o
-  // campo aparece vazio até o usuário digitar algo que traga o registro pra lista. Busca à parte,
-  // usando o próprio id como termo (endpoints desses catálogos resolvem número em `search` como
-  // id, ver comentário do endpoint de items acima).
+  // campo aparece vazio até o usuário digitar algo que traga o registro pra lista. Busca à parte
+  // por `?id=`, que os endpoints admin resolvem como match exato por chave primária (ver
+  // `parseIdsParam`) — usar `search` aqui seria ambíguo (fuzzy por nome, paginado) e podia nunca
+  // devolver o registro certo dependendo de colisão com outros nomes/ids do catálogo.
   const resolvedRow = data?.data.find((row) => row.id === value) ?? null;
   const { data: valueData } = useSWR<PaginatedResult<Row>>(
-    value != null && resolvedRow === null
-      ? `${endpoint}${separator}pageSize=5&search=${encodeURIComponent(String(value))}&skipCount=1`
-      : null,
+    value != null && resolvedRow === null ? `${endpoint}${separator}id=${value}` : null,
     fetcher,
   );
 

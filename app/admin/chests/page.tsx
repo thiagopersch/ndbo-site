@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -12,7 +12,8 @@ import { MAX_CHESTS, defaultChestValues, type ChestInput } from "@/lib/validatio
 import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { useItemName } from "@/components/shared/use-item-name";
@@ -115,7 +116,7 @@ export default function AdminChestsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <RowActionsMenu>
           <ChestFormDialog
             title="Editar baú"
             defaultValues={{
@@ -131,32 +132,28 @@ export default function AdminChestsPage() {
             successMessage="Atualizado com sucesso."
             onSubmit={(values) => createOrUpdate(values, row.original.id)}
             trigger={
-              <Button variant="ghost" size="icon-sm" title="Editar">
+              <DropdownMenuItem>
                 <Pencil className="size-4" />
-              </Button>
+                Editar
+              </DropdownMenuItem>
             }
           />
           <DuplicateButton
             endpoint={`/api/admin/chests/${row.original.id}/duplicate`}
             editPathBase="/admin/chests"
-            variant="icon"
+            variant="menuitem"
             onDuplicated={() => {
               mutate();
               mutateUnfiltered();
             }}
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

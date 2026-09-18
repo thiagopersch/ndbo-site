@@ -41,6 +41,21 @@ export function shouldSkipCount(url: URL): boolean {
   return url.searchParams.get("skipCount") === "1";
 }
 
+/** Resolve o(s) id(s) do parâmetro `?id=` (um valor único ou lista separada por vírgula) para
+ * busca exata por chave primária — usado pelas rotas de listagem admin para re-hidratar o valor
+ * já selecionado de um combobox/relacionamento sem depender do `search` livre (que é fuzzy por
+ * nome e pode não trazer o registro certo entre os primeiros resultados paginados quando há
+ * colisão de id/nome com outros registros — ver `EntitySearchCombobox`). Retorna `null` quando o
+ * parâmetro está ausente, e uma lista vazia quando presente mas sem nenhum id válido. */
+export function parseIdsParam(url: URL): number[] | null {
+  const raw = url.searchParams.get("id");
+  if (raw === null) return null;
+  return raw
+    .split(",")
+    .map((part) => Number(part.trim()))
+    .filter((id) => Number.isInteger(id));
+}
+
 export function buildPaginatedResult<T>(
   data: T[],
   total: number,

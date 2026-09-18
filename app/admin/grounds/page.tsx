@@ -3,7 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -12,7 +12,8 @@ import { useServerTable } from "@/hooks/use-server-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
 import { LastUpdatedCell } from "@/components/shared/last-updated-cell";
@@ -125,18 +126,13 @@ export default function AdminGroundsPage() {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            nativeButton={false}
-            render={<Link href={`/admin/grounds/${row.original.id}`} />}
-            title="Editar"
-          >
+        <RowActionsMenu>
+          <DropdownMenuItem render={<Link href={`/admin/grounds/${row.original.id}`} />}>
             <Pencil className="size-4" />
-          </Button>
+            Editar
+          </DropdownMenuItem>
           <CopyXmlButton
-            variant="icon"
+            variant="menuitem"
             label="Copiar XML deste ground"
             getText={async () => {
               const response = await fetch(`/api/admin/grounds/${row.original.id}/export`);
@@ -147,19 +143,15 @@ export default function AdminGroundsPage() {
             endpoint={`/api/admin/grounds/${row.original.id}/duplicate`}
             editPathBase="/admin/grounds"
             onDuplicated={() => mutate()}
+            variant="menuitem"
           />
-          <ConfirmDialog
-            trigger={
-              <Button variant="destructive" size="icon-sm" title="Excluir">
-                <Trash2 className="size-4" />
-              </Button>
-            }
+          <DeleteRowMenuItem
             title="Remover ground"
             description="Esta ação não pode ser desfeita."
             confirmLabel="Remover"
             onConfirm={() => handleDelete(row.original.id)}
           />
-        </div>
+        </RowActionsMenu>
       ),
     },
   ];

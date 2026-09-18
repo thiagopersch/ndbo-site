@@ -6,7 +6,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { LOOKTYPE_CATEGORIES } from "@/lib/validations/admin/looktype";
 import { MAX_IMAGE_BYTES, detectImageExtension } from "@/lib/entity-image";
 import { looktypeFrameDirPath, looktypeFrameStoragePath } from "@/lib/looktype-storage";
@@ -37,6 +37,15 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  // `?id=` faz busca exata por chave primária, ignorando os demais filtros — usado para
+  // re-hidratar um valor já selecionado (ver `parseIdsParam`), nunca pela busca livre do usuário.
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const looktypesById = await prisma.looktype.findMany({ where: { id: { in: ids } } });
+    return NextResponse.json(buildPaginatedResult(looktypesById, looktypesById.length, 1, looktypesById.length || 1));
+  }
+
   const { page, pageSize, search } = parsePaginationParams(url);
   const category = url.searchParams.get("category");
   const frameCount = url.searchParams.get("frameCount");

@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
+import { buildPaginatedResult, parseIdsParam, parsePaginationParams } from "@/lib/pagination";
 import { townFormSchema } from "@/lib/validations/admin/town";
 import { townToFormInput } from "@/lib/town-mapper";
 import { withAudit } from "@/lib/api-audit-wrapper";
@@ -14,6 +14,12 @@ export const GET = withAudit(async function GET(request: Request) {
   if (response) return response;
 
   const url = new URL(request.url);
+
+  const ids = parseIdsParam(url);
+  if (ids) {
+    const townsById = await prisma.town.findMany({ where: { id: { in: ids } } });
+    return NextResponse.json(buildPaginatedResult(townsById, townsById.length, 1, townsById.length || 1));
+  }
 
   if (url.searchParams.get("all") === "true") {
     const towns = await prisma.town.findMany({
