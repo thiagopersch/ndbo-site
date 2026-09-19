@@ -28,7 +28,7 @@ export function RowActionsMenu({ children }: RowActionsMenuProps) {
           </Button>
         }
       />
-      <DropdownMenuContent align="end" className="w-auto min-w-40 whitespace-nowrap">
+      <DropdownMenuContent align="end" keepMounted className="w-auto min-w-40 whitespace-nowrap **:data-[slot=dropdown-menu-item]:cursor-pointer">
         {children}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -58,10 +58,7 @@ export function DeleteRowMenuItem({
     <>
       <DropdownMenuItem
         className="bg-destructive/10 text-destructive focus:bg-destructive/20 focus:text-destructive"
-        onSelect={(event) => {
-          event.preventDefault();
-          setOpen(true);
-        }}
+        onClick={() => setOpen(true)}
       >
         <Trash2 className="size-4 text-destructive" />
         {label}

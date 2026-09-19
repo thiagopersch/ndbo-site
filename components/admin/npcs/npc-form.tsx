@@ -195,7 +195,7 @@ export function NpcForm({ npcId, initialValues }: NpcFormProps) {
                         <FormItem>
                           <FormLabel>Nome</FormLabel>
                           <FormControl>
-                            <Input {...field} disabled={Boolean(npcId)} />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
