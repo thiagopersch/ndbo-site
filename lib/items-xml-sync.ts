@@ -2,28 +2,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
-import { itemFormToRow, itemRowToFormInput } from "@/lib/item-mapper";
-import { itemToXml, itemsToXmlDocument } from "@/lib/item-xml";
-import { parseItemsXml } from "@/lib/item-xml-parser";
-import type { ItemInput } from "@/lib/validations/admin/item";
+import { itemRowToFormInput } from "@/lib/item-mapper";
+import { itemToXml } from "@/lib/item-xml";
+import { indent } from "@/lib/xml-utils";
 
-/** Margem de tolerância entre o `mtime` do arquivo e o `updatedAt` mais recente do banco — mesmo
- * raciocínio de `RECONCILE_SKEW_MS` em `lib/npc-file-sync.ts`: evita reconciliar de novo só por
- * causa da diferença de resolução entre o relógio do FS e o timestamp gravado pelo próprio
- * `writeAllItemsToXml`/reconciliação anterior. */
-const RECONCILE_SKEW_MS = 1000;
-
-/** Mesmo tamanho de lote de `IMPORT_CHUNK_SIZE` em `lib/item-mapper.ts` — um `items.xml` real tem
- * 4000+ entradas após expandir `fromid`/`toid`, grande demais para um único `$transaction`. */
-const RECONCILE_CHUNK_SIZE = 300;
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const batches: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    batches.push(items.slice(i, i + size));
-  }
-  return batches;
-}
+/** Itens lidos do banco (e serializados) por página durante a sincronização. */
+const SYNC_PAGE_SIZE = 500;
 
 export function getItemsXmlPath(): string {
   const base = process.env.OTSERVER_DATA_PATH;
@@ -33,144 +17,148 @@ export function getItemsXmlPath(): string {
   return path.join(base, "items", "items.xml");
 }
 
-/**
- * Reescreve `data/items/items.xml` inteiro a partir do estado atual da tabela `items` — efeito
- * colateral de toda mutação do CRUD de items (create/update/delete/range/duplicate). `items.xml`
- * é um arquivo monolítico (ao contrário de NPCs, um por entidade), então não dá para atualizar só
- * a entrada que mudou sem reprocessar a lista inteira; mesma abordagem que `/api/admin/items/export`
- * já fazia manualmente. Nunca lança — uma falha de FS (ex.: `OTSERVER_DATA_PATH` ausente em dev)
- * não pode derrubar a resposta da API, já que a gravação no banco (o backup) já foi concluída.
- */
-export async function writeAllItemsToXml(): Promise<void> {
-  try {
-    const items = await prisma.item.findMany({ orderBy: { id: "asc" } });
-    const xml = itemsToXmlDocument(items.map(itemRowToFormInput));
-    const xmlPath = getItemsXmlPath();
-    await fs.mkdir(path.dirname(xmlPath), { recursive: true });
-    await fs.writeFile(xmlPath, xml, "utf-8");
-  } catch (error) {
-    console.warn("[items-xml-sync] Falha ao gravar items.xml:", error);
+export type SyncItemsXmlStage = "config" | "database" | "file";
+
+/** Erro da sincronização já traduzido para o usuário: em que etapa parou e como resolver. */
+export class SyncItemsXmlError extends Error {
+  constructor(
+    public readonly stage: SyncItemsXmlStage,
+    message: string,
+    public readonly hint: string,
+    public readonly processed: number,
+  ) {
+    super(message);
+    this.name = "SyncItemsXmlError";
+  }
+}
+
+export type SyncItemsXmlProgress = { processed: number; total: number; percent: number };
+
+export type SyncItemsXmlResult = { total: number };
+
+function describeFsError(error: unknown): { message: string; hint: string } {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  const detail = error instanceof Error ? error.message : String(error);
+
+  switch (code) {
+    case "EACCES":
+    case "EPERM":
+    case "EBUSY":
+      return {
+        message: `Sem permissão para gravar o items.xml, ou o arquivo está em uso (${code}).`,
+        hint: "Feche programas que estejam com o items.xml aberto (editor, RME, servidor) e confira a permissão de escrita da pasta em OTSERVER_DATA_PATH.",
+      };
+    case "ENOENT":
+      return {
+        message: "A pasta de destino do items.xml não existe (ENOENT).",
+        hint: "Verifique se OTSERVER_DATA_PATH, no .env, aponta para a pasta data do servidor.",
+      };
+    case "ENOSPC":
+      return {
+        message: "Não há espaço em disco para gravar o items.xml (ENOSPC).",
+        hint: "Libere espaço no disco do servidor e tente sincronizar novamente.",
+      };
+    default:
+      return {
+        message: `Falha ao gravar o items.xml: ${detail}`,
+        hint: "Confira o caminho e as permissões do arquivo. Se o problema persistir, consulte o log do servidor.",
+      };
   }
 }
 
 /**
- * Se `items.xml` foi modificado (por fora do painel — edição manual, RME, git pull) depois do
- * último registro sincronizado no banco, reimporta o arquivo inteiro: cria/atualiza cada item por
- * id (preservando os campos que só existem no banco/portal — `published`, `lookTypeId` — igual à
- * separação que `buildXmlDerivedUpdate` faz para NPCs) e remove do banco os ids que não aparecem
- * mais no arquivo. Nunca lança — se o arquivo não existir, não puder ser lido, ou o XML for
- * inválido, apenas loga um aviso e mantém o banco como está.
+ * Ação manual (Processos → "Sincronizar items.xml"): sobrescreve por completo o `items.xml` do disco
+ * com o conteúdo da tabela `items` (o banco é a fonte da verdade; nada do arquivo é preservado).
+ * Lê o banco em páginas por id e grava num `.tmp` ao lado do arquivo; só troca o `items.xml` no
+ * final (`rename`), então, se algo falhar no meio, o arquivo original permanece intacto. Reporta o
+ * progresso via `onProgress` e lança `SyncItemsXmlError` na primeira falha.
  */
-export async function reconcileItemsFromDisk(): Promise<void> {
-  const xmlPath = getItemsXmlPath();
+export async function syncItemsXmlFromDatabase(
+  onProgress?: (progress: SyncItemsXmlProgress) => void,
+): Promise<SyncItemsXmlResult> {
+  let processed = 0;
 
-  let stat: Awaited<ReturnType<typeof fs.stat>>;
+  let xmlPath: string;
   try {
-    stat = await fs.stat(xmlPath);
-  } catch {
-    return;
+    xmlPath = getItemsXmlPath();
+  } catch (error) {
+    throw new SyncItemsXmlError(
+      "config",
+      error instanceof Error ? error.message : String(error),
+      "Defina OTSERVER_DATA_PATH no .env com o caminho da pasta data do servidor e reinicie o portal.",
+      processed,
+    );
   }
 
+  let total: number;
   try {
-    const latest = await prisma.item.aggregate({ _max: { updatedAt: true } });
-    const latestUpdatedAt = latest._max.updatedAt;
+    total = await prisma.item.count();
+  } catch (error) {
+    throw new SyncItemsXmlError(
+      "database",
+      `Não foi possível ler os items do banco: ${error instanceof Error ? error.message : String(error)}`,
+      "Verifique se o MySQL está ativo e se DATABASE_URL está correto, e tente novamente.",
+      processed,
+    );
+  }
 
-    if (latestUpdatedAt && stat.mtime.getTime() <= latestUpdatedAt.getTime() + RECONCILE_SKEW_MS) {
-      return;
-    }
+  const report = () =>
+    onProgress?.({ processed, total, percent: total === 0 ? 100 : Math.floor((processed / total) * 100) });
 
-    const xml = await fs.readFile(xmlPath, "utf-8");
-    const { items, errors } = parseItemsXml(xml);
+  const tmpPath = `${xmlPath}.tmp`;
+  let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
+  let stage: SyncItemsXmlStage = "file";
 
-    if (items.length === 0) {
-      if (errors.length > 0) {
-        console.warn("[items-xml-sync] items.xml não pôde ser reconciliado:", errors.slice(0, 5));
+  try {
+    await fs.mkdir(path.dirname(xmlPath), { recursive: true });
+    handle = await fs.open(tmpPath, "w");
+    await handle.write(`<?xml version="1.0" encoding="ISO-8859-1"?>\n<items>\n`, null, "utf-8");
+    report();
+
+    let lastId = -1;
+    for (;;) {
+      stage = "database";
+      const rows = await prisma.item.findMany({
+        where: { id: { gt: lastId } },
+        orderBy: { id: "asc" },
+        take: SYNC_PAGE_SIZE,
+      });
+      if (rows.length === 0) break;
+
+      stage = "file";
+      const lines: string[] = [];
+      for (const row of rows) {
+        lines.push(...indent(itemToXml(itemRowToFormInput(row)).split("\n"), 1));
       }
-      return;
+      await handle.write(lines.join("\n") + "\n", null, "utf-8");
+
+      lastId = rows[rows.length - 1].id;
+      processed += rows.length;
+      report();
     }
 
-    const existing = await prisma.item.findMany({ select: { id: true, published: true, lookTypeId: true } });
-    const existingById = new Map(existing.map((row) => [row.id, row]));
-    const idsInXml = new Set(items.map((item) => item.id));
+    await handle.write(`</items>\n`, null, "utf-8");
+    await handle.close();
+    handle = undefined;
+    await fs.rename(tmpPath, xmlPath);
+  } catch (error) {
+    await handle?.close().catch(() => undefined);
+    await fs.rm(tmpPath, { force: true }).catch(() => undefined);
 
-    const idsToDelete = existing.map((row) => row.id).filter((id) => !idsInXml.has(id));
+    if (error instanceof SyncItemsXmlError) throw error;
 
-    for (const batch of chunk(items, RECONCILE_CHUNK_SIZE)) {
-      await prisma.$transaction(
-        batch.map((item) => {
-          const current = existingById.get(item.id);
-          const data = itemFormToRow({
-            ...item,
-            published: current?.published ?? item.published,
-            lookTypeId: current?.lookTypeId ?? item.lookTypeId,
-          });
-          return prisma.item.upsert({ where: { id: item.id }, update: data, create: data });
-        }),
-        { timeout: 60_000 },
+    if (stage === "database") {
+      throw new SyncItemsXmlError(
+        "database",
+        `Falha ao ler os items do banco: ${error instanceof Error ? error.message : String(error)}`,
+        "Verifique se o MySQL está ativo e acessível e tente novamente. O items.xml original não foi alterado.",
+        processed,
       );
     }
 
-    if (idsToDelete.length > 0) {
-      await prisma.item.deleteMany({ where: { id: { in: idsToDelete } } });
-    }
-  } catch (error) {
-    console.warn("[items-xml-sync] Erro ao reconciliar items.xml:", error);
-  }
-}
-
-export type SyncItemsXmlResult = {
-  added: number;
-  updated: number;
-  unchanged: number;
-  total: number;
-};
-
-/**
- * Ação manual (botão "Sincronizar items.xml" na listagem): leva o estado atual da tabela `items`
- * (a fonte que o CRUD edita) pro arquivo, com diff — ao contrário de `writeAllItemsToXml`, que
- * reescreve tudo cegamente. Item cuja serialização já bate com o banco é pulado, item desatualizado
- * é atualizado no lugar, item que só existe no banco é adicionado respeitando a ordem de id. Nunca
- * remove do arquivo uma entrada que não está no banco (preserva itens só-arquivo intocados). Ao
- * contrário das duas funções acima, deixa erro subir — é uma ação de clique, não um efeito
- * colateral silencioso, então a rota deve poder reportar falha ao usuário.
- */
-export async function syncItemsXmlFromDatabase(): Promise<SyncItemsXmlResult> {
-  const dbItems = (await prisma.item.findMany({ orderBy: { id: "asc" } })).map(itemRowToFormInput);
-
-  const xmlPath = getItemsXmlPath();
-  let fileItems: ItemInput[] = [];
-  try {
-    const xml = await fs.readFile(xmlPath, "utf-8");
-    fileItems = parseItemsXml(xml).items;
-  } catch {
-    fileItems = [];
+    const { message, hint } = describeFsError(error);
+    throw new SyncItemsXmlError("file", message, `${hint} O items.xml original não foi alterado.`, processed);
   }
 
-  const finalById = new Map(fileItems.map((item) => [item.id, item]));
-
-  let added = 0;
-  let updated = 0;
-  let unchanged = 0;
-
-  for (const dbItem of dbItems) {
-    const fileItem = finalById.get(dbItem.id);
-
-    if (!fileItem) {
-      added += 1;
-      finalById.set(dbItem.id, dbItem);
-    } else if (itemToXml(fileItem) !== itemToXml(dbItem)) {
-      updated += 1;
-      finalById.set(dbItem.id, dbItem);
-    } else {
-      unchanged += 1;
-    }
-  }
-
-  if (added > 0 || updated > 0) {
-    const finalItems = [...finalById.values()].sort((a, b) => a.id - b.id);
-    await fs.mkdir(path.dirname(xmlPath), { recursive: true });
-    await fs.writeFile(xmlPath, itemsToXmlDocument(finalItems), "utf-8");
-  }
-
-  return { added, updated, unchanged, total: dbItems.length };
+  return { total: processed };
 }

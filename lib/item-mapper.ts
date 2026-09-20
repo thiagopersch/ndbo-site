@@ -246,6 +246,9 @@ export function itemRowToFormInput(item: Item): ItemInput {
  * pequeno o bastante pra não estourar o payload de uma única transação/`createMany` no MySQL. */
 const IMPORT_CHUNK_SIZE = 300;
 
+/** Lote menor para `update`s em `$transaction` (1 round-trip por linha, colunas JSON grandes). */
+const UPDATE_CHUNK_SIZE = 100;
+
 function chunk<T>(items: T[], size: number): T[][] {
   const batches: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
@@ -273,14 +276,20 @@ export async function importItemsBatched(
       await prismaClient.item.createMany({ data: batch.map(itemFormToRow), skipDuplicates: true });
     }
   } else {
-    for (const batch of batches) {
+    // Uma única consulta pelos ids existentes: os novos entram por `createMany` (1 round-trip por
+    // lote) e só os já existentes pagam um `update` — bem menos que um upsert por item.
+    const existingIds = new Set(
+      (await prismaClient.item.findMany({ select: { id: true } })).map((row) => row.id)
+    );
+    const toCreate = items.filter((item) => !existingIds.has(item.id));
+    const toUpdate = items.filter((item) => existingIds.has(item.id));
+
+    for (const batch of chunk(toCreate, IMPORT_CHUNK_SIZE)) {
+      await prismaClient.item.createMany({ data: batch.map(itemFormToRow), skipDuplicates: true });
+    }
+    for (const batch of chunk(toUpdate, UPDATE_CHUNK_SIZE)) {
       await prismaClient.$transaction(
-        batch.map((item) => {
-          const data = itemFormToRow(item);
-          return prismaClient.item.upsert({ where: { id: item.id }, update: data, create: data });
-        }),
-        // Timeout padrão do Prisma (5s) é curto demais para um lote de ~300 upserts em uma
-        // tabela com colunas JSON grandes — cada lote pode legitimamente levar mais que isso.
+        batch.map((item) => prismaClient.item.update({ where: { id: item.id }, data: itemFormToRow(item) })),
         { timeout: 60_000 }
       );
     }
@@ -351,7 +360,7 @@ export async function syncItemClientIdsFromOtb(
     if (Object.keys(update).length > 0) updates.set(item.id, update);
   }
 
-  const batches = chunk([...updates.entries()], IMPORT_CHUNK_SIZE);
+  const batches = chunk([...updates.entries()], UPDATE_CHUNK_SIZE);
   for (const batch of batches) {
     await prismaClient.$transaction(
       batch.map(([id, data]) => prismaClient.item.update({ where: { id }, data })),

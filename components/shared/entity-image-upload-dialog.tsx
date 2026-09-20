@@ -71,6 +71,8 @@ export function EntityImageUploadDialog({
       }}
     >
       <DialogTrigger
+        // Triggers customizados (ex.: `DropdownMenuItem`) não renderizam um <button> nativo.
+        nativeButton={!trigger}
         render={
           (trigger as React.ReactElement) ?? (
             <Button variant="ghost" size="icon-sm" title="Enviar/trocar imagem">

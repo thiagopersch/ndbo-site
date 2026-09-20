@@ -6,7 +6,6 @@ import { logAudit } from "@/lib/audit";
 import { nextManualId } from "@/lib/duplicate-utils";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { withAudit } from "@/lib/api-audit-wrapper";
-import { writeAllItemsToXml } from "@/lib/items-xml-sync";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -33,7 +32,6 @@ export const POST = withAudit(async function POST(_request: Request, { params }:
   const item = await prisma.item.create({
     data: { ...rest, id: newId, name: `${name} (cópia)` } as Prisma.ItemUncheckedCreateInput,
   });
-  await writeAllItemsToXml();
 
   await logAudit({
     accountId: Number(session.user.id),

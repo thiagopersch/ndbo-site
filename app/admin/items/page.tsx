@@ -382,7 +382,7 @@ export default function AdminItemsPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="flex min-w-56 flex-col gap-1 p-1 [&_a]:w-full [&_button]:w-full [&_button]:justify-start"
+                  className="flex w-max min-w-56 max-w-none flex-col gap-1 p-1 [&_a]:w-full [&_a]:justify-start [&_a]:whitespace-nowrap [&_button]:w-full [&_button]:justify-start [&_button]:whitespace-nowrap"
                 >
                   <XmlImportDialog
                     endpoint="/api/admin/items/import"
