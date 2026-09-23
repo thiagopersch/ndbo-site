@@ -13,11 +13,18 @@ import { withAudit } from "@/lib/api-audit-wrapper";
  * variando o id no intervalo informado. */
 const MAX_RANGE = 500;
 
+const rangeOverrideSchema = z.object({
+  id: z.number().int(),
+  clientId: z.number().int().nullable().optional(),
+  lookTypeId: z.number().int().nullable().optional(),
+});
+
 const rangeSchema = z
   .object({
     fromId: z.number().int().min(1),
     toId: z.number().int().min(1),
     item: itemSchema.omit({ id: true }),
+    overrides: z.array(rangeOverrideSchema).optional().default([]),
   })
   .refine((data) => data.toId >= data.fromId, {
     message: "O id final deve ser maior ou igual ao id inicial.",
@@ -42,7 +49,7 @@ export const POST = withAudit(async function POST(request: Request) {
     );
   }
 
-  const { fromId, toId, item } = parsed.data;
+  const { fromId, toId, item, overrides } = parsed.data;
   const ids = Array.from({ length: toId - fromId + 1 }, (_, i) => fromId + i);
 
   const existing = await prisma.item.findMany({
@@ -58,8 +65,20 @@ export const POST = withAudit(async function POST(request: Request) {
     );
   }
 
+  // Permite que cada id do range tenha seu próprio client_id/looktype (aba "Outras sprites" do
+  // formulário) mesmo compartilhando todos os demais atributos do item base.
+  const overrideById = new Map(overrides.map((o) => [o.id, o]));
+
   await prisma.item.createMany({
-    data: ids.map((id) => itemFormToRow({ ...item, id })),
+    data: ids.map((id) => {
+      const row = itemFormToRow({ ...item, id });
+      const override = overrideById.get(id);
+      if (override) {
+        if (override.clientId !== undefined) row.clientId = override.clientId;
+        if (override.lookTypeId !== undefined) row.lookTypeId = override.lookTypeId;
+      }
+      return row;
+    }),
   });
 
   for (const id of ids) {

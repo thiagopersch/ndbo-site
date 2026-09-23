@@ -87,13 +87,23 @@ export const GET = withAudit(async function GET(request: Request) {
     ...(weaponType ? { weaponType } : {}),
     ...(slotType ? { slotType } : {}),
     ...(published ? { published: published === "true" } : {}),
-    ...(idMin || idMax || hasImage
+    ...(idMin || idMax
       ? {
           id: {
             ...(idMin ? { gte: Number(idMin) } : {}),
             ...(idMax ? { lte: Number(idMax) } : {}),
-            ...(hasImage ?? {}),
           },
+        }
+      : {}),
+    // "Possui imagem" considera a imagem custom (`EntityImage`) e a sprite vinculada (`lookTypeId`).
+    // Em `AND` para não colidir com o `OR` da busca por nome/id.
+    ...(hasImage
+      ? {
+          AND: [
+            "in" in hasImage
+              ? { OR: [{ id: hasImage }, { lookTypeId: { not: null } }] }
+              : { id: hasImage, lookTypeId: null },
+          ],
         }
       : {}),
   };

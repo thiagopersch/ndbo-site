@@ -1,9 +1,10 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Download, ImageUp, Info, MoreVertical, Pencil, Plus } from "lucide-react";
+import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
+import { Download, ImageUp, Info, MoreVertical, Pencil, PencilLine, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -22,6 +23,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { DataTable } from "@/components/shared/data-table";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { RowActionsMenu, DeleteRowMenuItem } from "@/components/shared/row-actions-menu";
 import { DuplicateButton } from "@/components/shared/duplicate-button";
 import { CopyXmlButton } from "@/components/shared/copy-xml-button";
@@ -29,6 +31,7 @@ import { XmlImportDialog } from "@/components/shared/xml-import-dialog";
 import { OtbSyncDialog } from "@/components/admin/items/otb-sync-dialog";
 import { ItemsXmlSyncButton } from "@/components/admin/items/items-xml-sync-button";
 import { XmlBundlePanel } from "@/components/shared/xml-bundle-panel";
+import { BulkEditItemsDialog } from "@/components/admin/items/bulk-edit-items-dialog";
 import { EntityThumb } from "@/components/shared/entity-thumb";
 import { EntityImageUploadDialog } from "@/components/shared/entity-image-upload-dialog";
 import { useEntityImages } from "@/components/shared/use-entity-images";
@@ -150,6 +153,59 @@ export default function AdminItemsPage() {
     "item",
     (data?.data ?? []).map((i) => i.id),
   );
+
+  // Ids selecionados atravessando páginas — sobrevive à troca de página sozinho, já que trocar de
+  // página só troca a query do SWR acima (não desmonta a página nem a tabela). A tabela só recebe
+  // (e só sabe alterar) a fatia desse conjunto que corresponde às linhas da página atual.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+
+  const rowSelectionForCurrentPage = useMemo(() => {
+    const map: RowSelectionState = {};
+    for (const row of data?.data ?? []) if (selectedIds.has(row.id)) map[String(row.id)] = true;
+    return map;
+  }, [data, selectedIds]);
+
+  function handleRowSelectionChange(updater: RowSelectionState | ((old: RowSelectionState) => RowSelectionState)) {
+    const next = typeof updater === "function" ? updater(rowSelectionForCurrentPage) : updater;
+    setSelectedIds((current) => {
+      const merged = new Set(current);
+      const pageIds = new Set((data?.data ?? []).map((row) => row.id));
+      // Só ids da página atual podem ser adicionados/removidos por essa mudança — os de outras
+      // páginas, já guardados em `merged`, ficam intactos.
+      for (const id of pageIds) {
+        if (next[String(id)]) merged.add(id);
+        else merged.delete(id);
+      }
+      return merged;
+    });
+  }
+
+  async function handleBulkDelete() {
+    setIsBulkDeleting(true);
+    try {
+      const response = await fetch("/api/admin/items/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [...selectedIds] }),
+      });
+      const responseData = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        toast.error(responseData?.error ?? "Não foi possível excluir os selecionados.");
+        return;
+      }
+
+      setSelectedIds(new Set());
+      mutate();
+      toast.success(`${responseData.deletedCount} item(ns) removido(s).`);
+    } catch {
+      toast.error("Falha de rede ao excluir os selecionados.");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
 
   async function handleDelete(id: number) {
     const response = await fetch(`/api/admin/items/${id}`, {
@@ -373,8 +429,26 @@ export default function AdminItemsPage() {
           totalCount={data?.total}
           onPageChange={table.setPageIndex}
           onPageSizeChange={table.setPageSize}
+          enableRowSelection
+          rowSelection={rowSelectionForCurrentPage}
+          onRowSelectionChange={handleRowSelectionChange}
+          getRowId={(row) => String(row.id)}
           toolbar={
             <>
+              {selectedIds.size > 0 && (
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="destructive" disabled={isBulkDeleting}>
+                      <Trash2 className="size-4" />
+                      Excluir selecionados ({selectedIds.size})
+                    </Button>
+                  }
+                  title="Excluir items selecionados"
+                  description={`Isso vai remover ${selectedIds.size} item(ns). Esta ação não pode ser desfeita.`}
+                  confirmLabel="Excluir"
+                  onConfirm={handleBulkDelete}
+                />
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="outline" />}>
                   <MoreVertical className="size-4" />
@@ -384,6 +458,14 @@ export default function AdminItemsPage() {
                   align="start"
                   className="flex w-max min-w-56 max-w-none flex-col gap-1 p-1 [&_a]:w-full [&_a]:justify-start [&_a]:whitespace-nowrap [&_button]:w-full [&_button]:justify-start [&_button]:whitespace-nowrap"
                 >
+                  <DropdownMenuItem
+                    disabled={selectedIds.size === 0}
+                    onClick={() => setBulkEditOpen(true)}
+                  >
+                    <PencilLine className="size-4" />
+                    Editar selecionados em massa
+                    {selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+                  </DropdownMenuItem>
                   <XmlImportDialog
                     endpoint="/api/admin/items/import"
                     title="Importar items.xml"
@@ -430,6 +512,15 @@ export default function AdminItemsPage() {
           }
         />
       </div>
+      <BulkEditItemsDialog
+        ids={[...selectedIds]}
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        onSaved={() => {
+          setSelectedIds(new Set());
+          mutate();
+        }}
+      />
     </TooltipProvider>
   );
 }

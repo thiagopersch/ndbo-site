@@ -21,11 +21,26 @@ type EntityImageUploadProps = {
    * sai de andamento — usado para só bloquear o fechamento do dialog por clique fora enquanto
    * uma requisição está de fato em voo. */
   onBusyChange?: (busy: boolean) => void;
+  /** Chamado após vincular uma looktype com sucesso — para forms que guardam o `lookTypeId` em
+   * estado próprio manterem o valor em sincronia (senão o Salvar reenvia o id antigo). */
+  onLooktypeLinked?: (looktypeId: number) => void;
+  /** Looktype candidata a auto-vínculo (ex.: achada por convenção de nome a partir do client id
+   * digitado no form) — só é aplicada automaticamente enquanto a entidade ainda não tiver
+   * imagem/looktype vinculada, pra nunca sobrescrever uma escolha manual do admin. */
+  autoLinkCandidate?: Looktype | null;
 };
 
 /** Upload imediato (independente do resto do form — a entidade já precisa existir, então esta
  * seção só aparece em modo de edição, nunca em "novo"). */
-export function EntityImageUpload({ entityType, id, name, currentImage, onBusyChange }: EntityImageUploadProps) {
+export function EntityImageUpload({
+  entityType,
+  id,
+  name,
+  currentImage,
+  onBusyChange,
+  onLooktypeLinked,
+  autoLinkCandidate,
+}: EntityImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [image, setImage] = useState<EntityImageInfo | null | undefined>(currentImage);
   const [isUploading, setIsUploading] = useState(false);
@@ -98,8 +113,22 @@ export function EntityImageUpload({ entityType, id, name, currentImage, onBusyCh
     const data = await response.json();
     setImage({ extension: data.image.extension, updatedAt: data.image.updatedAt, looktype: data.image.looktype });
     setShowLooktypePicker(false);
+    onLooktypeLinked?.(looktype.id);
     toast.success("Sprite vinculada a partir do cadastro de looktypes.");
   }
+
+  useEffect(() => {
+    // Sem checar `image`: o form só manda um `autoLinkCandidate` novo quando o client id
+    // realmente mudou e uma nova busca achou sprite — nesse caso o vínculo antigo (se houver)
+    // deixou de fazer sentido e deve ser substituído, não preservado.
+    if (!autoLinkCandidate || isUploading) return;
+    // setTimeout (e não uma chamada direta) evita que o vínculo automático dispare setState
+    // síncrono dentro do corpo do efeito — vira uma chamada em callback, como um `fetch`/timer
+    // externo de verdade.
+    const timeoutId = setTimeout(() => handleLinkLooktype(autoLinkCandidate), 0);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage a mudanças do candidato; `image`/`isUploading` só decidem se a chamada roda, não devem reexecutar o efeito
+  }, [autoLinkCandidate]);
 
   return (
     <div className="flex flex-col gap-3">

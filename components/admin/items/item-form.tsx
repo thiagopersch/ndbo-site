@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +26,13 @@ import {
 } from "@/lib/validations/admin/item";
 import type { SpellFormInput } from "@/lib/validations/admin/spell";
 import { itemToXml } from "@/lib/item-xml";
+import type { Looktype } from "@/lib/generated/prisma/client";
+import {
+  LOOKTYPE_CATEGORY_LABELS,
+  formatLooktypeOption,
+  type LooktypeCategory,
+} from "@/lib/validations/admin/looktype";
+import { LooktypeAnimatedImage } from "@/components/shared/looktype-animated-image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +53,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NumberField } from "@/components/shared/number-field";
 import { RecordGridField } from "@/components/shared/record-grid-field";
 import { BooleanGridField } from "@/components/shared/boolean-grid-field";
@@ -61,6 +69,34 @@ import { ItemLinkedMovementsPanel } from "@/components/admin/items/item-linked-m
 type ItemFormProps = {
   itemId?: number;
   initialValues?: ItemInput;
+  /** "page" (padrão): usado pelas rotas /admin/items/new e /admin/items/[id] — form completo,
+   * com botões de ação e navegação após salvar. "embedded": usado pelo dialog de edição em
+   * massa — sem botões de ação, sem navegação, sem modo range (cada painel é sempre um item
+   * concreto); quem salva é o `submit()` exposto via `ref`. */
+  mode?: "page" | "embedded";
+};
+
+export type ItemSubmitResult =
+  | { ok: true; item: ItemInput }
+  /** `conflict` true = criação recusada por já existir um item com esse id (409) — sinal pro
+   * dialog de edição em massa oferecer sobrescrever em vez de só mostrar o erro. */
+  | { ok: false; conflict: boolean; error: string };
+
+export type ItemFormHandle = {
+  getValues: () => ItemInput;
+  isDirty: () => boolean;
+  submit: (options?: { forceOverwrite?: boolean }) => Promise<ItemSubmitResult>;
+};
+
+/** Mesmo teto de `POST /api/admin/items/range` — evita gerar uma lista gigante de linhas na aba
+ * "Outras sprites" antes mesmo de a API rejeitar o range. */
+const MAX_RANGE = 500;
+
+type RangeSpriteRow = {
+  itemId: number;
+  clientId: number | null;
+  lookTypeId: number | null;
+  pendingLooktype: Looktype | null;
 };
 
 function EnumSelect({
@@ -95,18 +131,69 @@ function EnumSelect({
   );
 }
 
-export function ItemForm({ itemId, initialValues }: ItemFormProps) {
+export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemForm(
+  { itemId, initialValues, mode = "page" },
+  ref,
+) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = itemId != null;
 
-  const [rangeMode, setRangeMode] = useState(false);
+  const [idMode, setIdMode] = useState<"single" | "range">("single");
+  const rangeMode = idMode === "range";
   const [fromId, setFromId] = useState("");
   const [toId, setToId] = useState("");
+  // Dados de client id/sprite por id do range, mantidos à parte do fromId/toId atuais — assim o
+  // que já foi digitado/vinculado sobrevive a ajustes no intervalo (ex.: estreitar e alargar de
+  // volta o range não perde o que já estava preenchido pros ids que continuam nele).
+  const [rangeSpriteData, setRangeSpriteData] = useState<
+    Map<number, { clientId: number | null; lookTypeId: number | null; pendingLooktype: Looktype | null }>
+  >(new Map());
+  const [rangeSpritePickerFor, setRangeSpritePickerFor] = useState<number | null>(null);
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+  const [pendingLooktype, setPendingLooktype] = useState<Looktype | null>(null);
+  const [showLooktypePicker, setShowLooktypePicker] = useState(false);
+  // Resultado do auto-lookup por client id em modo edição — repassado pro `EntityImageUpload`
+  // como candidato de auto-vínculo (ele decide se ainda não há nada vinculado antes de aplicar).
+  const [autoLookupLooktype, setAutoLookupLooktype] = useState<Looktype | null>(null);
+  // Guarda o último client id já pesquisado em cada contexto (single/edição/cada linha do range)
+  // pra não repetir a busca quando o campo perde foco sem o valor ter mudado, mas ainda assim
+  // refazer a busca sempre que o client id for alterado de fato (mesmo depois de já ter algo
+  // vinculado — o vínculo antigo deixou de fazer sentido pro novo client id).
+  const lastAutoSearchedClientIdRef = useRef<number | null>(null);
+  const lastAutoSearchedClientIdEditRef = useRef<number | null>(null);
+  const lastAutoSearchedRangeClientIdsRef = useRef<Map<number, number>>(new Map());
+
+  const rangeSpriteRows: RangeSpriteRow[] = (() => {
+    if (!rangeMode) return [];
+    const from = Number(fromId);
+    const to = Number(toId);
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from) return [];
+
+    const count = Math.min(to - from + 1, MAX_RANGE);
+    return Array.from({ length: count }, (_, i) => {
+      const id = from + i;
+      const data = rangeSpriteData.get(id);
+      return {
+        itemId: id,
+        clientId: data?.clientId ?? null,
+        lookTypeId: data?.lookTypeId ?? null,
+        pendingLooktype: data?.pendingLooktype ?? null,
+      };
+    });
+  })();
+
+  function updateRangeSpriteRow(itemId: number, patch: Partial<Omit<RangeSpriteRow, "itemId">>) {
+    setRangeSpriteData((current) => {
+      const next = new Map(current);
+      const existing = next.get(itemId) ?? { clientId: null, lookTypeId: null, pendingLooktype: null };
+      next.set(itemId, { ...existing, ...patch });
+      return next;
+    });
+  }
 
   const form = useForm<ItemInput, unknown, ItemInput>({
     resolver: zodResolver(itemSchema),
@@ -138,6 +225,23 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
           ...watched,
         } as ItemInput);
 
+  /** Busca a looktype de item cujo nome referencia o `clientId` informado (convenção
+   * `item_{clientId}`) e devolve o registro completo (já com os campos de preview), pronto pra
+   * exibir com `LooktypeAnimatedImage`. Retorna `null` sem lançar erro quando nada é encontrado —
+   * é uma tentativa best-effort disparada no blur do campo, o admin ainda pode vincular
+   * manualmente pelo combobox se a convenção de nome não bater. */
+  async function lookupLooktypeByClientId(clientId: number): Promise<Looktype | null> {
+    const found = await fetch(`/api/admin/looktypes/by-client-id?clientId=${clientId}`)
+      .then((res) => res.json())
+      .catch(() => null);
+    if (!found?.found) return null;
+
+    const detail = await fetch(`/api/admin/looktypes?id=${found.looktype.id}`)
+      .then((res) => res.json())
+      .catch(() => null);
+    return detail?.data?.[0] ?? null;
+  }
+
   function handlePendingImageChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -148,6 +252,21 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
       return URL.createObjectURL(file);
     });
     setPendingImageFile(file);
+    clearPendingLooktype();
+  }
+
+  function handlePendingLooktypeSelect(looktype: Looktype | null) {
+    if (!looktype) return;
+    clearPendingImage();
+    setPendingLooktype(looktype);
+    setShowLooktypePicker(false);
+    form.setValue("lookTypeId", looktype.id);
+  }
+
+  function clearPendingLooktype() {
+    setPendingLooktype(null);
+    setShowLooktypePicker(false);
+    form.setValue("lookTypeId", null);
   }
 
   function clearPendingImage() {
@@ -172,6 +291,70 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
     }
   }
 
+  async function linkPendingLooktype(id: number, looktypeId: number) {
+    const response = await fetch(`/api/admin/images/item/${id}/link-looktype`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ looktypeId }),
+    });
+
+    if (!response.ok) {
+      toast.error("Item criado, mas não foi possível vincular a sprite.");
+    }
+  }
+
+  /** Cria ou atualiza o item via API — reaproveitado tanto pelo submit nativo do form (modo
+   * "page") quanto pelo `submit()` imperativo exposto via `ref` (modo "embedded", usado pelo
+   * dialog de edição em massa). `forceOverwrite` faz PATCH em `values.id` mesmo quando o form
+   * nasceu como criação — usado depois que o admin confirma sobrescrever um id que já existe. */
+  async function doSave(values: ItemInput, forceOverwrite = false): Promise<ItemSubmitResult> {
+    const editingThisSave = isEditing || forceOverwrite;
+    const targetId = isEditing ? itemId : values.id;
+    const url = editingThisSave ? `/api/admin/items/${targetId}` : "/api/admin/items";
+    const method = editingThisSave ? "PATCH" : "POST";
+
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      return {
+        ok: false,
+        conflict: !editingThisSave && response.status === 409,
+        error: data?.error ?? "Não foi possível salvar o item.",
+      };
+    }
+
+    const data = await response.json();
+
+    if (pendingImageFile && data?.item?.id) {
+      await uploadPendingImage(data.item.id, pendingImageFile);
+    } else if (pendingLooktype && data?.item?.id) {
+      await linkPendingLooktype(data.item.id, pendingLooktype.id);
+    }
+
+    return { ok: true, item: data.item as ItemInput };
+  }
+
+  useImperativeHandle(ref, () => ({
+    getValues: () => form.getValues(),
+    isDirty: () => form.formState.isDirty,
+    submit: async (options) => {
+      const valid = await form.trigger();
+      if (!valid) {
+        return {
+          ok: false,
+          conflict: false,
+          error: "Há campos inválidos — confira as abas com erro.",
+        };
+      }
+      return doSave(form.getValues(), options?.forceOverwrite ?? false);
+    },
+  }));
+
   async function onSubmit(values: ItemInput) {
     setIsSubmitting(true);
 
@@ -185,10 +368,14 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
         return;
       }
 
+      const overrides = rangeSpriteRows
+        .filter((row) => row.clientId != null || row.lookTypeId != null)
+        .map((row) => ({ id: row.itemId, clientId: row.clientId, lookTypeId: row.lookTypeId }));
+
       const response = await fetch("/api/admin/items/range", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromId: from, toId: to, item: values }),
+        body: JSON.stringify({ fromId: from, toId: to, item: values, overrides }),
       });
 
       setIsSubmitting(false);
@@ -205,29 +392,14 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
       return;
     }
 
-    const url = isEditing ? `/api/admin/items/${itemId}` : "/api/admin/items";
-    const method = isEditing ? "PATCH" : "POST";
+    const result = await doSave(values);
+    setIsSubmitting(false);
 
-    const response = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-
-    if (!response.ok) {
-      setIsSubmitting(false);
-      const data = await response.json().catch(() => null);
-      toast.error(data?.error ?? "Não foi possível salvar o item.");
+    if (!result.ok) {
+      toast.error(result.error);
       return;
     }
 
-    const data = await response.json();
-
-    if (!isEditing && pendingImageFile && data?.item?.id) {
-      await uploadPendingImage(data.item.id, pendingImageFile);
-    }
-
-    setIsSubmitting(false);
     toast.success(isEditing ? "Item atualizado." : "Item criado.");
     router.push("/admin/items");
     router.refresh();
@@ -237,12 +409,15 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={mode === "page" ? form.handleSubmit(onSubmit) : (event) => event.preventDefault()}
           className="flex flex-col gap-6"
         >
           <Tabs defaultValue="basic">
             <ScrollableTabsList>
               <TabsTrigger value="basic">Básico</TabsTrigger>
+              {!isEditing && rangeMode && (
+                <TabsTrigger value="other-sprites">Outras sprites</TabsTrigger>
+              )}
               <TabsTrigger value="combat">Combate</TabsTrigger>
               <TabsTrigger value="resist">Resistências</TabsTrigger>
               <TabsTrigger value="suppress">Suprimir condições</TabsTrigger>
@@ -260,20 +435,31 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                 title="Identificação"
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  {!isEditing && (
-                    <div className="flex flex-row items-center gap-2 sm:col-span-2 lg:col-span-3">
-                      <input
-                        type="checkbox"
-                        className="size-4 cursor-pointer"
-                        id="range-mode"
-                        checked={rangeMode}
-                        onChange={(event) => setRangeMode(event.target.checked)}
-                      />
-                      <Label htmlFor="range-mode" className="font-normal">
-                        Cadastrar como range de ids (mesmo nome/atributos, vários ids
-                        — equivalente a <code>fromid</code>/<code>toid</code> no{" "}
-                        <code>items.xml</code>)
-                      </Label>
+                  {!isEditing && mode === "page" && (
+                    <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
+                      <Label className="font-normal">Forma de informar o ID do item</Label>
+                      <RadioGroup
+                        orientation="horizontal"
+                        value={idMode}
+                        onValueChange={(value) => setIdMode(value as "single" | "range")}
+                      >
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <RadioGroupItem value="range" />
+                          Range de items
+                        </label>
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <RadioGroupItem value="single" />
+                          Apenas id
+                        </label>
+                      </RadioGroup>
+                      {rangeMode && (
+                        <p className="text-xs text-muted-foreground">
+                          Mesmo nome/atributos, vários ids — equivalente a{" "}
+                          <code>fromid</code>/<code>toid</code> no <code>items.xml</code>.
+                          Sprite/client id individuais por id podem ser definidos na aba
+                          &quot;Outras sprites&quot;.
+                        </p>
+                      )}
                     </div>
                   )}
                   {!isEditing && rangeMode ? (
@@ -284,7 +470,18 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                           id="range-from-id"
                           type="number"
                           value={fromId}
-                          onChange={(event) => setFromId(event.target.value)}
+                          onChange={(event) => {
+                            setFromId(event.target.value);
+                            // O campo `id` (obrigatório >= 1 no schema) some da tela em modo
+                            // range, mas continua fazendo parte do form — sem sincronizar, ele
+                            // fica travado no valor padrão (0) e reprova a validação em silêncio
+                            // no submit, sem nenhum feedback visível (o FormField dele não está
+                            // renderizado pra mostrar o erro).
+                            const from = Number(event.target.value);
+                            form.setValue("id", Number.isInteger(from) && from > 0 ? from : 0, {
+                              shouldValidate: true,
+                            });
+                          }}
                         />
                       </div>
                       <div className="grid gap-2">
@@ -380,7 +577,25 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                                 event.target.value === "" ? null : Number(event.target.value)
                               );
                             }}
-                            onBlur={field.onBlur}
+                            onBlur={(event) => {
+                              field.onBlur();
+                              const clientId = Number(event.target.value);
+                              if (!Number.isInteger(clientId) || clientId < 1) return;
+
+                              if (isEditing) {
+                                if (lastAutoSearchedClientIdEditRef.current === clientId) return;
+                                lastAutoSearchedClientIdEditRef.current = clientId;
+                                lookupLooktypeByClientId(clientId).then((looktype) => {
+                                  if (looktype) setAutoLookupLooktype(looktype);
+                                });
+                              } else if (!rangeMode) {
+                                if (lastAutoSearchedClientIdRef.current === clientId) return;
+                                lastAutoSearchedClientIdRef.current = clientId;
+                                lookupLooktypeByClientId(clientId).then((looktype) => {
+                                  if (looktype) handlePendingLooktypeSelect(looktype);
+                                });
+                              }
+                            }}
                           />
                         </FormControl>
                         <p className="text-xs text-muted-foreground">
@@ -435,6 +650,8 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                       entityType="item"
                       id={itemId}
                       name={watched.name}
+                      autoLinkCandidate={autoLookupLooktype}
+                      onLooktypeLinked={(looktypeId) => form.setValue("lookTypeId", looktypeId)}
                     />
                   ) : rangeMode ? (
                     <p className="text-sm text-muted-foreground">
@@ -444,7 +661,16 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                   ) : (
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center gap-4">
-                        {pendingImagePreview ? (
+                        {pendingLooktype ? (
+                          <LooktypeAnimatedImage
+                            key={pendingLooktype.id}
+                            looktypeId={pendingLooktype.id}
+                            frameCount={pendingLooktype.frameCount}
+                            frameDurationsMs={pendingLooktype.frameDurationsMs as number[]}
+                            updatedAt={pendingLooktype.updatedAt}
+                            size="md"
+                          />
+                        ) : pendingImagePreview ? (
                           // eslint-disable-next-line @next/next/no-img-element -- preview local do arquivo selecionado, ainda não enviado
                           <img
                             src={pendingImagePreview}
@@ -475,6 +701,24 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                               Remover seleção
                             </Button>
                           )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowLooktypePicker((v) => !v)}
+                          >
+                            Vincular sprite do cadastro
+                          </Button>
+                          {pendingLooktype && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={clearPendingLooktype}
+                            >
+                              Remover vínculo
+                            </Button>
+                          )}
                         </div>
                         <input
                           ref={imageInputRef}
@@ -484,14 +728,163 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
                           onChange={handlePendingImageChange}
                         />
                       </div>
+                      {showLooktypePicker && (
+                        <EntitySearchCombobox<Looktype>
+                          endpoint="/api/admin/looktypes"
+                          value={null}
+                          placeholder="Buscar sprite/looktype por id ou número..."
+                          formatOption={(lt) =>
+                            `${formatLooktypeOption(lt)} — ${LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}`
+                          }
+                          renderOption={(lt) => (
+                            <span className="flex items-center gap-2">
+                              <LooktypeAnimatedImage
+                                key={lt.id}
+                                looktypeId={lt.id}
+                                frameCount={lt.frameCount}
+                                frameDurationsMs={lt.frameDurationsMs as number[]}
+                                updatedAt={lt.updatedAt}
+                                size="sm"
+                              />
+                              {formatLooktypeOption(lt)} — {LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}
+                            </span>
+                          )}
+                          onSelect={handlePendingLooktypeSelect}
+                        />
+                      )}
                       <p className="text-xs text-muted-foreground">
-                        PNG ou GIF, até 2MB. A imagem é enviada automaticamente
-                        assim que o item for criado.
+                        PNG ou GIF, até 2MB. A imagem (ou a sprite vinculada) é aplicada
+                        automaticamente assim que o item for criado.
                       </p>
                     </div>
                   )}
               </CollapsibleSectionCard>
             </TabsContent>
+
+            {!isEditing && rangeMode && (
+              <TabsContent value="other-sprites">
+                <CollapsibleSectionCard
+                  title="Outras sprites"
+                  contentClassName="flex flex-col gap-2"
+                >
+                  <p className="text-sm text-muted-foreground">
+                    Uma linha por id do range ({fromId || "?"}–{toId || "?"}). Client id e
+                    sprite vinculada ficam individuais por item; os demais atributos vêm das
+                    outras abas e são compartilhados por todos os ids criados.
+                  </p>
+                  {rangeSpriteRows.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Informe um range de ids válido na aba Básico para listar os itens aqui.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)] gap-2 text-xs font-medium text-muted-foreground">
+                        <span>Item ID</span>
+                        <span>Client ID</span>
+                        <span>Sprite</span>
+                      </div>
+                      {rangeSpriteRows.map((row) => (
+                        <div
+                          key={row.itemId}
+                          className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)] items-center gap-2"
+                        >
+                          <Input value={row.itemId} readOnly disabled />
+                          <Input
+                            type="number"
+                            value={row.clientId ?? ""}
+                            onChange={(event) =>
+                              updateRangeSpriteRow(row.itemId, {
+                                clientId: event.target.value === "" ? null : Number(event.target.value),
+                              })
+                            }
+                            onBlur={(event) => {
+                              const clientId = Number(event.target.value);
+                              if (!Number.isInteger(clientId) || clientId < 1) return;
+                              if (lastAutoSearchedRangeClientIdsRef.current.get(row.itemId) === clientId) return;
+                              lastAutoSearchedRangeClientIdsRef.current.set(row.itemId, clientId);
+                              lookupLooktypeByClientId(clientId).then((looktype) => {
+                                if (!looktype) return;
+                                updateRangeSpriteRow(row.itemId, { lookTypeId: looktype.id, pendingLooktype: looktype });
+                              });
+                            }}
+                          />
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              {row.pendingLooktype ? (
+                                <LooktypeAnimatedImage
+                                  key={row.pendingLooktype.id}
+                                  looktypeId={row.pendingLooktype.id}
+                                  frameCount={row.pendingLooktype.frameCount}
+                                  frameDurationsMs={row.pendingLooktype.frameDurationsMs as number[]}
+                                  updatedAt={row.pendingLooktype.updatedAt}
+                                  size="sm"
+                                />
+                              ) : (
+                                <span className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-dashed border-border text-muted-foreground">
+                                  <ImageOff className="size-4" />
+                                </span>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setRangeSpritePickerFor((current) =>
+                                    current === row.itemId ? null : row.itemId,
+                                  )
+                                }
+                              >
+                                Vincular sprite
+                              </Button>
+                              {row.pendingLooktype && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    updateRangeSpriteRow(row.itemId, { lookTypeId: null, pendingLooktype: null })
+                                  }
+                                >
+                                  Remover vínculo
+                                </Button>
+                              )}
+                            </div>
+                            {rangeSpritePickerFor === row.itemId && (
+                              <EntitySearchCombobox<Looktype>
+                                endpoint="/api/admin/looktypes"
+                                value={null}
+                                placeholder="Buscar sprite/looktype por id ou número..."
+                                formatOption={(lt) =>
+                                  `${formatLooktypeOption(lt)} — ${LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}`
+                                }
+                                renderOption={(lt) => (
+                                  <span className="flex items-center gap-2">
+                                    <LooktypeAnimatedImage
+                                      key={lt.id}
+                                      looktypeId={lt.id}
+                                      frameCount={lt.frameCount}
+                                      frameDurationsMs={lt.frameDurationsMs as number[]}
+                                      updatedAt={lt.updatedAt}
+                                      size="sm"
+                                    />
+                                    {formatLooktypeOption(lt)} — {LOOKTYPE_CATEGORY_LABELS[lt.category as LooktypeCategory] ?? lt.category}
+                                  </span>
+                                )}
+                                onSelect={(lt) => {
+                                  if (!lt) return;
+                                  updateRangeSpriteRow(row.itemId, { lookTypeId: lt.id, pendingLooktype: lt });
+                                  setRangeSpritePickerFor(null);
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CollapsibleSectionCard>
+              </TabsContent>
+            )}
 
             <TabsContent value="combat">
               <CollapsibleSectionCard
@@ -1345,28 +1738,30 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
             </TabsContent>
           </Tabs>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-              nativeButton={false}
-              render={<Link href="/admin/items" />}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto"
-            >
-              {isSubmitting
-                ? "Salvando..."
-                : isEditing
-                  ? "Salvar alterações"
-                  : "Criar item"}
-            </Button>
-          </div>
+          {mode === "page" && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                nativeButton={false}
+                render={<Link href="/admin/items" />}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {isSubmitting
+                  ? "Salvando..."
+                  : isEditing
+                    ? "Salvar alterações"
+                    : "Criar item"}
+              </Button>
+            </div>
+          )}
         </form>
       </Form>
 
@@ -1390,4 +1785,4 @@ export function ItemForm({ itemId, initialValues }: ItemFormProps) {
       </div>
     </div>
   );
-}
+});
