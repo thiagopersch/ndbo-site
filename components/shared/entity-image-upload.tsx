@@ -24,6 +24,9 @@ type EntityImageUploadProps = {
   /** Chamado após vincular uma looktype com sucesso — para forms que guardam o `lookTypeId` em
    * estado próprio manterem o valor em sincronia (senão o Salvar reenvia o id antigo). */
   onLooktypeLinked?: (looktypeId: number) => void;
+  /** Chamado após qualquer mudança persistida (upload, remoção ou vínculo) — para previews fora
+   * deste componente se atualizarem sem precisar salvar o form. */
+  onChanged?: () => void;
   /** Looktype candidata a auto-vínculo (ex.: achada por convenção de nome a partir do client id
    * digitado no form) — só é aplicada automaticamente enquanto a entidade ainda não tiver
    * imagem/looktype vinculada, pra nunca sobrescrever uma escolha manual do admin. */
@@ -39,6 +42,7 @@ export function EntityImageUpload({
   currentImage,
   onBusyChange,
   onLooktypeLinked,
+  onChanged,
   autoLinkCandidate,
 }: EntityImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +79,7 @@ export function EntityImageUpload({
 
     const data = await response.json();
     setImage({ extension: data.image.extension, updatedAt: data.image.updatedAt, looktype: data.image.looktype ?? null });
+    onChanged?.();
     toast.success("Imagem atualizada.");
   }
 
@@ -90,6 +95,7 @@ export function EntityImageUpload({
     }
 
     setImage(null);
+    onChanged?.();
     toast.success("Imagem removida.");
   }
 
@@ -114,6 +120,7 @@ export function EntityImageUpload({
     setImage({ extension: data.image.extension, updatedAt: data.image.updatedAt, looktype: data.image.looktype });
     setShowLooktypePicker(false);
     onLooktypeLinked?.(looktype.id);
+    onChanged?.();
     toast.success("Sprite vinculada a partir do cadastro de looktypes.");
   }
 

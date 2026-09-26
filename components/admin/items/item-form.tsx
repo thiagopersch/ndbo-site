@@ -3,6 +3,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSWRConfig } from "swr";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   useFieldArray,
@@ -330,6 +331,7 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
   ref,
 ) {
   const router = useRouter();
+  const { mutate } = useSWRConfig();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = itemId != null;
 
@@ -404,6 +406,20 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
   });
 
   const watched = useWatch({ control: form.control });
+
+  // Criação: só habilita o Salvar com os obrigatórios preenchidos (nome e id, ou o range de ids
+  // válido). Edição: a barra só aparece quando algo no form foi alterado.
+  const requiredFilled = (() => {
+    if (!watched.name?.trim()) return false;
+    if (rangeMode) {
+      const from = Number(fromId);
+      const to = Number(toId);
+      return Number.isInteger(from) && Number.isInteger(to) && from >= 1 && to >= from;
+    }
+    return Number.isInteger(watched.id) && (watched.id ?? 0) >= 1;
+  })();
+  const canSave = isEditing ? form.formState.isDirty : requiredFilled;
+  const showActionBar = !isEditing || form.formState.isDirty;
   const previewXml =
     !isEditing && rangeMode
       ? itemToXml({
@@ -628,8 +644,9 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                 title="Identificação"
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  {!isEditing && mode === "page" && (
-                    <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-3">
+                  <div className="flex items-start justify-between gap-4 sm:col-span-2 lg:col-span-3">
+                  {!isEditing && mode === "page" ? (
+                    <div className="flex flex-col gap-2">
                       <Label className="font-normal">Forma de informar o ID do item</Label>
                       <RadioGroup
                         orientation="horizontal"
@@ -654,7 +671,16 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                         </p>
                       )}
                     </div>
+                  ) : (
+                    <span />
                   )}
+                  <CheckField
+                    control={form.control}
+                    name="published"
+                    label="Publicado no site"
+                    tooltip={FIELD_HELP.published}
+                  />
+                  </div>
                   {!isEditing && rangeMode ? (
                     <>
                       <div className="grid gap-2">
@@ -789,10 +815,10 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                   />
               </CollapsibleSectionCard>
 
+              <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
               <CollapsibleSectionCard
                 title="Peso e valor" tooltip="Peso que ocupa na capacidade do jogador e valor em gold do item."
-                className="mt-4"
-                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                contentClassName="grid gap-4 sm:grid-cols-2"
               >
                 <WeightField
                   control={form.control}
@@ -809,20 +835,7 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
-                title="Publicação no site" tooltip="Controla apenas a exibição nas páginas públicas do portal; não altera o comportamento no jogo."
-                className="mt-4"
-              >
-                <CheckField
-                  control={form.control}
-                  name="published"
-                  label="Publicado (visível nas páginas públicas de gameplay)"
-                  tooltip={FIELD_HELP.published}
-                />
-              </CollapsibleSectionCard>
-
-              <CollapsibleSectionCard
                 title="Imagem"
-                className="mt-4"
               >
                   {isEditing ? (
                     <EntityImageUpload
@@ -831,6 +844,7 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                       name={watched.name}
                       autoLinkCandidate={autoLookupLooktype}
                       onLooktypeLinked={(looktypeId) => form.setValue("lookTypeId", looktypeId)}
+                      onChanged={() => mutate(["entity-image", "item", itemId])}
                     />
                   ) : rangeMode ? (
                     <p className="text-sm text-muted-foreground">
@@ -938,6 +952,7 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                     </div>
                   )}
               </CollapsibleSectionCard>
+              </div>
             </TabsContent>
 
             {!isEditing && rangeMode && (
@@ -1521,8 +1536,9 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
             </TabsContent>
           </Tabs>
 
-          {mode === "page" && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {mode === "page" && showActionBar && (
+            <div className="sticky bottom-4 z-10 rounded-xl border border-border bg-card p-3 shadow-lg ring-1 ring-foreground/5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 type="button"
                 variant="outline"
@@ -1534,7 +1550,7 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !canSave}
                 className="w-full sm:w-auto"
               >
                 {isSubmitting
@@ -1543,6 +1559,7 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                     ? "Salvar alterações"
                     : "Criar item"}
               </Button>
+              </div>
             </div>
           )}
         </form>
@@ -1558,7 +1575,24 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
           <CardContent>
             {isEditing ? (
               <EntityThumb entityType="item" id={itemId} name={watched.name} size="lg" />
+            ) : pendingLooktype ? (
+              <LooktypeAnimatedImage
+                key={pendingLooktype.id}
+                looktypeId={pendingLooktype.id}
+                frameCount={pendingLooktype.frameCount}
+                frameDurationsMs={pendingLooktype.frameDurationsMs as number[]}
+                updatedAt={pendingLooktype.updatedAt}
+                size="md"
+              />
+            ) : pendingImagePreview ? (
+              // eslint-disable-next-line @next/next/no-img-element -- preview local do arquivo selecionado, ainda não enviado
+              <img
+                src={pendingImagePreview}
+                alt="Preview"
+                className="size-16 rounded-sm border border-border object-contain bg-muted/40"
+              />
             ) : (
+              
               <p className="text-sm text-muted-foreground">
                 Salve o item primeiro para poder enviar/ver a imagem.
               </p>
