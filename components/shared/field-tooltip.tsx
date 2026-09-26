@@ -12,7 +12,7 @@ export function FieldTooltip({ text }: { text: string }) {
       <Tooltip>
         <TooltipTrigger
           render={
-            <button type="button" tabIndex={-1} className="text-muted-foreground hover:text-foreground">
+            <button type="button" tabIndex={-1} className="cursor-help text-muted-foreground hover:text-foreground">
               <CircleHelp className="size-3.5" />
             </button>
           }

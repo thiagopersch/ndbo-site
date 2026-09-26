@@ -2,6 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 
+import { FieldTooltip } from "@/components/shared/field-tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleTrigger, CollapsiblePanel } from "@/components/ui/collapsible";
 
@@ -10,6 +11,8 @@ type CollapsibleSectionCardProps = {
   defaultOpen?: boolean;
   className?: string;
   contentClassName?: string;
+  /** Texto do (i) da seção. Fica fora do gatilho: um botão dentro de outro botão é HTML inválido. */
+  tooltip?: string;
   /** Conteúdo extra no cabeçalho, fora do gatilho (ex.: um botão de ação da seção). */
   headerExtra?: React.ReactNode;
   children: React.ReactNode;
@@ -23,6 +26,7 @@ export function CollapsibleSectionCard({
   defaultOpen = true,
   className,
   contentClassName,
+  tooltip,
   headerExtra,
   children,
 }: CollapsibleSectionCardProps) {
@@ -34,6 +38,7 @@ export function CollapsibleSectionCard({
             <CardTitle>{title}</CardTitle>
             <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 data-panel-open:rotate-180" />
           </CollapsibleTrigger>
+          {tooltip && <FieldTooltip text={tooltip} />}
           {headerExtra}
         </CardHeader>
         <CollapsiblePanel>

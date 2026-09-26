@@ -9,6 +9,8 @@ type RecordGridFieldProps<T extends FieldValues> = {
   basePath: string;
   keys: readonly string[];
   labels?: Record<string, string>;
+  /** Texto do (i) ao lado de cada campo, por chave. */
+  tooltips?: Record<string, string>;
 };
 
 /** Grade fixa de campos numéricos para grupos JSON tipo `Record<string, number>` (chaves
@@ -19,6 +21,7 @@ export function RecordGridField<T extends FieldValues>({
   basePath,
   keys,
   labels,
+  tooltips,
 }: RecordGridFieldProps<T>) {
   return (
     <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -28,6 +31,7 @@ export function RecordGridField<T extends FieldValues>({
           control={control}
           name={`${basePath}.${key}` as FieldPath<T>}
           label={labels?.[key] ?? key}
+          tooltip={tooltips?.[key]}
         />
       ))}
     </div>

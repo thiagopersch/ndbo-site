@@ -200,7 +200,7 @@ export const itemSchema = z.object({
   article: z.string().max(10),
   plural: z.string().max(255),
   editorSuffix: z.string().max(100),
-  description: z.string().max(500),
+  description: z.string().max(255),
   /** Client id real do sprite no `.otb`/items.xml — usado para localizar a looktype
    * correspondente (nome no padrão `item_{clientId}`) e persistido no `items.xml`. */
   clientId: z.number().int().min(1).nullable(),

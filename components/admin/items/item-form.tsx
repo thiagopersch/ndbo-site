@@ -4,7 +4,13 @@ import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import {
+  useFieldArray,
+  useForm,
+  useWatch,
+  type Control,
+  type FieldPath,
+} from "react-hook-form";
 import { ImageOff, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -65,6 +71,25 @@ import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { ScrollableTabsList } from "@/components/shared/scrollable-tabs-list";
 import { CollapsibleSectionCard } from "@/components/shared/collapsible-section-card";
 import { ItemLinkedMovementsPanel } from "@/components/admin/items/item-linked-movements-panel";
+import { FieldTooltip } from "@/components/shared/field-tooltip";
+import { WeightField } from "@/components/shared/weight-field";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  ABSORB_TOOLTIP,
+  ELEMENT_DAMAGE_TOOLTIP,
+  ELEMENT_LABELS,
+  ENUM_LABELS,
+  FIELD_ABSORB_TOOLTIP,
+  FIELD_HELP,
+  FLAG_LABELS,
+  FLAG_TOOLTIPS,
+  REFLECT_CHANCE_TOOLTIP,
+  REFLECT_PERCENT_TOOLTIP,
+  SKILL_LABELS,
+  SKILL_TOOLTIP,
+  SUPPRESS_LABELS,
+  SUPPRESS_TOOLTIP,
+} from "@/lib/item-field-help";
 
 type ItemFormProps = {
   itemId?: number;
@@ -99,15 +124,184 @@ type RangeSpriteRow = {
   pendingLooktype: Looktype | null;
 };
 
+/** Agrupamento das flags na aba "Comportamento" — as chaves são as mesmas de `itemFlagsSchema`. */
+const FLAG_GROUPS: { title: string; tooltip: string; keys: string[] }[] = [
+  {
+    title: "Colisão",
+    tooltip: "Como o item impede ou permite a passagem de criaturas e projéteis.",
+    keys: ["blocking", "blockProjectile", "blockPathfind", "walkStack"],
+  },
+  {
+    title: "Interação",
+    tooltip: "O que o jogador pode fazer com o item: mover, pegar, girar.",
+    keys: ["movable", "pickupable", "allowPickupable", "rotable"],
+  },
+  {
+    title: "Exibição e leitura",
+    tooltip: "Como o item aparece na descrição e se o texto dele pode ser lido.",
+    keys: ["showCount", "canReadText", "allowDistRead"],
+  },
+  {
+    title: "Equipamento e morte",
+    tooltip: "Efeitos ao equipar o item e o que acontece com ele quando o jogador morre.",
+    keys: ["dualWield", "invisible", "preventLoss", "preventDrop"],
+  },
+  {
+    title: "Sistema",
+    tooltip: "Flags técnicas do servidor (salvamento e substituição de campos).",
+    keys: ["forceSerialize", "replacable"],
+  },
+];
+
+function LabelWithTooltip({
+  label,
+  tooltip,
+  className,
+}: {
+  label: string;
+  tooltip?: string;
+  className?: string;
+}) {
+  return (
+    <FormLabel className={`flex items-center gap-1.5 ${className ?? ""}`}>
+      {label}
+      {tooltip && <FieldTooltip text={tooltip} />}
+    </FormLabel>
+  );
+}
+
+/** Checkbox com rótulo e (i) — evita repetir o bloco de FormField em cada booleano do form. */
+function CheckField({
+  control,
+  name,
+  label,
+  tooltip,
+}: {
+  control: Control<ItemInput>;
+  name: FieldPath<ItemInput>;
+  label: string;
+  tooltip?: string;
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className="flex flex-row items-center gap-2">
+          <FormControl>
+            <input
+              type="checkbox"
+              className="size-4 cursor-pointer"
+              checked={Boolean(field.value)}
+              onChange={(event) => field.onChange(event.target.checked)}
+            />
+          </FormControl>
+          <LabelWithTooltip label={label} tooltip={tooltip} className="!mt-0 font-normal" />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function TextField({
+  control,
+  name,
+  label,
+  tooltip,
+  placeholder,
+  className,
+  multiline,
+  maxLength,
+}: {
+  control: Control<ItemInput>;
+  name: FieldPath<ItemInput>;
+  label: string;
+  tooltip?: string;
+  placeholder?: string;
+  className?: string;
+  multiline?: boolean;
+  maxLength?: number;
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => {
+        const value = (field.value as string | null | undefined) ?? "";
+        return (
+          <FormItem className={className}>
+            <LabelWithTooltip label={label} tooltip={tooltip} />
+            <FormControl>
+              {multiline ? (
+                <Textarea
+                  {...field}
+                  value={value}
+                  maxLength={maxLength}
+                  rows={3}
+                  placeholder={placeholder}
+                />
+              ) : (
+                <Input {...field} value={value} placeholder={placeholder} />
+              )}
+            </FormControl>
+            {multiline && maxLength && (
+              <p className="text-right text-xs text-muted-foreground">
+                {value.length}/{maxLength}
+              </p>
+            )}
+            <FormMessage />
+          </FormItem>
+        );
+      }}
+    />
+  );
+}
+
+function EnumField({
+  control,
+  name,
+  label,
+  tooltip,
+  options,
+  optionLabels,
+}: {
+  control: Control<ItemInput>;
+  name: FieldPath<ItemInput>;
+  label: string;
+  tooltip?: string;
+  options: readonly string[];
+  optionLabels?: Record<string, string>;
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <LabelWithTooltip label={label} tooltip={tooltip} />
+          <EnumSelect
+            value={(field.value as string | null | undefined) ?? ""}
+            onChange={field.onChange}
+            options={options}
+            optionLabels={optionLabels}
+          />
+        </FormItem>
+      )}
+    />
+  );
+}
+
 function EnumSelect({
   value,
   onChange,
   options,
+  optionLabels,
   placeholder = "—",
 }: {
   value: string;
   onChange: (value: string) => void;
   options: readonly string[];
+  optionLabels?: Record<string, string>;
   placeholder?: string;
 }) {
   return (
@@ -123,7 +317,7 @@ function EnumSelect({
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={option || "__empty"} value={option || "__empty"}>
-            {option || "(nenhum)"}
+            {option ? (optionLabels?.[option] ?? option) : "(nenhum)"}
           </SelectItem>
         ))}
       </SelectContent>
@@ -419,13 +613,12 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                 <TabsTrigger value="other-sprites">Outras sprites</TabsTrigger>
               )}
               <TabsTrigger value="combat">Combate</TabsTrigger>
-              <TabsTrigger value="resist">Resistências</TabsTrigger>
-              <TabsTrigger value="suppress">Suprimir condições</TabsTrigger>
+              <TabsTrigger value="resist">Proteções</TabsTrigger>
               <TabsTrigger value="decay">Decay/Transformação</TabsTrigger>
               <TabsTrigger value="container">Container/Texto</TabsTrigger>
-              <TabsTrigger value="regen">Luz &amp; Regen</TabsTrigger>
+              <TabsTrigger value="regen">Luz e Bônus</TabsTrigger>
               <TabsTrigger value="field">Campo mágico</TabsTrigger>
-              <TabsTrigger value="flags">Flags</TabsTrigger>
+              <TabsTrigger value="flags">Comportamento (flags)</TabsTrigger>
               <TabsTrigger value="extra">Atributos extras</TabsTrigger>
               <TabsTrigger value="movements">Movements vinculados</TabsTrigger>
             </ScrollableTabsList>
@@ -495,77 +688,56 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                       </div>
                     </>
                   ) : (
-                    <NumberField control={form.control} name="id" label="ID (server id)" />
+                    <NumberField
+                      control={form.control}
+                      name="id"
+                      label="ID (server id)"
+                      tooltip={FIELD_HELP.id}
+                    />
                   )}
-                  <FormField
+                  <TextField
                     control={form.control}
                     name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    label="Nome (Name)"
+                    tooltip={FIELD_HELP.name}
                   />
-                  <FormField
+                  <TextField
                     control={form.control}
                     name="article"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Artigo (article)</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="a, an..." />
-                        </FormControl>
-                      </FormItem>
-                    )}
+                    label="Artigo (article)"
+                    tooltip={FIELD_HELP.article}
+                    placeholder="a, an..."
                   />
-                  <FormField
+                  <TextField
                     control={form.control}
                     name="plural"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Plural</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
+                    label="Plural"
+                    tooltip={FIELD_HELP.plural}
                   />
-                  <FormField
+                  <TextField
                     control={form.control}
                     name="editorSuffix"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sufixo do editor (RME, cosmético)</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
+                    label="Sufixo do editor (RME, cosmético)"
+                    tooltip={FIELD_HELP.editorSuffix}
                   />
-                  <FormField
+                  <EnumField
                     control={form.control}
                     name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo (type)</FormLabel>
-                        <EnumSelect
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={ITEM_TYPES}
-                        />
-                      </FormItem>
-                    )}
+                    label="Tipo (type)"
+                    tooltip={FIELD_HELP.type}
+                    options={ITEM_TYPES}
+                    optionLabels={ENUM_LABELS.type}
                   />
+                  {!rangeMode && (
                   <FormField
                     control={form.control}
                     name="clientId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Client ID (sprite no .otb/items.xml)</FormLabel>
+                        <LabelWithTooltip
+                          label="Client ID (sprite no cliente)"
+                          tooltip={FIELD_HELP.clientId}
+                        />
                         <FormControl>
                           <Input
                             type="number"
@@ -605,40 +777,47 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                       </FormItem>
                     )}
                   />
-                  <FormField
+                  )}
+                  <TextField
                     control={form.control}
                     name="description"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-2 lg:col-span-3">
-                        <FormLabel>Descrição</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
+                    label="Descrição (Description)"
+                    tooltip={FIELD_HELP.description}
+                    className="sm:col-span-2 lg:col-span-3"
+                    multiline
+                    maxLength={255}
                   />
-                  <FormField
-                    control={form.control}
-                    name="published"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2 sm:col-span-2 lg:col-span-3">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={field.value}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0">
-                          Publicado (disponível nas páginas públicas de
-                          gameplay)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
+              </CollapsibleSectionCard>
+
+              <CollapsibleSectionCard
+                title="Peso e valor" tooltip="Peso que ocupa na capacidade do jogador e valor em gold do item."
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                <WeightField
+                  control={form.control}
+                  name="weight"
+                  label="Peso (Weight)"
+                  tooltip={FIELD_HELP.weight}
+                />
+                <NumberField
+                  control={form.control}
+                  name="worth"
+                  label="Valor (Worth)"
+                  tooltip={FIELD_HELP.worth}
+                />
+              </CollapsibleSectionCard>
+
+              <CollapsibleSectionCard
+                title="Publicação no site" tooltip="Controla apenas a exibição nas páginas públicas do portal; não altera o comportamento no jogo."
+                className="mt-4"
+              >
+                <CheckField
+                  control={form.control}
+                  name="published"
+                  label="Publicado (visível nas páginas públicas de gameplay)"
+                  tooltip={FIELD_HELP.published}
+                />
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
@@ -888,788 +1067,392 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
 
             <TabsContent value="combat">
               <CollapsibleSectionCard
-                title="Classificação de combate"
+                title="Classificação de combate" tooltip="Define que tipo de arma/equipamento o item é e como ele dispara ou é equipado."
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  <FormField
-                    control={form.control}
-                    name="weaponType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de arma (Weapon type)</FormLabel>
-                        <EnumSelect
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={WEAPON_TYPES}
-                        />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="slotType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de slot (Slot type)</FormLabel>
-                        <EnumSelect
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={SLOT_TYPES}
-                        />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="ammoType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de munição (Ammo type)</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="ammoAction"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ação de munição (Ammo action)</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="removecount..." />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="shootType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de projétil (Shoot type)</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="effect"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Efeito de área (Effect)</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="corpseType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo de corpo (Corpse type)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="venom, blood, undead..."
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                <EnumField
+                  control={form.control}
+                  name="weaponType"
+                  label="Tipo de arma (Weapon type)"
+                  tooltip={FIELD_HELP.weaponType}
+                  options={WEAPON_TYPES}
+                  optionLabels={ENUM_LABELS.weaponType}
+                />
+                <EnumField
+                  control={form.control}
+                  name="slotType"
+                  label="Tipo de slot (Slot type)"
+                  tooltip={FIELD_HELP.slotType}
+                  options={SLOT_TYPES}
+                  optionLabels={ENUM_LABELS.slotType}
+                />
+                <TextField
+                  control={form.control}
+                  name="ammoType"
+                  label="Tipo de munição (Ammo type)"
+                  tooltip={FIELD_HELP.ammoType}
+                  placeholder="arrow, bolt..."
+                />
+                <TextField
+                  control={form.control}
+                  name="ammoAction"
+                  label="Ação de munição (Ammo action)"
+                  tooltip={FIELD_HELP.ammoAction}
+                  placeholder="removecount..."
+                />
+                <TextField
+                  control={form.control}
+                  name="shootType"
+                  label="Tipo de projétil (Shoot type)"
+                  tooltip={FIELD_HELP.shootType}
+                  placeholder="arrow, bolt, spear..."
+                />
+                <TextField
+                  control={form.control}
+                  name="effect"
+                  label="Efeito visual (Effect)"
+                  tooltip={FIELD_HELP.effect}
+                />
+                <TextField
+                  control={form.control}
+                  name="corpseType"
+                  label="Tipo de corpo (Corpse type)"
+                  tooltip={FIELD_HELP.corpseType}
+                  placeholder="venom, blood, undead..."
+                />
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
-                title="Stats"
+                title="Ataque e defesa" tooltip="Números de combate do item. Deixe 0 nos que não se aplicam."
                 className="mt-4"
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
               >
-                  <NumberField
-                    control={form.control}
-                    name="weight"
-                    label="Peso (Weight)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="worth"
-                    label="Valor (Worth)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="armor"
-                    label="Armadura (Armor)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="defense"
-                    label="Defesa (Defense)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="extraDefense"
-                    label="Defesa extra (Extra defense)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="attack"
-                    label="Ataque (Attack)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="extraAttack"
-                    label="Ataque extra (Extra attack)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="attackSpeed"
-                    label="Velocidade de ataque (Attack speed)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="range"
-                    label="Alcance (Range)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="hitChance"
-                    label="Chance de acerto (Hit chance)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="maxHitChance"
-                    label="Chance máxima de acerto (Max hit chance)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="breakChance"
-                    label="Chance de quebra (Break chance)"
-                  />
-                  <ItemIdField
-                    control={form.control}
-                    name="rotateTo"
-                    label="Rotacionar para (Rotate to)"
-                    nullable
-                  />
+                <NumberField control={form.control} name="attack" label="Ataque (Attack)" tooltip={FIELD_HELP.attack} />
+                <NumberField control={form.control} name="extraAttack" label="Ataque extra (Extra attack)" tooltip={FIELD_HELP.extraAttack} />
+                <NumberField control={form.control} name="attackSpeed" label="Velocidade de ataque (Attack speed)" tooltip={FIELD_HELP.attackSpeed} />
+                <NumberField control={form.control} name="defense" label="Defesa (Defense)" tooltip={FIELD_HELP.defense} />
+                <NumberField control={form.control} name="extraDefense" label="Defesa extra (Extra defense)" tooltip={FIELD_HELP.extraDefense} />
+                <NumberField control={form.control} name="armor" label="Armadura (Armor)" tooltip={FIELD_HELP.armor} />
+                <NumberField control={form.control} name="range" label="Alcance (Range)" tooltip={FIELD_HELP.range} />
+                <NumberField control={form.control} name="hitChance" label="Chance de acerto (Hit chance)" tooltip={FIELD_HELP.hitChance} />
+                <NumberField control={form.control} name="maxHitChance" label="Chance máxima de acerto (Max hit chance)" tooltip={FIELD_HELP.maxHitChance} />
+                <NumberField control={form.control} name="breakChance" label="Chance de quebra (Break chance)" tooltip={FIELD_HELP.breakChance} />
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
-                title="Skills concedidas"
+                title="Skills concedidas" tooltip={SKILL_TOOLTIP}
                 className="mt-4"
               >
-                  <RecordGridField
-                    control={form.control}
-                    basePath="skills"
-                    keys={ITEM_SKILL_KEYS}
-                  />
+                <RecordGridField
+                  control={form.control}
+                  basePath="skills"
+                  keys={ITEM_SKILL_KEYS}
+                  labels={SKILL_LABELS}
+                  tooltips={Object.fromEntries(ITEM_SKILL_KEYS.map((key) => [key, SKILL_TOOLTIP]))}
+                />
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
-                title="Dano elemental (arma)"
+                title="Dano elemental (arma)" tooltip={ELEMENT_DAMAGE_TOOLTIP}
                 className="mt-4"
               >
-                  <RecordGridField
-                    control={form.control}
-                    basePath="elements"
-                    keys={ITEM_ELEMENT_KEYS}
-                  />
+                <RecordGridField
+                  control={form.control}
+                  basePath="elements"
+                  keys={ITEM_ELEMENT_KEYS}
+                  labels={ELEMENT_LABELS}
+                />
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
-                title="Rune (spell vinculada)"
+                title="Runa (magia vinculada)" tooltip="Só para itens do tipo 'Runa': qual magia é lançada ao usar a runa."
                 className="mt-4"
                 contentClassName="flex flex-col gap-3"
               >
-                  <p className="text-sm text-muted-foreground">
-                    Selecione uma spell existente para preencher o nome
-                    automaticamente, ou digite livremente — o XML sempre usa o
-                    texto de <code>runeSpellName</code>.
-                  </p>
-                  <EntitySearchCombobox<SpellFormInput & { id: number }>
-                    endpoint="/api/admin/spells"
-                    value={null}
-                    placeholder="Vincular spell..."
-                    formatOption={(spell) =>
-                      `#${spell.id} — ${spell.name} (${spell.kind})`
-                    }
-                    onSelect={(spell) => {
-                      if (spell) form.setValue("runeSpellName", spell.name);
-                    }}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="runeSpellName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Nome da spell da rune (Rune spell name)
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                <p className="text-sm text-muted-foreground">
+                  Selecione uma spell existente para preencher o nome automaticamente, ou digite
+                  livremente — o XML sempre usa o texto de <code>runeSpellName</code>.
+                </p>
+                <EntitySearchCombobox<SpellFormInput & { id: number }>
+                  endpoint="/api/admin/spells"
+                  value={null}
+                  placeholder="Vincular spell..."
+                  formatOption={(spell) => `#${spell.id} — ${spell.name} (${spell.kind})`}
+                  onSelect={(spell) => {
+                    if (spell) form.setValue("runeSpellName", spell.name);
+                  }}
+                />
+                <TextField
+                  control={form.control}
+                  name="runeSpellName"
+                  label="Nome da magia da runa (Rune spell name)"
+                  tooltip={FIELD_HELP.runeSpellName}
+                />
               </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="resist">
               <CollapsibleSectionCard
-                title="Absorb %"
+                title="Absorção % (absorb)" tooltip={ABSORB_TOOLTIP}
               >
-                  <RecordGridField
-                    control={form.control}
-                    basePath="absorbPercent"
-                    keys={ITEM_ABSORB_KEYS}
-                  />
+                <RecordGridField
+                  control={form.control}
+                  basePath="absorbPercent"
+                  keys={ITEM_ABSORB_KEYS}
+                  labels={ELEMENT_LABELS}
+                />
               </CollapsibleSectionCard>
               <CollapsibleSectionCard
-                title="Field absorb % (parado no próprio campo)"
+                title="Absorção de campos % (field absorb)" tooltip={FIELD_ABSORB_TOOLTIP}
                 className="mt-4"
               >
-                  <RecordGridField
-                    control={form.control}
-                    basePath="fieldAbsorbPercent"
-                    keys={ITEM_FIELD_ABSORB_KEYS}
-                  />
+                <RecordGridField
+                  control={form.control}
+                  basePath="fieldAbsorbPercent"
+                  keys={ITEM_FIELD_ABSORB_KEYS}
+                  labels={ELEMENT_LABELS}
+                />
               </CollapsibleSectionCard>
               <CollapsibleSectionCard
-                title="Reflect %"
+                title="Reflexão % (reflect)" tooltip={REFLECT_PERCENT_TOOLTIP}
                 className="mt-4"
               >
-                  <RecordGridField
-                    control={form.control}
-                    basePath="reflectPercent"
-                    keys={ITEM_ABSORB_KEYS}
-                  />
+                <RecordGridField
+                  control={form.control}
+                  basePath="reflectPercent"
+                  keys={ITEM_ABSORB_KEYS}
+                  labels={ELEMENT_LABELS}
+                />
               </CollapsibleSectionCard>
               <CollapsibleSectionCard
-                title="Reflect chance"
+                title="Chance de reflexão % (reflect chance)" tooltip={REFLECT_CHANCE_TOOLTIP}
                 className="mt-4"
               >
-                  <RecordGridField
-                    control={form.control}
-                    basePath="reflectChance"
-                    keys={ITEM_ABSORB_KEYS}
-                  />
+                <RecordGridField
+                  control={form.control}
+                  basePath="reflectChance"
+                  keys={ITEM_ABSORB_KEYS}
+                  labels={ELEMENT_LABELS}
+                />
               </CollapsibleSectionCard>
-            </TabsContent>
-
-            <TabsContent value="suppress">
               <CollapsibleSectionCard
-                title="Imunidade a condições"
+                title="Imunidade a condições" tooltip={SUPPRESS_TOOLTIP}
+                className="mt-4"
               >
-                  <BooleanGridField
-                    control={form.control}
-                    basePath="suppress"
-                    keys={ITEM_SUPPRESS_KEYS}
-                  />
+                <BooleanGridField
+                  control={form.control}
+                  basePath="suppress"
+                  keys={ITEM_SUPPRESS_KEYS}
+                  labels={SUPPRESS_LABELS}
+                  tooltips={Object.fromEntries(
+                    ITEM_SUPPRESS_KEYS.map((key) => [key, SUPPRESS_TOOLTIP]),
+                  )}
+                />
               </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="decay">
               <CollapsibleSectionCard
-                title="Decay"
+                title="Decay (duração)" tooltip="Faz o item se transformar ou sumir depois de um tempo."
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  <ItemIdField
-                    control={form.control}
-                    name="decayTo"
-                    label="Decair para (Decay to)"
-                    nullable
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="duration"
-                    label="Duração (Duration)"
-                  />
-                  <FormField
-                    control={form.control}
-                    name="stopDuration"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Parar duração (Stop duration)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="showDuration"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Mostrar duração (Show duration)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
+                <ItemIdField
+                  control={form.control}
+                  name="decayTo"
+                  label="Decair para (Decay to)"
+                  tooltip={FIELD_HELP.decayTo}
+                  nullable
+                />
+                <NumberField control={form.control} name="duration" label="Duração em segundos (Duration)" tooltip={FIELD_HELP.duration} />
+                <CheckField control={form.control} name="stopDuration" label="Pausar duração (Stop duration)" tooltip={FIELD_HELP.stopDuration} />
+                <CheckField control={form.control} name="showDuration" label="Mostrar duração (Show duration)" tooltip={FIELD_HELP.showDuration} />
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
-                title="Transformação"
+                title="Transformação" tooltip="Em quais itens este se transforma ao ser equipado, usado, girado ou ao deitar (camas)."
                 className="mt-4"
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  <ItemIdField
-                    control={form.control}
-                    name="transformEquipTo"
-                    label="Transformar ao equipar (Transform equip to)"
-                    nullable
-                  />
-                  <ItemIdField
-                    control={form.control}
-                    name="transformDeEquipTo"
-                    label="Transformar ao desequipar (Transform de-equip to)"
-                    nullable
-                  />
-                  <ItemIdField
-                    control={form.control}
-                    name="transformTo"
-                    label="Transformar em (Transform to)"
-                    nullable
-                  />
-                  <ItemIdField
-                    control={form.control}
-                    name="maleTransformTo"
-                    label="Transformar em (masculino, cama) (Male transform to)"
-                    nullable
-                  />
-                  <ItemIdField
-                    control={form.control}
-                    name="femaleTransformTo"
-                    label="Transformar em (feminino, cama) (Female transform to)"
-                    nullable
-                  />
-                  <FormField
-                    control={form.control}
-                    name="floorChange"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mudança de andar (Floor change)</FormLabel>
-                        <EnumSelect
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={FLOOR_CHANGES}
-                        />
-                      </FormItem>
-                    )}
-                  />
+                <ItemIdField control={form.control} name="transformTo" label="Transformar ao usar (Transform to)" tooltip={FIELD_HELP.transformTo} nullable />
+                <ItemIdField control={form.control} name="transformEquipTo" label="Transformar ao equipar (Transform equip to)" tooltip={FIELD_HELP.transformEquipTo} nullable />
+                <ItemIdField control={form.control} name="transformDeEquipTo" label="Transformar ao desequipar (Transform de-equip to)" tooltip={FIELD_HELP.transformDeEquipTo} nullable />
+                <ItemIdField control={form.control} name="rotateTo" label="Rotacionar para (Rotate to)" tooltip={FIELD_HELP.rotateTo} nullable />
+                <ItemIdField control={form.control} name="maleTransformTo" label="Cama: ocupada por homem (Male transform to)" tooltip={FIELD_HELP.maleTransformTo} nullable />
+                <ItemIdField control={form.control} name="femaleTransformTo" label="Cama: ocupada por mulher (Female transform to)" tooltip={FIELD_HELP.femaleTransformTo} nullable />
               </CollapsibleSectionCard>
 
               <CollapsibleSectionCard
-                title="Charges"
+                title="Mudança de andar" tooltip="Para escadas, buracos e rampas: leva o jogador para outro andar ao pisar."
                 className="mt-4"
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  <NumberField
-                    control={form.control}
-                    name="charges"
-                    label="Cargas (Charges)"
-                  />
-                  <FormField
-                    control={form.control}
-                    name="showCharges"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Mostrar cargas (Show charges)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="showAttributes"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Mostrar atributos (Show attributes)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
+                <EnumField
+                  control={form.control}
+                  name="floorChange"
+                  label="Direção (Floor change)"
+                  tooltip={FIELD_HELP.floorChange}
+                  options={FLOOR_CHANGES}
+                  optionLabels={ENUM_LABELS.floorChange}
+                />
+              </CollapsibleSectionCard>
+
+              <CollapsibleSectionCard
+                title="Cargas e exibição" tooltip="Quantidade de usos do item e o que aparece na descrição dele."
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                <NumberField control={form.control} name="charges" label="Cargas (Charges)" tooltip={FIELD_HELP.charges} />
+                <CheckField control={form.control} name="showCharges" label="Mostrar cargas (Show charges)" tooltip={FIELD_HELP.showCharges} />
+                <CheckField control={form.control} name="showAttributes" label="Mostrar atributos (Show attributes)" tooltip={FIELD_HELP.showAttributes} />
               </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="container">
               <CollapsibleSectionCard
-                title="Container"
+                title="Container" tooltip="Só para itens do tipo 'Container' (mochilas, caixas, bolsas)."
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  <NumberField
-                    control={form.control}
-                    name="containerSize"
-                    label="Tamanho do container (Container size)"
-                  />
+                <NumberField control={form.control} name="containerSize" label="Tamanho do container (Container size)" tooltip={FIELD_HELP.containerSize} />
               </CollapsibleSectionCard>
               <CollapsibleSectionCard
-                title="Texto"
+                title="Texto" tooltip="Para livros, cartas e placas: se dá para ler e/ou escrever nele."
                 className="mt-4"
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  <FormField
-                    control={form.control}
-                    name="readable"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Legível (Readable)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="writeable"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Escrevível (Writeable)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="maxTextLen"
-                    label="Tamanho máximo do texto (Max text length)"
-                  />
-                  <ItemIdField
-                    control={form.control}
-                    name="writeOnceItemId"
-                    label="Item id (uso único ao escrever) (Write once item id)"
-                    nullable
-                  />
+                <CheckField control={form.control} name="readable" label="Legível (Readable)" tooltip={FIELD_HELP.readable} />
+                <CheckField control={form.control} name="writeable" label="Escrevível (Writeable)" tooltip={FIELD_HELP.writeable} />
+                <NumberField control={form.control} name="maxTextLen" label="Tamanho máximo do texto (Max text length)" tooltip={FIELD_HELP.maxTextLen} />
+                <ItemIdField
+                  control={form.control}
+                  name="writeOnceItemId"
+                  label="Vira este item após escrever (Write once item id)"
+                  tooltip={FIELD_HELP.writeOnceItemId}
+                  nullable
+                />
               </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="regen">
               <CollapsibleSectionCard
-                title="Luz"
+                title="Luz" tooltip="Faz o item iluminar em volta (tochas, lanternas)."
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
-                  <NumberField
-                    control={form.control}
-                    name="lightLevel"
-                    label="Nível de luz (Light level)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="lightColor"
-                    label="Cor da luz (Light color)"
-                  />
+                <NumberField control={form.control} name="lightLevel" label="Nível de luz (Light level)" tooltip={FIELD_HELP.lightLevel} />
+                <NumberField control={form.control} name="lightColor" label="Cor da luz (Light color)" tooltip={FIELD_HELP.lightColor} />
               </CollapsibleSectionCard>
+
               <CollapsibleSectionCard
-                title="Regeneração / stats concedidos"
+                title="Velocidade e regeneração" tooltip="Efeitos aplicados ao jogador enquanto o item estiver equipado."
                 className="mt-4"
                 contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
               >
-                  <NumberField
-                    control={form.control}
-                    name="speed"
-                    label="Velocidade (Speed)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="healthGain"
-                    label="Ganho de vida (Health gain)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="healthTicks"
-                    label="Intervalo de vida (Health ticks)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="manaGain"
-                    label="Ganho de mana (Mana gain)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="manaTicks"
-                    label="Intervalo de mana (Mana ticks)"
-                  />
-                  <FormField
-                    control={form.control}
-                    name="manaShield"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Escudo de mana (Mana shield)
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="soulPoints"
-                    label="Pontos de alma (Soul points)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="soulPointsPercent"
-                    label="Pontos de alma % (Soul points %)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="maxHitPoints"
-                    label="Vida máxima (Max HP)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="maxHitPointsPercent"
-                    label="Vida máxima % (Max HP %)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="maxManaPoints"
-                    label="Mana máxima (Max mana)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="maxManaPointsPercent"
-                    label="Mana máxima % (Max mana %)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="magicLevelPoints"
-                    label="Nível mágico (Magic level)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="magicLevelPointsPercent"
-                    label="Nível mágico % (Magic level %)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="increaseMagicValue"
-                    label="Aumento de magia - valor (Increase magic)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="increaseMagicPercent"
-                    label="Aumento de magia % (Increase magic %)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="increaseHealingValue"
-                    label="Aumento de cura - valor (Increase healing)"
-                  />
-                  <NumberField
-                    control={form.control}
-                    name="increaseHealingPercent"
-                    label="Aumento de cura % (Increase healing %)"
-                  />
+                <NumberField control={form.control} name="speed" label="Velocidade (Speed)" tooltip={FIELD_HELP.speed} />
+                <NumberField control={form.control} name="healthGain" label="Ganho de vida (Health gain)" tooltip={FIELD_HELP.healthGain} />
+                <NumberField control={form.control} name="healthTicks" label="Intervalo de vida (Health ticks)" tooltip={FIELD_HELP.healthTicks} />
+                <NumberField control={form.control} name="manaGain" label="Ganho de mana (Mana gain)" tooltip={FIELD_HELP.manaGain} />
+                <NumberField control={form.control} name="manaTicks" label="Intervalo de mana (Mana ticks)" tooltip={FIELD_HELP.manaTicks} />
+                <CheckField control={form.control} name="manaShield" label="Escudo de mana (Mana shield)" tooltip={FIELD_HELP.manaShield} />
+              </CollapsibleSectionCard>
+
+              <CollapsibleSectionCard
+                title="Bônus de atributos" tooltip="Aumentam (ou diminuem, se negativos) os atributos do jogador enquanto o item estiver equipado."
+                className="mt-4"
+                contentClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+              >
+                <NumberField control={form.control} name="maxHitPoints" label="Vida máxima (Max HP)" tooltip={FIELD_HELP.maxHitPoints} />
+                <NumberField control={form.control} name="maxHitPointsPercent" label="Vida máxima % (Max HP %)" tooltip={FIELD_HELP.maxHitPointsPercent} />
+                <NumberField control={form.control} name="maxManaPoints" label="Mana máxima (Max mana)" tooltip={FIELD_HELP.maxManaPoints} />
+                <NumberField control={form.control} name="maxManaPointsPercent" label="Mana máxima % (Max mana %)" tooltip={FIELD_HELP.maxManaPointsPercent} />
+                <NumberField control={form.control} name="magicLevelPoints" label="Nível mágico (Magic level)" tooltip={FIELD_HELP.magicLevelPoints} />
+                <NumberField control={form.control} name="magicLevelPointsPercent" label="Nível mágico % (Magic level %)" tooltip={FIELD_HELP.magicLevelPointsPercent} />
+                <NumberField control={form.control} name="soulPoints" label="Pontos de alma (Soul points)" tooltip={FIELD_HELP.soulPoints} />
+                <NumberField control={form.control} name="soulPointsPercent" label="Pontos de alma % (Soul points %)" tooltip={FIELD_HELP.soulPointsPercent} />
+                <NumberField control={form.control} name="increaseMagicValue" label="Aumento de dano mágico (Increase magic)" tooltip={FIELD_HELP.increaseMagicValue} />
+                <NumberField control={form.control} name="increaseMagicPercent" label="Aumento de dano mágico % (Increase magic %)" tooltip={FIELD_HELP.increaseMagicPercent} />
+                <NumberField control={form.control} name="increaseHealingValue" label="Aumento de cura (Increase healing)" tooltip={FIELD_HELP.increaseHealingValue} />
+                <NumberField control={form.control} name="increaseHealingPercent" label="Aumento de cura % (Increase healing %)" tooltip={FIELD_HELP.increaseHealingPercent} />
               </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="field">
               <CollapsibleSectionCard
-                title="Bloco de magic field (só relevante quando type=magicfield)"
+                title="Campo mágico (só quando o tipo é 'Campo mágico')" tooltip="Configura o dano contínuo de campos como fogo, veneno e energia."
                 contentClassName="flex flex-col gap-4"
               >
-                  <FormField
+                <CheckField control={form.control} name="field.enabled" label="Este item tem bloco de campo" tooltip={FIELD_HELP.fieldEnabled} />
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <EnumField
                     control={form.control}
-                    name="field.enabled"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="size-4 cursor-pointer"
-                            checked={Boolean(field.value)}
-                            onChange={(event) =>
-                              field.onChange(event.target.checked)
-                            }
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">
-                          Este item tem bloco de field
-                        </FormLabel>
-                      </FormItem>
-                    )}
+                    name="field.value"
+                    label="Tipo de dano"
+                    tooltip={FIELD_HELP.fieldValue}
+                    options={FIELD_TYPES}
+                    optionLabels={ENUM_LABELS.fieldType}
                   />
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <FormField
-                      control={form.control}
-                      name="field.value"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tipo de dano</FormLabel>
-                          <EnumSelect
-                            value={field.value}
-                            onChange={field.onChange}
-                            options={FIELD_TYPES}
-                          />
-                        </FormItem>
-                      )}
-                    />
-                    <NumberField
-                      control={form.control}
-                      name="field.ticks"
-                      label="Intervalos (Ticks)"
-                    />
-                    <NumberField
-                      control={form.control}
-                      name="field.count"
-                      label="Quantidade (Count)"
-                    />
-                    <NumberField
-                      control={form.control}
-                      name="field.start"
-                      label="Início (Start)"
-                    />
-                  </div>
-                  <div>
-                    <p className="mb-2 text-xs text-muted-foreground">
-                      Damage over time (lista de dano)
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      {fieldDamages.fields.map((field, index) => (
-                        <div
-                          key={field.id}
-                          className="grid grid-cols-[1fr_auto] items-center gap-2"
+                  <NumberField control={form.control} name="field.ticks" label="Intervalo em ms (Ticks)" tooltip={FIELD_HELP.fieldTicks} />
+                  <NumberField control={form.control} name="field.count" label="Repetições (Count)" tooltip={FIELD_HELP.fieldCount} />
+                  <NumberField control={form.control} name="field.start" label="Dano inicial (Start)" tooltip={FIELD_HELP.fieldStart} />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Dano ao longo do tempo (lista de dano)
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {fieldDamages.fields.map((field, index) => (
+                      <div key={field.id} className="grid grid-cols-[1fr_auto] items-center gap-2">
+                        <NumberField
+                          control={form.control}
+                          name={`field.damages.${index}.damage`}
+                          label="Dano (Damage)"
+                          tooltip={FIELD_HELP.fieldDamage}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="self-end"
+                          onClick={() => fieldDamages.remove(index)}
                         >
-                          <NumberField
-                            control={form.control}
-                            name={`field.damages.${index}.damage`}
-                            label="Dano (Damage)"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            className="self-end"
-                            onClick={() => fieldDamages.remove(index)}
-                          >
-                            <Trash2 className="size-4 cursor-pointer" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="self-start"
-                        onClick={() => fieldDamages.append(emptyFieldDamage)}
-                      >
-                        <Plus className="size-4 cursor-pointer" />
-                        Adicionar dano
-                      </Button>
-                    </div>
+                          <Trash2 className="size-4 cursor-pointer" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="self-start"
+                      onClick={() => fieldDamages.append(emptyFieldDamage)}
+                    >
+                      <Plus className="size-4 cursor-pointer" />
+                      Adicionar dano
+                    </Button>
                   </div>
+                </div>
               </CollapsibleSectionCard>
             </TabsContent>
 
             <TabsContent value="flags">
-              <CollapsibleSectionCard
-                title="Flags"
-              >
+              {FLAG_GROUPS.map((group, index) => (
+                <CollapsibleSectionCard
+                  key={group.title}
+                  title={group.title} tooltip={group.tooltip}
+                  className={index > 0 ? "mt-4" : undefined}
+                >
                   <BooleanGridField
                     control={form.control}
                     basePath="flags"
-                    keys={[
-                      "blocking",
-                      "blockProjectile",
-                      "blockPathfind",
-                      "movable",
-                      "pickupable",
-                      "allowPickupable",
-                      "showCount",
-                      "dualWield",
-                      "preventLoss",
-                      "preventDrop",
-                      "invisible",
-                      "forceSerialize",
-                      "replacable",
-                      "walkStack",
-                      "rotable",
-                      "canReadText",
-                      "allowDistRead",
-                    ]}
+                    keys={group.keys}
+                    labels={FLAG_LABELS}
+                    tooltips={FLAG_TOOLTIPS}
                   />
-              </CollapsibleSectionCard>
+                </CollapsibleSectionCard>
+              ))}
             </TabsContent>
 
             <TabsContent value="extra">
               <CollapsibleSectionCard
-                title="Atributos extras"
+                title="Atributos extras" tooltip="Atributos do items.xml que não têm campo próprio no formulário. Cada linha vira um <attribute key=... value=...> no XML."
                 contentClassName="flex flex-col gap-2"
               >
                   <p className="text-sm text-muted-foreground">
@@ -1687,14 +1470,14 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
                         control={form.control}
                         name={`extraAttributes.${index}.key`}
                         render={({ field }) => (
-                          <Input {...field} placeholder="key" />
+                          <Input {...field} placeholder="chave (key)" />
                         )}
                       />
                       <FormField
                         control={form.control}
                         name={`extraAttributes.${index}.value`}
                         render={({ field }) => (
-                          <Input {...field} placeholder="value" />
+                          <Input {...field} placeholder="valor (value)" />
                         )}
                       />
                       <Button
@@ -1724,7 +1507,7 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
 
             <TabsContent value="movements">
               <CollapsibleSectionCard
-                title="Movements vinculados"
+                title="Movements vinculados" tooltip="Scripts de movimento (ao pisar, equipar, desequipar) já cadastrados para este item."
               >
                   {isEditing ? (
                     <ItemLinkedMovementsPanel itemId={itemId} />

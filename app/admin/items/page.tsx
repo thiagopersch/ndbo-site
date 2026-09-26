@@ -43,41 +43,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ITEM_SKILL_KEYS } from "@/lib/validations/admin/item";
-
-const ITEM_SKILL_LABELS: Record<(typeof ITEM_SKILL_KEYS)[number], string> = {
-  sword: "Espada (Sword)",
-  axe: "Machado (Axe)",
-  club: "Maça (Club)",
-  distance: "Distância (Distance)",
-  shielding: "Escudo (Shielding)",
-  fishing: "Pesca (Fishing)",
-  fist: "Punho (Fist)",
-};
-
-/** Rótulos dos campos escalares de regen/stat-granting — mesmo grupo mostrado na aba
- * "Luz & Regen" do form de Item. */
-const SCALAR_ATTRIBUTE_LABELS = {
-  speed: "Speed",
-  healthGain: "Health gain",
-  healthTicks: "Health ticks",
-  manaGain: "Mana gain",
-  manaTicks: "Mana ticks",
-  soulPoints: "Soul points",
-  soulPointsPercent: "Soul points %",
-  maxHitPoints: "Max hit points",
-  maxHitPointsPercent: "Max hit points %",
-  maxManaPoints: "Max mana points",
-  maxManaPointsPercent: "Max mana points %",
-  magicLevelPoints: "Magic level points",
-  magicLevelPointsPercent: "Magic level points %",
-  increaseMagicValue: "Increase magic value",
-  increaseMagicPercent: "Increase magic %",
-  increaseHealingValue: "Increase healing value",
-  increaseHealingPercent: "Increase healing %",
-} as const;
-
-type ScalarAttributeKey = keyof typeof SCALAR_ATTRIBUTE_LABELS;
+import { ENUM_LABELS } from "@/lib/item-field-help";
+import {
+  formatOz,
+  getAttributeEntries,
+  getProtectionEntries,
+  type ItemDisplayRow,
+} from "@/lib/item-display";
+import { CountTooltip, LabelTooltip } from "@/components/shared/count-tooltip";
 
 type ItemRow = {
   id: number;
@@ -92,53 +65,28 @@ type ItemRow = {
   defense: number;
   armor: number;
   worth: number;
-  skills: Partial<Record<(typeof ITEM_SKILL_KEYS)[number], number>>;
+  containerSize: number;
   published: boolean;
-  absorbPercent: Record<string, number>;
-  reflectPercent: Record<string, number>;
-  fieldAbsorbPercent: Record<string, number>;
-  elements: Record<string, number>;
-  extraAttributes: { key: string; value: string }[];
-} & Record<ScalarAttributeKey, number>;
+} & ItemDisplayRow;
 
-/** Junta todos os grupos de atributo (skills, absorb/reflect/field absorb %, elementos,
- * os escalares de regen/stat-granting e os atributos extras livres) numa única lista
- * "label: valor", ignorando o que estiver zerado/vazio — usado pela coluna "Atributos". */
-function getItemAttributeEntries(row: ItemRow): { label: string; value: string }[] {
-  const entries: { label: string; value: string }[] = [];
-
-  for (const [key, value] of Object.entries(row.skills ?? {})) {
-    if (!value) continue;
-    entries.push({ label: ITEM_SKILL_LABELS[key as (typeof ITEM_SKILL_KEYS)[number]] ?? key, value: String(value) });
-  }
-
-  const groups: [Record<string, number> | undefined, string][] = [
-    [row.elements, "Elemento"],
-    [row.absorbPercent, "Absorb %"],
-    [row.reflectPercent, "Reflect %"],
-    [row.fieldAbsorbPercent, "Field absorb %"],
-  ];
-  for (const [group, groupLabel] of groups) {
-    for (const [key, value] of Object.entries(group ?? {})) {
-      if (!value) continue;
-      entries.push({ label: `${groupLabel}: ${key}`, value: String(value) });
-    }
-  }
-
-  for (const key of Object.keys(SCALAR_ATTRIBUTE_LABELS) as ScalarAttributeKey[]) {
-    const value = row[key];
-    if (!value) continue;
-    entries.push({ label: SCALAR_ATTRIBUTE_LABELS[key], value: String(value) });
-  }
-
-  for (const attribute of row.extraAttributes ?? []) {
-    if (!attribute.key) continue;
-    entries.push({ label: attribute.key, value: attribute.value });
-  }
-
-  return entries;
+/** Nome em português da opção (sem o "(inglês)" do rótulo) e o texto do hover com o inglês. */
+function enumCell(group: "weaponType" | "slotType", value: string) {
+  if (!value) return "—";
+  const full = ENUM_LABELS[group][value] ?? value;
+  return <LabelTooltip label={full.replace(/\s*\(.*\)$/, "")} hint={value} />;
 }
 
+/** Só o nome em português (sem o "(inglês)" do rótulo). */
+function typeName(group: "type" | "weaponType" | "slotType", value: string) {
+  return (ENUM_LABELS[group][value] ?? value).replace(/\s*\(.*\)$/, "");
+}
+
+function enumOptions(group: "weaponType" | "slotType", values: readonly string[]) {
+  return values.filter(Boolean).map((value) => ({
+    value,
+    label: ENUM_LABELS[group][value] ?? value,
+  }));
+}
 // eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not a page route
 const exportXmlLink = <a href="/api/admin/items/export" />;
 
@@ -233,21 +181,15 @@ export default function AdminItemsPage() {
     },
     {
       key: "weaponType",
-      label: "Weapon type",
+      label: "Tipo de arma",
       type: "select",
-      options: WEAPON_TYPES.filter(Boolean).map((type) => ({
-        value: type,
-        label: type,
-      })),
+      options: enumOptions("weaponType", WEAPON_TYPES),
     },
     {
       key: "slotType",
-      label: "Slot type",
+      label: "Tipo de slot",
       type: "select",
-      options: SLOT_TYPES.filter(Boolean).map((slot) => ({
-        value: slot,
-        label: slot,
-      })),
+      options: enumOptions("slotType", SLOT_TYPES),
     },
     {
       key: "published",
@@ -275,7 +217,7 @@ export default function AdminItemsPage() {
     { accessorKey: "id", header: "ID" },
     {
       id: "image",
-      header: "Imagem",
+      header: "Sprite",
       cell: ({ row }) => (
         <EntityThumb
           entityType="item"
@@ -294,7 +236,7 @@ export default function AdminItemsPage() {
 
         return (
           <Tooltip>
-            <TooltipTrigger className="inline-flex text-muted-foreground">
+            <TooltipTrigger className="inline-flex cursor-help text-muted-foreground">
               <Info className="size-4" />
             </TooltipTrigger>
             <TooltipContent>
@@ -305,20 +247,78 @@ export default function AdminItemsPage() {
       },
     },
     {
-      accessorKey: "type",
+      id: "types",
       header: "Tipo",
-      cell: ({ row }) => row.original.type || "—",
+      cell: ({ row }) => {
+        const { type, weaponType } = row.original;
+        const typeLabel = type ? typeName("type", type) : "";
+        const weaponLabel = weaponType ? typeName("weaponType", weaponType) : "";
+
+        if (typeLabel && weaponLabel) {
+          return (
+            <Tooltip>
+              <TooltipTrigger className="inline-flex cursor-help text-muted-foreground">
+                <Info className="size-4" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="flex flex-col gap-0.5">
+                  <div>Tipo: {ENUM_LABELS.type[type] ?? type}</div>
+                  <div>Tipo de arma: {ENUM_LABELS.weaponType[weaponType] ?? weaponType}</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          );
+        }
+
+        return typeLabel || weaponLabel || "—";
+      },
     },
     {
-      accessorKey: "weaponType",
-      header: "Weapon type",
-      cell: ({ row }) => row.original.weaponType || "—",
+      accessorKey: "slotType",
+      header: "Tipo do Slot",
+      cell: ({ row }) => {
+        const { slotType, containerSize } = row.original;
+        if (slotType === "backpack") {
+          return (
+            <LabelTooltip
+              label={`${typeName("slotType", slotType)} (${containerSize ?? 0} slots)`}
+              hint={`${slotType} — tamanho do container: ${containerSize ?? 0}`}
+            />
+          );
+        }
+        return enumCell("slotType", slotType);
+      },
     },
-    { accessorKey: "weight", header: "Peso" },
-    { accessorKey: "attack", header: "Attack" },
-    { accessorKey: "defense", header: "Defense" },
-    { accessorKey: "armor", header: "Armor" },
-    { accessorKey: "worth", header: "Worth" },
+    {
+      id: "combat",
+      header: "Ataque/Defesa",
+      cell: ({ row }) => (
+        <CountTooltip
+          count={[row.original.attack, row.original.defense, row.original.armor].filter((v) => v > 0).length}
+          entries={[
+            { label: "Attack", value: String(row.original.attack ?? 0) },
+            { label: "Defense", value: String(row.original.defense ?? 0) },
+            { label: "Arm", value: String(row.original.armor ?? 0) },
+          ]}
+        />
+      ),
+    },
+    {
+      id: "attributes",
+      header: "Atributos",
+      cell: ({ row }) => <CountTooltip entries={getAttributeEntries(row.original)} />,
+    },
+    {
+      id: "protections",
+      header: "Proteções",
+      cell: ({ row }) => <CountTooltip entries={getProtectionEntries(row.original)} />,
+    },
+    {
+      accessorKey: "weight",
+      header: "Peso",
+      cell: ({ row }) => formatOz(row.original.weight),
+    },
+    { accessorKey: "worth", header: "Valor" },
     {
       accessorKey: "published",
       header: "Publicado",
@@ -327,36 +327,10 @@ export default function AdminItemsPage() {
           endpoint={`/api/admin/items/${row.original.id}/publish`}
           published={row.original.published}
           onToggled={() => mutate()}
+          hideLabel
         />
       ),
-    },
-    {
-      id: "attributes",
-      header: "Atributos",
-      cell: ({ row }) => {
-        const entries = getItemAttributeEntries(row.original);
-
-        if (entries.length === 0) return "—";
-
-        return (
-          <Tooltip>
-            <TooltipTrigger className="cursor-default underline decoration-dotted underline-offset-2">
-              {entries.length}
-            </TooltipTrigger>
-            <TooltipContent>
-              <div className="flex flex-col gap-0.5">
-                {entries.map((entry, index) => (
-                  <div key={`${entry.label}-${index}`}>
-                    {entry.label}: {entry.value}
-                  </div>
-                ))}
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        );
-      },
-    },
-    {
+    },    {
       id: "actions",
       header: "Ações",
       cell: ({ row }) => (

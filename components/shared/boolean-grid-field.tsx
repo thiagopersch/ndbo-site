@@ -2,6 +2,7 @@
 
 import type { Control, FieldPath, FieldValues } from "react-hook-form";
 
+import { FieldTooltip } from "@/components/shared/field-tooltip";
 import { FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 
 type BooleanGridFieldProps<T extends FieldValues> = {
@@ -9,6 +10,8 @@ type BooleanGridFieldProps<T extends FieldValues> = {
   basePath: string;
   keys: readonly string[];
   labels?: Record<string, string>;
+  /** Texto do (i) ao lado de cada checkbox, por chave. */
+  tooltips?: Record<string, string>;
 };
 
 /** Grade fixa de checkboxes para grupos JSON tipo `Record<string, boolean>` (chaves conhecidas
@@ -18,6 +21,7 @@ export function BooleanGridField<T extends FieldValues>({
   basePath,
   keys,
   labels,
+  tooltips,
 }: BooleanGridFieldProps<T>) {
   return (
     <div className="grid gap-2 sm:grid-cols-3">
@@ -37,6 +41,7 @@ export function BooleanGridField<T extends FieldValues>({
                 />
               </FormControl>
               <FormLabel className="!mt-0 font-normal">{labels?.[key] ?? key}</FormLabel>
+              {tooltips?.[key] && <FieldTooltip text={tooltips[key]} />}
             </FormItem>
           )}
         />

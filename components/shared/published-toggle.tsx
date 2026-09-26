@@ -10,10 +10,13 @@ export function PublishedToggle({
   endpoint,
   published,
   onToggled,
+  hideLabel = false,
 }: {
   endpoint: string;
   published: boolean;
   onToggled: () => void;
+  /** Mostra só a checkbox (sem o texto Publicado/Não publicado). */
+  hideLabel?: boolean;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,13 +45,16 @@ export function PublishedToggle({
       <input
         type="checkbox"
         className="size-4"
+        aria-label={published ? "Publicado" : "Não publicado"}
         checked={published}
         disabled={isSubmitting}
         onChange={(event) => handleChange(event.target.checked)}
       />
-      <span className="text-sm text-muted-foreground">
-        {published ? "Publicado" : "Não publicado"}
-      </span>
+      {!hideLabel && (
+        <span className="text-sm text-muted-foreground">
+          {published ? "Publicado" : "Não publicado"}
+        </span>
+      )}
     </label>
   );
 }
