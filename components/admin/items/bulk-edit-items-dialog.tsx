@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Copy, Maximize2, Minimize2, X } from "lucide-react";
 
 import type { ItemInput } from "@/lib/validations/admin/item";
-import { diffObjects } from "@/lib/item-diff";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,16 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   Accordion,
@@ -34,6 +23,11 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ItemForm, type ItemFormHandle } from "@/components/admin/items/item-form";
+import {
+  ItemConflictDialog,
+  type ItemConflict,
+  type ItemConflictDecision,
+} from "@/components/admin/items/item-conflict-dialog";
 
 type BulkEntry = {
   key: string;
@@ -43,11 +37,8 @@ type BulkEntry = {
   label: string;
 };
 
-type ConflictState = {
-  entryKey: string;
-  existingItem: ItemInput;
-  pendingValues: ItemInput;
-  resolve: (overwrite: boolean) => void;
+type ConflictState = ItemConflict & {
+  resolve: (decision: ItemConflictDecision) => void;
 };
 
 type BulkEditItemsDialogProps = {
@@ -152,27 +143,34 @@ export function BulkEditItemsDialog({ ids, open, onOpenChange, onSaved }: BulkEd
     setOpenKeys((current) => current.filter((key) => key !== entry.key));
   }
 
-  /** Busca o item existente que colidiu (409 no create), mostra o diff e espera a decisão do
-   * admin. Resolve `true` só depois que a sobrescrita (PATCH forçado) realmente deu certo. */
-  async function resolveConflict(entry: BulkEntry, handle: ItemFormHandle): Promise<boolean> {
+  /** Mostra a comparação com o item existente que colidiu (409 no create — o próprio 409 já traz
+   * o cadastro atual; sem ele, busca) e espera a decisão do admin. Resolve `true` só depois que
+   * a sobrescrita (PATCH forçado) realmente deu certo. */
+  async function resolveConflict(
+    entry: BulkEntry,
+    handle: ItemFormHandle,
+    existingFromConflict?: ItemInput,
+  ): Promise<boolean> {
     const values = handle.getValues();
-    const existing = await fetch(`/api/admin/items/${values.id}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .catch(() => null);
+    const existing =
+      existingFromConflict ??
+      (await fetch(`/api/admin/items/${values.id}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => (data?.item as ItemInput | undefined) ?? null)
+        .catch(() => null));
 
-    if (!existing?.item) {
+    if (!existing) {
       toast.error(`Não foi possível carregar o item #${values.id} para comparar.`);
       return false;
     }
 
     return new Promise<boolean>((resolve) => {
       setConflict({
-        entryKey: entry.key,
-        existingItem: existing.item as ItemInput,
-        pendingValues: values,
-        resolve: async (overwrite) => {
+        existing,
+        incoming: values,
+        resolve: async (decision) => {
           setConflict(null);
-          if (!overwrite) {
+          if (decision === "skip") {
             resolve(false);
             return;
           }
@@ -196,7 +194,7 @@ export function BulkEditItemsDialog({ ids, open, onOpenChange, onSaved }: BulkEd
       if (result.ok) continue;
 
       if (result.conflict) {
-        const resolved = await resolveConflict(entry, handle);
+        const resolved = await resolveConflict(entry, handle, result.existing);
         if (!resolved) failures.push(entry.label);
         continue;
       }
@@ -215,8 +213,6 @@ export function BulkEditItemsDialog({ ids, open, onOpenChange, onSaved }: BulkEd
 
     toast.error(`${failures.length} item(ns) não foram salvos: ${failures.join("; ")}`);
   }
-
-  const conflictDiffs = conflict ? diffObjects(conflict.existingItem, conflict.pendingValues) : [];
 
   return (
     <>
@@ -341,40 +337,11 @@ export function BulkEditItemsDialog({ ids, open, onOpenChange, onSaved }: BulkEd
         }}
       />
 
-      <AlertDialog open={conflict != null} onOpenChange={(next) => !next && conflict?.resolve(false)}>
-        <AlertDialogContent className="sm:max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Já existe um item #{conflict?.pendingValues.id} — sobrescrever?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Salvar esta cópia vai substituir o cadastro existente. Diferenças em relação ao
-              que já está salvo:
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-md border border-border p-2 text-xs">
-            {conflictDiffs.length === 0 ? (
-              <span className="text-muted-foreground">Nenhuma diferença encontrada.</span>
-            ) : (
-              conflictDiffs.map((diff) => (
-                <div key={diff.key} className="grid grid-cols-[auto_1fr_1fr] gap-2">
-                  <span className="font-medium">{diff.key}</span>
-                  <span className="truncate text-muted-foreground" title={JSON.stringify(diff.before)}>
-                    {JSON.stringify(diff.before)}
-                  </span>
-                  <span className="truncate" title={JSON.stringify(diff.after)}>
-                    {JSON.stringify(diff.after)}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => conflict?.resolve(false)}>Pular este item</AlertDialogCancel>
-            <AlertDialogAction onClick={() => conflict?.resolve(true)}>Sobrescrever</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ItemConflictDialog
+        conflict={conflict}
+        cancelLabel="Pular este item"
+        onResolve={(decision) => conflict?.resolve(decision)}
+      />
     </>
   );
 }

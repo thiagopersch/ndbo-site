@@ -72,6 +72,11 @@ import { XmlPreviewCard } from "@/components/shared/xml-preview-card";
 import { ScrollableTabsList } from "@/components/shared/scrollable-tabs-list";
 import { CollapsibleSectionCard } from "@/components/shared/collapsible-section-card";
 import { ItemLinkedMovementsPanel } from "@/components/admin/items/item-linked-movements-panel";
+import {
+  ItemConflictDialog,
+  type ItemConflict,
+  type ItemConflictDecision,
+} from "@/components/admin/items/item-conflict-dialog";
 import { FieldTooltip } from "@/components/shared/field-tooltip";
 import { WeightField } from "@/components/shared/weight-field";
 import { Textarea } from "@/components/ui/textarea";
@@ -103,10 +108,14 @@ type ItemFormProps = {
 };
 
 export type ItemSubmitResult =
-  | { ok: true; item: ItemInput }
-  /** `conflict` true = criação recusada por já existir um item com esse id (409) — sinal pro
-   * dialog de edição em massa oferecer sobrescrever em vez de só mostrar o erro. */
-  | { ok: false; conflict: boolean; error: string };
+  /** `skipped` true = o id já existia com exatamente a mesma configuração — nada foi gravado e
+   * `item` é o cadastro existente. */
+  | { ok: true; item: ItemInput; skipped?: boolean }
+  /** `conflict` true = criação recusada por já existir um item com esse id e configuração
+   * diferente (409) — `existing` traz o cadastro atual pra comparação antes de sobrescrever. */
+  | { ok: false; conflict: boolean; error: string; existing?: ItemInput };
+
+type ConflictAnswer = { decision: ItemConflictDecision; applyToRemaining: boolean };
 
 export type ItemFormHandle = {
   getValues: () => ItemInput;
@@ -347,6 +356,11 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
   >(new Map());
   const [rangeSpritePickerFor, setRangeSpritePickerFor] = useState<number | null>(null);
 
+  // Conflito de id aguardando a decisão do admin (substituir/pular) no `ItemConflictDialog` — o
+  // submit fica parado no `await askConflict(...)` até o dialog resolver a Promise.
+  const [pendingConflict, setPendingConflict] = useState<ItemConflict | null>(null);
+  const conflictResolverRef = useRef<((answer: ConflictAnswer) => void) | null>(null);
+
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
@@ -535,10 +549,15 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
         ok: false,
         conflict: !editingThisSave && response.status === 409,
         error: data?.error ?? "Não foi possível salvar o item.",
+        existing: data?.existing,
       };
     }
 
     const data = await response.json();
+
+    // Id já existia com a mesma configuração: nada foi gravado, então também não mexe na imagem
+    // do cadastro existente — quem chamou decide o que fazer com uma imagem pendente.
+    if (data?.skipped) return { ok: true, item: data.item as ItemInput, skipped: true };
 
     if (pendingImageFile && data?.item?.id) {
       await uploadPendingImage(data.item.id, pendingImageFile);
@@ -547,6 +566,20 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
     }
 
     return { ok: true, item: data.item as ItemInput };
+  }
+
+  function askConflict(conflict: ItemConflict): Promise<ConflictAnswer> {
+    return new Promise((resolve) => {
+      conflictResolverRef.current = resolve;
+      setPendingConflict(conflict);
+    });
+  }
+
+  function handleConflictResolve(decision: ItemConflictDecision, applyToRemaining: boolean) {
+    const resolve = conflictResolverRef.current;
+    conflictResolverRef.current = null;
+    setPendingConflict(null);
+    resolve?.({ decision, applyToRemaining });
   }
 
   useImperativeHandle(ref, () => ({
@@ -588,21 +621,131 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
         body: JSON.stringify({ fromId: from, toId: to, item: values, overrides }),
       });
 
-      setIsSubmitting(false);
-
       if (!response.ok) {
+        setIsSubmitting(false);
         const data = await response.json().catch(() => null);
         toast.error(data?.error ?? "Não foi possível criar os items.");
         return;
       }
 
-      toast.success(`${to - from + 1} items criados (#${from}–#${to}).`);
+      // Os ids livres já foram criados pela API; só os existentes com configuração diferente
+      // voltam aqui, e cada um espera a decisão do admin sem desfazer o que já foi criado.
+      const data: {
+        created: number[];
+        skipped: number[];
+        conflicts: { existing: ItemInput; incoming: ItemInput }[];
+      } = await response.json();
+
+      if (data.conflicts.length > 0) {
+        toast.info(
+          `${data.created.length} item(ns) criado(s), ${data.skipped.length} idêntico(s) ignorado(s) — ${data.conflicts.length} já existente(s) aguardando decisão.`,
+        );
+      }
+
+      const replaced: number[] = [];
+      const declined: number[] = [];
+      const failures: string[] = [];
+      let decisionForRemaining: ItemConflictDecision | null = null;
+
+      for (const [index, conflict] of data.conflicts.entries()) {
+        const id = conflict.incoming.id;
+        let decision = decisionForRemaining;
+        if (!decision) {
+          const answer = await askConflict({
+            ...conflict,
+            incomingSprite: { looktype: rangeSpriteData.get(id)?.pendingLooktype ?? null },
+            remaining: data.conflicts.length - index - 1,
+          });
+          decision = answer.decision;
+          if (answer.applyToRemaining) decisionForRemaining = answer.decision;
+        }
+
+        if (decision === "skip") {
+          declined.push(id);
+          continue;
+        }
+
+        const patch = await fetch(`/api/admin/items/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(conflict.incoming),
+        });
+        if (patch.ok) {
+          replaced.push(id);
+        } else {
+          const error = await patch.json().catch(() => null);
+          failures.push(`#${id}: ${error?.error ?? "não foi possível substituir"}`);
+        }
+      }
+
+      setIsSubmitting(false);
+
+      const summary = [
+        `${data.created.length} criado(s)`,
+        replaced.length > 0 && `${replaced.length} substituído(s)`,
+        data.skipped.length > 0 && `${data.skipped.length} idêntico(s) ignorado(s)`,
+        declined.length > 0 && `${declined.length} pulado(s)`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      if (failures.length > 0) toast.error(`Falha ao substituir: ${failures.join("; ")}`);
+
+      if (data.created.length + replaced.length === 0) {
+        toast.info(`Range #${from}–#${to}: ${summary}. Nenhum item foi gravado.`);
+        return;
+      }
+
+      toast.success(`Range #${from}–#${to}: ${summary}.`);
       router.push("/admin/items");
       router.refresh();
       return;
     }
 
     const result = await doSave(values);
+
+    if (!isEditing) {
+      // Id já cadastrado: com a mesma configuração (e sem imagem nova pendente) não há nada a
+      // gravar; divergente pergunta se substitui, mostrando os dois cadastros lado a lado.
+      const existing = result.ok
+        ? result.skipped && pendingImageFile
+          ? result.item
+          : null
+        : result.conflict
+          ? (result.existing ?? null)
+          : null;
+
+      if (result.ok && result.skipped && !existing) {
+        setIsSubmitting(false);
+        toast.info(`Item #${values.id} já existe com a mesma configuração — nada foi alterado.`);
+        router.push("/admin/items");
+        router.refresh();
+        return;
+      }
+
+      if (existing) {
+        const { decision } = await askConflict({
+          existing,
+          incoming: values,
+          incomingSprite: { looktype: pendingLooktype, imagePreviewUrl: pendingImagePreview },
+        });
+        if (decision === "skip") {
+          setIsSubmitting(false);
+          return;
+        }
+
+        const overwrite = await doSave(values, true);
+        setIsSubmitting(false);
+        if (!overwrite.ok) {
+          toast.error(overwrite.error);
+          return;
+        }
+        toast.success(`Item #${values.id} substituído.`);
+        router.push("/admin/items");
+        router.refresh();
+        return;
+      }
+    }
+
     setIsSubmitting(false);
 
     if (!result.ok) {
@@ -1600,6 +1743,14 @@ export const ItemForm = forwardRef<ItemFormHandle, ItemFormProps>(function ItemF
           </CardContent>
         </Card>
       </div>
+
+      {mode === "page" && (
+        <ItemConflictDialog
+          conflict={pendingConflict}
+          cancelLabel={rangeMode ? "Pular este item" : "Cancelar"}
+          onResolve={handleConflictResolve}
+        />
+      )}
     </div>
   );
 });
