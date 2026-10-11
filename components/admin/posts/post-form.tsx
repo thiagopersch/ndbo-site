@@ -22,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EntityImageUpload } from "@/components/shared/entity-image-upload";
 import { Skeleton } from "@/components/ui/skeleton";
+import { backToListClassName } from "@/components/shared/back-to-list-button";
 
 /** O editor Tiptap (core + extensões) é o maior custo de JS dessa página — carrega sob demanda
  * (fora do bundle inicial) em vez de bloquear a primeira renderização do formulário. */
@@ -313,7 +314,13 @@ export function PostForm({ post }: PostFormProps) {
                     </article>
                   </DialogContent>
                 </Dialog>
-                <Button type="button" variant="outline" nativeButton={false} render={<Link href="/admin/posts" />}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className={backToListClassName}
+                  nativeButton={false}
+                  render={<Link href="/admin/posts" />}
+                >
                   Voltar para a lista
                 </Button>
               </div>

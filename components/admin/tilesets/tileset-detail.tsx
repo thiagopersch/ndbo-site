@@ -8,6 +8,7 @@ import { fetcher } from "@/lib/fetcher";
 import type { TilesetFormInput } from "@/lib/validations/admin/tileset";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { backToListClassName } from "@/components/shared/back-to-list-button";
 import { TilesetForm } from "@/components/admin/tilesets/tileset-form";
 import { TilesetDeleteButton } from "@/components/admin/tilesets/tileset-delete-button";
 import { CategoryFormDialog } from "@/components/admin/tilesets/category-form-dialog";
@@ -78,7 +79,12 @@ export function TilesetDetail({ tilesetId }: { tilesetId: number }) {
 
       {tileset && (
         <div className="flex justify-between">
-          <Button variant="outline" nativeButton={false} render={<Link href="/admin/tilesets" />}>
+          <Button
+            variant="ghost"
+            className={backToListClassName}
+            nativeButton={false}
+            render={<Link href="/admin/tilesets" />}
+          >
             Voltar para a lista
           </Button>
           <TilesetDeleteButton
