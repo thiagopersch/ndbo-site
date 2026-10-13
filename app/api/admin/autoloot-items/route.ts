@@ -5,7 +5,7 @@ import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { buildPaginatedResult, parsePaginationParams } from "@/lib/pagination";
-import { autolootItemSchema } from "@/lib/validations/admin/autoloot-item";
+import { AUTOLOOT_CATEGORIES, autolootItemSchema } from "@/lib/validations/admin/autoloot-item";
 import { withAudit } from "@/lib/api-audit-wrapper";
 import { hasImageIdFilter } from "@/lib/entity-image-filter";
 
@@ -17,6 +17,7 @@ export const GET = withAudit(async function GET(request: Request) {
   const { page, pageSize, search } = parsePaginationParams(url);
 
   const publishedParam = url.searchParams.get("published");
+  const categoryParam = url.searchParams.get("category");
   const hasImage = await hasImageIdFilter("item", url.searchParams.get("hasImage"));
 
   const where: Prisma.AutolootItemWhereInput = {
@@ -31,13 +32,19 @@ export const GET = withAudit(async function GET(request: Request) {
     ...(publishedParam === "true" || publishedParam === "false"
       ? { published: publishedParam === "true" }
       : {}),
+    // "auto" = sem tipo forçado (o servidor classifica pelo items.xml).
+    ...(categoryParam === "auto"
+      ? { category: "" }
+      : (AUTOLOOT_CATEGORIES as readonly string[]).includes(categoryParam ?? "")
+        ? { category: categoryParam! }
+        : {}),
     ...(hasImage ? { itemId: hasImage } : {}),
   };
 
   const [autolootItems, total] = await Promise.all([
     prisma.autolootItem.findMany({
       where,
-      orderBy: { name: "asc" },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

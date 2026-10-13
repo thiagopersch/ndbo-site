@@ -72,7 +72,6 @@ const PICKER_FIELDS: FilterFieldConfig[] = [
   },
 ];
 
-const MANDATORY_FILTER_KEYS = ["type", "weaponType", "slotType"] as const;
 const BULK_BATCH_SIZE = 200;
 
 /** Lê o erro de uma resposta da API de forma robusta — primeiro JSON, depois texto puro, com o
@@ -99,26 +98,15 @@ export default function AdminAutolootItemsNewPage() {
   const [published, setPublished] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // É obrigatório escolher ao menos um dos filtros de classificação antes de buscar/exibir itens.
-  const hasRequiredFilter = MANDATORY_FILTER_KEYS.some((key) => Boolean(table.appliedFilters[key]));
-
+  // Filtros são opcionais ("Todos" = sem filtro); a busca já vem com debounce do useServerTable.
   const { data, isLoading, isValidating } = useSWR<PaginatedResult<ItemPickerRow>>(
-    hasRequiredFilter ? `/api/admin/items?${table.buildQueryParams().toString()}` : null,
+    `/api/admin/items?${table.buildQueryParams().toString()}`,
     fetcher,
   );
 
   const items = data?.data ?? [];
   const images = useEntityImages("item", items.map((item) => item.id));
   const selectedCount = Object.keys(rowSelection).length;
-
-  function handleApplyFilters() {
-    const hasMandatory = MANDATORY_FILTER_KEYS.some((key) => Boolean(table.draftFilters[key]));
-    if (!hasMandatory) {
-      toast.error("Selecione pelo menos um filtro obrigatório (Tipo, Weapon type ou Slot type).");
-      return;
-    }
-    table.applyFilters();
-  }
 
   async function handleAddToAutoloot() {
     const selectedIds = Object.entries(rowSelection)
@@ -131,7 +119,6 @@ export default function AdminAutolootItemsNewPage() {
       return;
     }
 
-    const nameById = new Map(items.map((item) => [item.id, item.name]));
     const batches: number[][] = [];
     for (let i = 0; i < selectedIds.length; i += BULK_BATCH_SIZE) {
       batches.push(selectedIds.slice(i, i + BULK_BATCH_SIZE));
@@ -146,7 +133,8 @@ export default function AdminAutolootItemsNewPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            items: batch.map((id) => ({ itemId: id, name: nameById.get(id) ?? String(id) })),
+            // O nome é resolvido no servidor a partir do cadastro de itens.
+            items: batch.map((id) => ({ itemId: id })),
             published,
           }),
         });
@@ -209,33 +197,23 @@ export default function AdminAutolootItemsNewPage() {
       <div>
         <h1 className="text-2xl font-semibold">Adicionar itens ao autoloot</h1>
         <p className="text-muted-foreground">
-          Busque e filtre os itens do cadastro, marque os desejados e adicione em lote à lista do
-          autoloot.
+          Busque por nome/ID ou use os filtros avançados (opcionais), marque os itens desejados e
+          adicione em lote à lista do autoloot.
         </p>
       </div>
 
-      {!hasRequiredFilter && (
-        <div className="flex flex-col gap-1.5 rounded-md border border-dashed p-4 text-sm">
-          <p className="font-medium">Defina ao menos um filtro de classificação para listar os itens</p>
-          <p className="text-muted-foreground">
-            Escolha um <strong>Tipo</strong>, <strong>Weapon type</strong> ou <strong>Slot type</strong>{" "}
-            nos filtros avançados (e clique em Filtrar) para carregar os itens disponíveis.
-          </p>
-        </div>
-      )}
-
       <DataTable
         columns={columns}
-        data={hasRequiredFilter ? items : []}
-        isLoading={hasRequiredFilter && isLoading}
-        isFiltering={hasRequiredFilter && !isLoading && isValidating}
+        data={items}
+        isLoading={isLoading}
+        isFiltering={!isLoading && isValidating}
         searchPlaceholder="Buscar por nome ou ID..."
         searchValue={table.searchInput}
         onSearchChange={table.handleSearchChange}
         filters={PICKER_FIELDS}
         filterValues={table.draftFilters}
         onFilterValuesChange={table.setDraftFilters}
-        onApplyFilters={handleApplyFilters}
+        onApplyFilters={table.applyFilters}
         onClearFilters={table.clearFilters}
         enableRowSelection
         rowSelection={rowSelection}

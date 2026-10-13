@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { autolootItemSchema } from "@/lib/validations/admin/autoloot-item";
+import { autolootItemUpdateSchema } from "@/lib/validations/admin/autoloot-item";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ id: string }> };
@@ -14,7 +14,7 @@ export const PATCH = withAudit(async function PATCH(request: Request, { params }
 
   const { id } = await params;
   const body = await request.json();
-  const parsed = autolootItemSchema.partial().safeParse(body);
+  const parsed = autolootItemUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }

@@ -1898,6 +1898,9 @@ model AutolootItem {
   id        Int      @id @default(autoincrement())
   itemId    Int      @unique @map("item_id")
   name      String   @db.VarChar(255)
+  /// Tipo usado no filtro/ordenação do module de autoloot do OTC. Vazio = automático (o
+  /// servidor classifica pelo items.xml em `AutolootGetCategory`, data/lib/autoloot_lib.lua).
+  category  String   @default("") @db.VarChar(20)
   published Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
