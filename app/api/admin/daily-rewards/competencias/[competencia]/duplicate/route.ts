@@ -3,7 +3,12 @@ import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/api-guard";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
-import { parseCompetenciaParam, competenciaId } from "@/lib/daily-reward-competencia";
+import {
+  bonusMilestones,
+  competenciaId,
+  daysInMonth,
+  parseCompetenciaParam,
+} from "@/lib/daily-reward-competencia";
 import { withAudit } from "@/lib/api-audit-wrapper";
 
 type Params = { params: Promise<{ competencia: string }> };
@@ -49,12 +54,31 @@ export const POST = withAudit(async function POST(_request: Request, { params }:
 
   const { month, year } = await nextFreeMonthYear(sourceMonth, sourceYear);
 
+  // O mês de destino pode ser mais curto (ex.: janeiro → fevereiro): descarta dias que não
+  // existem e move o último marco bonus (30 ↔ 28 em fevereiro) para o marco do mês de destino.
+  const maxDay = daysInMonth(year, month);
+  const sourceLastMilestone = bonusMilestones(sourceMonth).at(-1);
+  const targetLastMilestone = bonusMilestones(month).at(-1)!;
+  const usedStreakDays = new Set<number>();
+  const targetBonus = bonusRewards
+    .map((r) => ({
+      ...r,
+      streakDay: r.streakDay === sourceLastMilestone ? targetLastMilestone : r.streakDay,
+    }))
+    .filter((r) => {
+      if (r.streakDay > maxDay || usedStreakDays.has(r.streakDay)) return false;
+      usedStreakDays.add(r.streakDay);
+      return true;
+    });
+
   await prisma.$transaction([
     prisma.dailyRewardsMonthly.createMany({
-      data: rewards.map((r) => ({ month, year, day: r.day, itemId: r.itemId, clientId: r.clientId, count: r.count })),
+      data: rewards
+        .filter((r) => r.day <= maxDay)
+        .map((r) => ({ month, year, day: r.day, itemId: r.itemId, clientId: r.clientId, count: r.count })),
     }),
     prisma.dailyRewardsBonusMonthly.createMany({
-      data: bonusRewards.map((r) => ({
+      data: targetBonus.map((r) => ({
         month,
         year,
         streakDay: r.streakDay,

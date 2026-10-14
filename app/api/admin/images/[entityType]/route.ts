@@ -29,6 +29,21 @@ async function fetchLookTypeIds(entityType: EntityImageType, ids: number[]): Pro
     case "monster":
       rows = await prisma.monster.findMany({ where: { id: { in: ids } }, select: { id: true, lookTypeId: true } });
       break;
+    case "extoutfit": {
+      // Imagem enviada tem precedência sobre a sprite vinculada (wings/auras sempre têm looktype).
+      const withImage = new Set(
+        (
+          await prisma.entityImage.findMany({
+            where: { entityType: "extoutfit", entityId: { in: ids } },
+            select: { entityId: true },
+          })
+        ).map((image) => image.entityId),
+      );
+      rows = (
+        await prisma.extOutfit.findMany({ where: { id: { in: ids } }, select: { id: true, looktypeId: true } })
+      ).map((row) => ({ id: row.id, lookTypeId: withImage.has(row.id) ? null : row.looktypeId }));
+      break;
+    }
     case "post":
       return map;
   }

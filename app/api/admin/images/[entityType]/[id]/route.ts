@@ -32,6 +32,7 @@ const ENTITY_TYPE_TO_LOOKTYPE_CATEGORY: Record<EntityImageType, LooktypeCategory
   vocation: "outfit",
   spell: "effect",
   post: "item",
+  extoutfit: "outfit",
 };
 
 async function entityExists(entityType: EntityImageType, id: number): Promise<boolean> {
@@ -46,6 +47,8 @@ async function entityExists(entityType: EntityImageType, id: number): Promise<bo
       return (await prisma.vocation.findUnique({ where: { id }, select: { id: true } })) != null;
     case "post":
       return (await prisma.post.findUnique({ where: { id }, select: { id: true } })) != null;
+    case "extoutfit":
+      return (await prisma.extOutfit.findUnique({ where: { id }, select: { id: true } })) != null;
   }
 }
 
@@ -62,6 +65,9 @@ async function setLookTypeId(entityType: EntityImageType, entityId: number, look
       return;
     case "monster":
       await prisma.monster.update({ where: { id: entityId }, data: { lookTypeId } });
+      return;
+    case "extoutfit":
+      await prisma.extOutfit.update({ where: { id: entityId }, data: { looktypeId: lookTypeId } });
       return;
     case "post":
       return;
@@ -145,6 +151,8 @@ async function getEntityName(entityType: EntityImageType, id: number): Promise<s
       return (await prisma.spell.findUnique({ where: { id }, select: { name: true } }))?.name;
     case "vocation":
       return (await prisma.vocation.findUnique({ where: { id }, select: { name: true } }))?.name;
+    case "extoutfit":
+      return (await prisma.extOutfit.findUnique({ where: { id }, select: { name: true } }))?.name;
     case "post":
       return undefined;
   }
@@ -174,6 +182,14 @@ async function clearLookTypeId(entityType: EntityImageType, entityId: number): P
       return;
     case "monster":
       await prisma.monster.update({ where: { id: entityId }, data: { lookTypeId: null } });
+      return;
+    case "extoutfit":
+      // Wings/auras: o looktype é o valor do XML e nunca é limpo por troca de imagem (a imagem
+      // enviada só tem precedência no preview). Demais tipos: o vínculo é só sprite de preview.
+      await prisma.extOutfit.updateMany({
+        where: { id: entityId, kind: { notIn: ["wings", "auras"] } },
+        data: { looktypeId: null },
+      });
       return;
     case "post":
       return;
@@ -210,6 +226,18 @@ export const POST = withAudit(async function POST(request: Request, { params }: 
   }
 
   const extension = detectImageExtension(buffer);
+
+  if (!extension && entityType === "extoutfit") {
+    // Wings/auras: o looktype vinculado é o valor do XML — um `.obd` aqui criaria uma looktype nova
+    // sem número e trocaria o XML. A sprite delas vem do cadastro de looktypes.
+    const extOutfit = await prisma.extOutfit.findUnique({ where: { id: entityId }, select: { kind: true } });
+    if (extOutfit && (extOutfit.kind === "wings" || extOutfit.kind === "auras")) {
+      return NextResponse.json(
+        { error: "Para wings/auras envie PNG/GIF, ou o .obd no cadastro de looktypes e vincule a looktype." },
+        { status: 422 },
+      );
+    }
+  }
 
   if (!extension) {
     // Não é PNG/GIF — tenta como `.obd` (Object Builder, com animação) antes de rejeitar.

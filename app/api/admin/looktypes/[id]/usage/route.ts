@@ -18,12 +18,17 @@ export const GET = withAudit(async function GET(_request: Request, { params }: P
     return NextResponse.json({ error: "Looktype não encontrada." }, { status: 404 });
   }
 
-  const [npcs, vocations, monsters, items, spells] = await Promise.all([
+  const [npcs, vocations, monsters, items, spells, outfits, extOutfits] = await Promise.all([
     prisma.npc.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
     prisma.vocation.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
     prisma.monster.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
     prisma.item.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
     prisma.spell.findMany({ where: { lookTypeId: looktypeId }, select: { id: true, name: true } }),
+    prisma.outfitDefinition.findMany({
+      where: { OR: [{ maleLooktypeId: looktypeId }, { femaleLooktypeId: looktypeId }] },
+      select: { id: true, name: true },
+    }),
+    prisma.extOutfit.findMany({ where: { looktypeId }, select: { id: true, name: true, kind: true } }),
   ]);
 
   return NextResponse.json({
@@ -32,6 +37,15 @@ export const GET = withAudit(async function GET(_request: Request, { params }: P
     monsters,
     items,
     spells,
-    total: npcs.length + vocations.length + monsters.length + items.length + spells.length,
+    outfits,
+    extOutfits: extOutfits.map((entry) => ({ id: entry.id, name: `${entry.name} (${entry.kind})` })),
+    total:
+      npcs.length +
+      vocations.length +
+      monsters.length +
+      items.length +
+      spells.length +
+      outfits.length +
+      extOutfits.length,
   });
 });

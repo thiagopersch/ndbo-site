@@ -3,7 +3,8 @@
 import Link from "next/link";
 import useSWR from "swr";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil } from "lucide-react";
+import { useState } from "react";
+import { Plus, Pencil, Settings2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetcher } from "@/lib/fetcher";
@@ -46,6 +47,39 @@ export default function AdminDailyRewardsPage() {
   );
 
   const competencias = data?.competencias ?? [];
+  const [generating, setGenerating] = useState(false);
+
+  /** Gera o próximo mês sem competência a partir do padrão (o servidor também faz isso sozinho
+   * na virada do mês — aqui é para conferir/ajustar antes). */
+  async function handleGenerateNext() {
+    const taken = new Set(competencias.map((c) => competenciaId(c.year, c.month)));
+    const date = new Date();
+    let month = date.getMonth() + 1;
+    let year = date.getFullYear();
+    while (taken.has(competenciaId(year, month))) {
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+    }
+
+    setGenerating(true);
+    const response = await fetch("/api/admin/daily-rewards/competencias/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month, year }),
+    });
+    setGenerating(false);
+
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      toast.error(body?.error ?? "Não foi possível gerar.");
+      return;
+    }
+    toast.success(`${MONTH_NAMES[month - 1]}/${year} gerado a partir do padrão.`);
+    mutate();
+  }
 
   async function handleDelete(id: string) {
     const response = await fetch(`/api/admin/daily-rewards/competencias/${id}`, { method: "DELETE" });
@@ -115,18 +149,33 @@ export default function AdminDailyRewardsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Recompensas diárias</h1>
           <p className="text-muted-foreground">
             Competências de recompensas diárias e bonus (tabelas `daily_rewards_monthly` e
-            `daily_rewards_bonus_monthly`), agrupadas por mês/ano.
+            `daily_rewards_bonus_monthly`), agrupadas por mês/ano. Meses sem competência são gerados
+            pelo servidor a partir do padrão na virada do mês.
           </p>
         </div>
-        <Button nativeButton={false} render={<Link href="/admin/daily-rewards/new" />}>
-          <Plus className="size-4" />
-          Nova competência
-        </Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/admin/daily-rewards/default" />}
+          >
+            <Settings2 className="size-4" />
+            Padrão do mês
+          </Button>
+          <Button variant="outline" onClick={handleGenerateNext} disabled={generating || isLoading}>
+            <Sparkles className="size-4" />
+            {generating ? "Gerando..." : "Gerar próximo mês"}
+          </Button>
+          <Button nativeButton={false} render={<Link href="/admin/daily-rewards/new" />}>
+            <Plus className="size-4" />
+            Nova competência
+          </Button>
+        </div>
       </div>
 
       <DataTable columns={columns} data={competencias} isLoading={isLoading} />

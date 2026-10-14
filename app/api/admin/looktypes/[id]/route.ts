@@ -90,6 +90,21 @@ export const DELETE = withAudit(async function DELETE(_request: Request, { param
   if (response) return response;
 
   const { id } = await params;
+  // Outfits/extoutfits referenciam a looktype com FK restrita — responde 409 em vez de deixar o
+  // `delete` estourar na constraint.
+  const [outfitLinks, extOutfitLinks] = await Promise.all([
+    prisma.outfitDefinition.count({
+      where: { OR: [{ maleLooktypeId: Number(id) }, { femaleLooktypeId: Number(id) }] },
+    }),
+    prisma.extOutfit.count({ where: { looktypeId: Number(id) } }),
+  ]);
+  if (outfitLinks + extOutfitLinks > 0) {
+    return NextResponse.json(
+      { error: "Looktype vinculada a outfits/extoutfits — remova o vínculo antes de excluir." },
+      { status: 409 },
+    );
+  }
+
   await prisma.looktype.delete({ where: { id: Number(id) } });
   await fs.rm(looktypeFrameDirPath(Number(id)), { recursive: true, force: true });
 

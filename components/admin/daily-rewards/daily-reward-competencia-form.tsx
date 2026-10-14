@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -11,7 +13,7 @@ import {
   MAX_DAILY_REWARD_BONUS_ENTRIES,
   type DailyRewardCompetenciaInput,
 } from "@/lib/validations/admin/daily-reward";
-import { competenciaId } from "@/lib/daily-reward-competencia";
+import { bonusMilestones, competenciaId, daysInMonth } from "@/lib/daily-reward-competencia";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,6 +35,31 @@ export function DailyRewardCompetenciaForm({
     resolver: zodResolver(dailyRewardCompetenciaSchema),
     defaultValues: initialValues ?? defaultDailyRewardCompetenciaValues,
   });
+
+  const [filling, setFilling] = useState(false);
+  const month = form.watch("month");
+  const year = form.watch("year");
+  const maxDay = month && year ? daysInMonth(year, month) : 31;
+
+  /** Sorteia as recompensas do mês a partir do padrão (substitui as atuais do formulário). */
+  async function handleFillFromDefault() {
+    setFilling(true);
+    const response = await fetch("/api/admin/daily-rewards/competencias/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month, year, dryRun: true }),
+    });
+    setFilling(false);
+
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      toast.error(body?.error ?? "Não foi possível gerar a partir do padrão.");
+      return;
+    }
+    form.setValue("rewards", body.rewards, { shouldDirty: true });
+    form.setValue("bonusRewards", body.bonusRewards, { shouldDirty: true });
+    toast.success("Recompensas preenchidas a partir do padrão — revise e salve.");
+  }
 
   async function handleSubmit(values: DailyRewardCompetenciaInput) {
     const response = await fetch(
@@ -80,6 +107,22 @@ export function DailyRewardCompetenciaForm({
           </TabsContent>
 
           <TabsContent value="rewards" className="flex flex-col gap-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">
+                {maxDay} dias neste mês · marcos bonus padrão: {bonusMilestones(month).join(", ")}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleFillFromDefault}
+                disabled={filling}
+              >
+                <Sparkles className="size-4" />
+                {filling ? "Gerando..." : "Preencher com padrão"}
+              </Button>
+            </div>
+
             <div>
               <h3 className="mb-2 text-sm font-semibold">Recompensas diárias</h3>
               <DailyRewardEntryListField
@@ -87,7 +130,7 @@ export function DailyRewardCompetenciaForm({
                 name="rewards"
                 dayField="day"
                 dayLabel="Dia"
-                dayMax={31}
+                dayMax={maxDay}
                 emptyLabel="Nenhuma recompensa diária cadastrada."
                 addLabel="Adicionar recompensa"
               />
@@ -104,7 +147,7 @@ export function DailyRewardCompetenciaForm({
                 name="bonusRewards"
                 dayField="streakDay"
                 dayLabel="Sequência de"
-                dayMax={31}
+                dayMax={maxDay}
                 emptyLabel="Nenhuma recompensa bonus cadastrada."
                 addLabel="Adicionar recompensa bonus"
                 maxEntries={MAX_DAILY_REWARD_BONUS_ENTRIES}

@@ -15,3 +15,15 @@ export function parseCompetenciaParam(param: string): { year: number; month: num
 export function competenciaId(year: number, month: number): string {
   return `${year}-${month}`;
 }
+
+/** Dias do mês (fevereiro com 28/29). Mesmo cálculo de `DailyReward.getDaysInMonth` no servidor. */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+/** Marcos de dias consecutivos das recompensas bonus. Fevereiro não chega a 30 dias, então o
+ * último marco fica no dia 28 (inclusive em ano bissexto) — espelha
+ * `DailyReward.getBonusMilestones` em `server/data/lib/daily_reward.lua`. */
+export function bonusMilestones(month: number): number[] {
+  return [5, 10, 15, 20, 25, month === 2 ? 28 : 30];
+}

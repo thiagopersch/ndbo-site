@@ -92,7 +92,7 @@ export default function AdminLooktypesPage() {
 
       if (responseData.skippedCount > 0) {
         toast.success(`${responseData.deletedCount} sprite(s) removida(s).`);
-        toast.error(`${responseData.skippedCount} não foram removidas por estarem vinculadas a algo (item/monstro/npc/vocação/spell).`);
+        toast.error(`${responseData.skippedCount} não foram removidas por estarem vinculadas a algo (item/monstro/npc/vocação/spell/outfit).`);
       } else {
         toast.success(`${responseData.deletedCount} sprite(s) removida(s).`);
       }
@@ -145,7 +145,8 @@ export default function AdminLooktypesPage() {
   async function handleDelete(id: number) {
     const response = await fetch(`/api/admin/looktypes/${id}`, { method: "DELETE" });
     if (!response.ok) {
-      toast.error("Não foi possível remover.");
+      const responseData = await response.json().catch(() => null);
+      toast.error(responseData?.error ?? "Não foi possível remover.");
       return;
     }
     toast.success("Removido.");
@@ -260,7 +261,7 @@ export default function AdminLooktypesPage() {
                   </Button>
                 }
                 title="Excluir sprites selecionadas"
-                description={`Isso vai remover ${selectedIds.size} sprite(s) (registro e frames em disco). Looktypes vinculados a algo (item/monstro/npc/vocação/spell) são pulados automaticamente. Esta ação não pode ser desfeita.`}
+                description={`Isso vai remover ${selectedIds.size} sprite(s) (registro e frames em disco). Looktypes vinculados a algo (item/monstro/npc/vocação/spell/outfit) são pulados automaticamente. Esta ação não pode ser desfeita.`}
                 confirmLabel="Excluir"
                 onConfirm={handleBulkDelete}
               />

@@ -14,6 +14,8 @@ type UsageResponse = {
   monsters: UsageEntry[];
   items: UsageEntry[];
   spells: UsageEntry[];
+  outfits?: UsageEntry[];
+  extOutfits?: UsageEntry[];
   total: number;
 };
 
@@ -54,6 +56,8 @@ export function LooktypeUsagePanel({ looktypeId }: { looktypeId: number }) {
             <UsageGroup label="Monstros" entries={data.monsters} />
             <UsageGroup label="Items" entries={data.items} />
             <UsageGroup label="Spells" entries={data.spells} />
+            <UsageGroup label="Outfits (outfits.xml)" entries={data.outfits} />
+            <UsageGroup label="Extoutfits (extoutfits.xml)" entries={data.extOutfits} />
           </div>
         )}
       </CollapsiblePanel>

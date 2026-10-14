@@ -651,6 +651,61 @@ model PlayerDailyRewardBonus {
   @@map("player_daily_reward_bonus")
 }
 
+/// Padrão de recompensas diárias (`/admin/daily-rewards/default`) — o servidor
+/// (`data/lib/daily_reward.lua`) gera o calendário de cada mês a partir deste pool quando o
+/// mês ainda não foi configurado. `kind` = "daily" (com `rarity`) ou "bonus" (sem raridade).
+model DailyRewardDefaultItem {
+  id        Int      @id @default(autoincrement())
+  kind      String   @default("daily") @db.VarChar(10)
+  rarity    String?  @db.VarChar(20)
+  itemId    Int      @map("item_id")
+  clientId  Int      @default(0) @map("client_id")
+  count     Int      @default(1)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([kind], map: "daily_reward_default_items_kind_idx")
+  @@map("daily_reward_default_items")
+}
+
+/// Peso de sorteio de cada raridade no padrão de recompensas diárias.
+model DailyRewardRarityWeight {
+  rarity String @id @db.VarChar(20)
+  weight Int    @default(0)
+
+  @@map("daily_reward_rarity_weights")
+}
+
+/// Outfits (do catálogo `custom_outfits`) cujo item é sorteado ao resgatar uma recompensa bonus.
+model DailyRewardDefaultOutfit {
+  id             Int @id @default(autoincrement())
+  customOutfitId Int @unique(map: "daily_reward_default_outfits_custom_outfit_id_key") @map("custom_outfit_id")
+
+  customOutfit CustomOutfit @relation(fields: [customOutfitId], references: [id], onDelete: Cascade)
+
+  @@map("daily_reward_default_outfits")
+}
+
+/// Outfit customizado (`/admin/custom-outfits`): usar o item `itemId` libera o looktype para
+/// sempre, para qualquer vocação. O portal gera o bloco CUSTOM_OUTFITS em
+/// `data/XML/outfits.xml` (storageId = 61000 + id) e `data/actions/actions.xml`
+/// (`custom_outfit_unlock.lua`) — ver `lib/custom-outfit-sync.ts` e `data/lib/custom_outfits.lua`.
+model CustomOutfit {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(60)
+  lookType  Int      @map("look_type")
+  itemId    Int      @unique(map: "custom_outfits_item_id_key") @map("item_id")
+  clientId  Int      @default(0) @map("client_id")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  dailyRewardOutfits DailyRewardDefaultOutfit[]
+
+  @@map("custom_outfits")
+}
+
 model PlayerSkillPoints {
   playerId            Int @map("player_id")
   vocationId          Int @map("vocation_id")
@@ -1711,12 +1766,80 @@ model Looktype {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
+  outfitsMale      OutfitDefinition[] @relation("OutfitMaleLooktype")
+  outfitsFemale    OutfitDefinition[] @relation("OutfitFemaleLooktype")
+  extOutfits       ExtOutfit[]
+
   /// Evita duas sprites com o mesmo nome dentro da mesma categoria (item/outfit/effect/missile) —
   /// nomes iguais em categorias diferentes são permitidos. (Não há índice único equivalente para
   /// `looktypeNumber`: a base já tinha duplicatas legadas em "outfit" quando essa regra foi
   /// introduzida — a checagem de número é feita em aplicação, ver `POST /api/admin/looktypes`.)
   @@unique([category, name])
   @@map("looktypes")
+}
+
+/// Uma `<outfit>` do `server/data/XML/outfits.xml`. `id` é o próprio id da outfit no XML (não
+/// autoincrement, mesmo padrão de `Item`). As aparências vêm do cadastro de looktypes
+/// (`/admin/looktypes`, category="outfit") — o XML exportado usa o `looktypeNumber` delas.
+model OutfitDefinition {
+  id               Int      @id
+  name             String   @db.VarChar(100)
+  type             Int      @default(0)
+  premium          Boolean  @default(false)
+  /// Vazio = outfit liberada sem storage (atributo omitido no XML).
+  storageId        String?  @map("storage_id") @db.VarChar(20)
+  storageValue     String?  @map("storage_value") @db.VarChar(20)
+  /// `<list gender="1">` — looktypes.id.
+  maleLooktypeId   Int      @map("male_looktype_id")
+  /// `<list gender="0">` — looktypes.id.
+  femaleLooktypeId Int      @map("female_looktype_id")
+  /// items.id do item que libera a outfit ao ser usado (gera `outfit_item_unlock.lua`). Sem FK:
+  /// o cadastro de items é reimportado do items.xml.
+  unlockItemId     Int?     @map("unlock_item_id")
+  /// Atributos de `<outfit>` não modelados acima (ex.: access, quest, default), preservados no
+  /// round-trip import -> export.
+  extraAttributes  Json?    @map("extra_attributes")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  maleLooktype     Looktype @relation("OutfitMaleLooktype", fields: [maleLooktypeId], references: [id], onDelete: Restrict)
+  femaleLooktype   Looktype @relation("OutfitFemaleLooktype", fields: [femaleLooktypeId], references: [id], onDelete: Restrict)
+
+  @@index([unlockItemId])
+  @@map("outfit_definitions")
+}
+
+/// Uma entrada do `server/data/XML/extoutfits.xml` (lido por `data/lib/extoutfit_parser.lua`).
+/// `kind` = tag do XML (wings|auras|shaders|healthbars|manabars); `xmlId` = atributo `id`, único
+/// por kind. Wings/auras usam `looktypeId` (cadastro de looktypes), shaders `shaderName` e
+/// healthbars/manabars `image`.
+model ExtOutfit {
+  id         Int       @id @default(autoincrement())
+  kind       String    @db.VarChar(20)
+  xmlId      Int       @map("xml_id")
+  name       String    @db.VarChar(100)
+  looktypeId Int?      @map("looktype_id")
+  shaderName String?   @map("shader_name") @db.VarChar(100)
+  image      String?   @db.VarChar(255)
+  posx       Int?
+  posy       Int?
+  /// Só kind=shaders: conteúdo do `.frag` (fragment) enviado pelo admin — guardado no portal para
+  /// preview WebGL e download; o cliente continua lendo de `cliente/data/shaders`.
+  shaderSource       String?   @map("shader_source") @db.MediumText
+  /// Vertex opcional (vazio = `outfit_default_vertex`, padrão de `createOutfitShader`).
+  shaderVertexSource String?   @map("shader_vertex_source") @db.MediumText
+  shaderFileName     String?   @map("shader_file_name") @db.VarChar(120)
+  /// Extensão da textura extra `u_Tex1` (`public/storage/extoutfit-shader-tex/{id}.{ext}`); null = sem.
+  shaderTex1Ext      String?   @map("shader_tex1_ext") @db.VarChar(10)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  /// Wings/auras: looktype do XML (obrigatória). Demais tipos: sprite de preview opcional (não vai
+  /// para o XML).
+  looktype   Looktype? @relation(fields: [looktypeId], references: [id], onDelete: Restrict)
+
+  @@unique([kind, xmlId])
+  @@map("ext_outfits")
 }
 
 /// Uma temporada mensal do Battle Pass. O servidor Lua lê a temporada com `isActive = true`

@@ -24,6 +24,8 @@ type XmlImportDialogProps = {
   replaceLabel: string;
   itemLabel: string;
   onImported: () => void;
+  /** Mensagem de sucesso customizada a partir da resposta da rota (default: "N importado(s)"). */
+  formatSuccess?: (data: { imported: number; skipped?: number } & Record<string, unknown>) => string;
 };
 
 export function XmlImportDialog({
@@ -33,6 +35,7 @@ export function XmlImportDialog({
   replaceLabel,
   itemLabel,
   onImported,
+  formatSuccess,
 }: XmlImportDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,7 +71,9 @@ export function XmlImportDialog({
     }
 
     toast.success(
-      `${data.imported} ${itemLabel} importado(s)${data.skipped ? `, ${data.skipped} ignorado(s)` : ""}.`
+      formatSuccess
+        ? formatSuccess(data)
+        : `${data.imported} ${itemLabel} importado(s)${data.skipped ? `, ${data.skipped} ignorado(s)` : ""}.`
     );
 
     if (data.errors?.length) {

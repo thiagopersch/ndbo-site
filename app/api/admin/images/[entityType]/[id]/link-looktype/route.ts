@@ -24,6 +24,8 @@ async function entityExists(entityType: EntityImageType, id: number): Promise<bo
       return (await prisma.vocation.findUnique({ where: { id }, select: { id: true } })) != null;
     case "post":
       return (await prisma.post.findUnique({ where: { id }, select: { id: true } })) != null;
+    case "extoutfit":
+      return (await prisma.extOutfit.findUnique({ where: { id }, select: { id: true } })) != null;
   }
 }
 
@@ -60,6 +62,14 @@ async function linkEntityToLooktype(
       if (looktype.looktypeNumber !== null) {
         await prisma.monster.update({ where: { id: entityId }, data: { lookType: looktype.looktypeNumber } });
       }
+      return;
+    case "extoutfit":
+      await prisma.extOutfit.update({ where: { id: entityId }, data: { looktypeId: looktype.id } });
+      // Extoutfit dá precedência à imagem enviada sobre a sprite (ver `fetchLookTypeIds` em
+      // `images/[entityType]/route.ts`) — o snapshot estático copiado acima esconderia a sprite
+      // animada recém-vinculada, então ele é descartado aqui.
+      await prisma.entityImage.deleteMany({ where: { entityType: "extoutfit", entityId } });
+      await unlinkIfExists(entityImageStoragePath("extoutfit", entityId, "png"));
       return;
     case "post":
       return;
