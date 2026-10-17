@@ -14,7 +14,7 @@ npm run up
 
 Esse comando faz, em sequência:
 
-1. Sobe o MySQL via Docker (`docker/docker-compose.yml`) e espera ficar saudável.
+1. Sobe o MySQL via Docker (serviço `db` do `../compose.yaml`) e espera ficar saudável.
 2. Sincroniza o schema do Prisma com o banco (`prisma db push`).
 3. Popula o banco com dados iniciais (`prisma/seed.ts`): conta `1`/`1` (Account Manager,
    compatível com o cliente de jogo) e conta admin do portal (grupo 6 — administrador
@@ -22,7 +22,8 @@ Esse comando faz, em sequência:
 4. Inicia a aplicação em `npm run dev` (http://localhost:3000).
 
 Pressione `Ctrl+C` para encerrar a aplicação (o container do banco continua rodando; use
-`docker compose -f docker/docker-compose.yml down` para derrubá-lo).
+`docker compose -f ../compose.yaml stop db` para derrubá-lo). Para subir tudo (banco, site e
+servidor) em containers, veja `../README-docker.md`.
 
 ## Comandos individuais
 

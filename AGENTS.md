@@ -843,7 +843,7 @@ model MonsterBoost {
 Utilizar Docker para empacotar o projeto em contêineres:
 
 - **Dockerfile**: Dockerfile multi-estágio para build otimizado da aplicação Next.js em produção (`node:20-alpine`).
-- **Docker Compose**: Um arquivo `docker-compose.yml` contendo:
+- **Docker Compose**: O `compose.yaml` na raiz do projeto (`../compose.yaml`, ver `../README-docker.md`) contendo:
   - Serviço Next.js (`ndbo-web`).
   - Serviço MySQL (`ndbo-db`) com volume persistente para sincronia com o banco de dados do OTSERVER.
 - Se iniciar o projeto deve matar ele para o usuário validar manualmente após a validação

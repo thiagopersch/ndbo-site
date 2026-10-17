@@ -99,7 +99,8 @@ async function main() {
 
   console.log('Seed concluído.');
   console.log(
-    `  Conta admin: name="${adminName}" senha="${adminPassword}" (group_id=6)`,
+    // a senha não vai para o log (os logs do Docker ficam visíveis no terminal do start)
+    `  Conta admin: name="${adminName}" senha=SEED_ADMIN_PASSWORD (group_id=6)`,
   );
 }
 

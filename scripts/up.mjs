@@ -22,7 +22,8 @@ function run(command, args) {
 }
 
 step("Subindo banco de dados MySQL (Docker)...");
-run("docker", ["compose", "-f", "docker/docker-compose.yml", "up", "-d", "--wait", "ndbo-db"]);
+// banco definido no compose.yaml da raiz do projeto (mesmo volume do stack completo)
+run("docker", ["compose", "-f", "../compose.yaml", "up", "-d", "--wait", "db"]);
 
 step("Sincronizando schema do Prisma com o banco...");
 run("npx", ["prisma", "db", "push"]);
